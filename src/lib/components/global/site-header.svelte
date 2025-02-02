@@ -9,7 +9,7 @@
     const isDesktopMode = $state(new MediaQuery("(min-width: 1024px)"));
 </script>
 
-<header class="flex justify-center items-center sticky top-0 w-full z-50 border-border border-b bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur">
+<header class="flex w-full h-16 sticky top-0 border-border border-b custom-bg-blur">
     <div class="content-sizing flex gap-3 items-center">
 
         {#if !isDesktopMode.current}
@@ -22,12 +22,16 @@
                     <p>this is the menu</p>
                 {/snippet}
             </ResponsiveDialog>
+        {:else}
+            <a href="/" aria-label="logo and home link">
+                <span class="rs-font text-primary text-xl">osrs-ge-skiller</span>
+            </a>
         {/if}
 
-        <Button variant="ghost" size="icon" class="ml-auto" href="">
+        <a href="https://github.com/JaidenDeChon/osrs-ge-skiller-v2" class={['ml-auto w-10 h-10', buttonVariants({ variant: 'ghost'})]}>
             <SiGithub />
             <span class="sr-only">View source on Github</span>
-        </Button>
+        </a>
 
         <Button variant="ghost" size="icon" onclick={toggleMode}>
             <Sun class="dark:scale-0" />

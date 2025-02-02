@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  @font-face {
+    font-family: 'RuneScape';
+    src: url('/fonts/runescape.ttf') format('truetype');
+    font-display: swap;
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 20 14.3% 4.1%;
@@ -59,17 +65,25 @@
 
 @layer utilities {
   /*
-    .content-sizing class helps size content appropriately. Handles content width and padding.
-    Use on outer parent.
+   * Helps size content appropriately. Handles content width and padding. Use on outer parents.
    */
   .content-sizing {
     width: 100%;
-    @apply w-full max-w-5xl py-3 px-3;
+    @apply w-full max-w-5xl py-3 px-8 mx-auto;
   }
 
-  @media (min-width: 1024px) {
-    .content-sizing {
-      @apply px-0;
-    }
+  /**
+   * Applies a background blur to the element.
+   */
+  .custom-bg-blur {
+    @apply bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur;
+  }
+
+  /**
+   * Applies the OSRS RuneScape font to the element.
+   */
+  .rs-font {
+    font-family: 'RuneScape', monospace;
+    text-shadow: .063rem .063rem black;
   }
 }

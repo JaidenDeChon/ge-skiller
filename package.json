@@ -30,6 +30,7 @@
 		"globals": "^15.14.0",
 		"lucide-svelte": "^0.474.0",
 		"mode-watcher": "^0.5.1",
+		"sass-embedded": "^1.83.4",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"svelte-sonner": "^0.3.28",
