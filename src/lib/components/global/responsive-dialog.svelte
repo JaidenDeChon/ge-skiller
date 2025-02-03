@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
     import { MediaQuery } from 'svelte/reactivity';
-    import * as Dialog from '@/components/ui/dialog';
-    import * as Drawer from '@/components/ui/drawer';
+    import * as Dialog from '$lib/components/ui/dialog';
+    import * as Drawer from '$lib/components/ui/drawer';
 
     interface Props {
       title: string;

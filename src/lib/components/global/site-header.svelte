@@ -3,7 +3,7 @@
     import { Menu, Sun, Moon } from 'lucide-svelte';
     import { SiGithub } from '@icons-pack/svelte-simple-icons';
     import { toggleMode } from "mode-watcher";
-    import { Button, buttonVariants } from '@/components/ui/button';
+    import { Button, buttonVariants } from '$lib/components/ui/button';
     import ResponsiveDialog from './responsive-dialog.svelte';
 
     const isDesktopMode = $state(new MediaQuery("(min-width: 1024px)"));

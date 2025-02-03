@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { buttonVariants } from '@/components/ui/button';
+    import { buttonVariants } from '$lib/components/ui/button';
     import ResponsiveDialog from '../global/responsive-dialog.svelte';
 
     const ctaText = 'Enter your skill levels';
