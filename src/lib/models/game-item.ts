@@ -1,12 +1,10 @@
-import type { InGameSkillNames } from '$lib/constants/enums/in-game-skill-names';
-
 /**
  * Represents the amount of experience in a given skill awarded for creating an item.
  * @property skillName - The name of the skill in which experience is awarded.
  * @property experienceAmount - The amount of experience awarded.
  */
 export type GameItemCreationExperienceGranted = {
-    skillName: InGameSkillNames;
+    skillName: string;
     experienceAmount: number;
 }
 
@@ -16,7 +14,7 @@ export type GameItemCreationExperienceGranted = {
  * @property skillLevel - The level of the required skill.
  */
 export type SkillLevelDesignation = {
-    skillName: InGameSkillNames;
+    skillName: string;
     skillLevel: number;
 }
 
@@ -89,6 +87,6 @@ export type GameItemsByCategory = {
  * @property categories - The list of categories under this skill.
  */
 export type GameItemsBySkill = {
-    skillName: InGameSkillNames;
+    skillName: string;
     categories: GameItemsByCategory[];
 };

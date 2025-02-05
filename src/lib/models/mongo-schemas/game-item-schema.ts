@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { InGameSkillNames } from '$lib/constants/enums/in-game-skill-names';
 import type { GameItemCreationSpecs } from '$lib/models/game-item';
 
 export interface IGameItem {
@@ -40,13 +39,13 @@ export const gameItemSchema = new mongoose.Schema<IGameItem>({
     creationSpecs: {
         experienceGranted: [
             {
-                skillName: { type: String, enum: InGameSkillNames },
+                skillName: String,
                 experienceAmount: Number
             }
         ],
         requiredSkills: [
             {
-                skillName: { type: String, enum: InGameSkillNames },
+                skillName: String,
                 skillLevel: Number
             }
         ],
