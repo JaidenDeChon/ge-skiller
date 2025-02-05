@@ -5,9 +5,9 @@
     const ctaText = 'Enter your skill levels';
 </script>
 
-<div class="hero h-screen py-16 -mt-16">
+<div class="hero py-3">
     <div class="content-sizing flex flex-col justify-center items-start gap-12 my-12">
-        <h1 class="rs-font text-6xl text-primary">Welcome!</h1>
+        <h1 class="rs-font text-6xl text-primary">👋 Welcome to osrs-ge-skiller!</h1>
         <div class="text-lg flex flex-col gap-4">
             <p>
                 <span class="rs-font text-primary text-xl">osrs-ge-skiller</span>
