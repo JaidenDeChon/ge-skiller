@@ -22,7 +22,7 @@
 		"@tailwindcss/forms": "^0.5.10",
 		"@tailwindcss/typography": "^0.5.16",
 		"autoprefixer": "^10.4.20",
-		"bits-ui": "1.0.0-next.78",
+		"bits-ui": "1.0.0-next.86",
 		"clsx": "^2.1.1",
 		"eslint": "^9.18.0",
 		"eslint-plugin-svelte": "^2.46.1",
@@ -48,6 +48,8 @@
 	"packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0",
 	"dependencies": {
 		"@icons-pack/svelte-simple-icons": "^4.0.1",
-		"mongoose": "^8.9.6"
+		"bson": "^6.10.2",
+		"mongoose": "^8.9.6",
+		"svelte-persisted-store": "^0.12.0"
 	}
 }
