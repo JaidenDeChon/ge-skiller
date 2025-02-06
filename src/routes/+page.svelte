@@ -2,6 +2,7 @@
     import * as Accordion from '$lib/components/ui/accordion';
     import * as Card from '$lib/components/ui/card';
     import SiteHero from '$lib/components/homepage/site-hero.svelte';
+    import ItemCard from '$lib/components/global/item-card.svelte';
     import type { PageData } from './$types';
 
     export let data: PageData;
@@ -13,27 +14,29 @@
 
 <SiteHero />
 
-<div class="content-sizing flex flex-col gap-8 px-8">
+<div class="content-sizing">
+    <!-- For each skill... -->
     {#each data.gameItemsBySkill as skill}
-
-        <Card.Root class="w-full">
-            <Card.Header>
-                <Card.Title class="capitalize text-primary">{skill.skillName}</Card.Title>
-            </Card.Header>
-            <Card.Content>
-                {#each getCategoriesOfSkill(skill.skillName) as category}
-                    <Accordion.Root type="multiple" class="w-full">
-                        <Accordion.Item value={category.categoryName}>
-                            <Accordion.Trigger>{category.categoryName}</Accordion.Trigger>
-                            <Accordion.Content>
+        <div class="my-12">
+            <!-- Skill name. -->
+            <h3 class="capitalize text-primary">{skill.skillName}</h3>
+            <!-- For each category of items in skill... -->
+            {#each getCategoriesOfSkill(skill.skillName) as category}
+                <!-- Accordion -->
+                <Accordion.Root type="multiple" class="w-full">
+                    <Accordion.Item value={category.categoryName}>
+                        <Accordion.Trigger>{category.categoryName}</Accordion.Trigger>
+                        <Accordion.Content>
+                            <div class="flex flex-col gap-3">
+                                <!-- For each item in category... -->
                                 {#each category.items as item}
-                                    <p>{item.name}</p>
+                                    <ItemCard {item} />
                                 {/each}
-                            </Accordion.Content>
-                        </Accordion.Item>
-                    </Accordion.Root>
-                {/each}
-            </Card.Content>
-        </Card.Root>
+                            </div>
+                        </Accordion.Content>
+                    </Accordion.Item>
+                </Accordion.Root>
+            {/each}
+        </div>
     {/each}
 </div>
