@@ -5,14 +5,15 @@
     import * as Drawer from '$lib/components/ui/drawer';
 
     interface Props {
-      title: string;
-      description?: string;
-      trigger: Snippet;
-      content: Snippet;
-      triggerClass?: string;
+        trigger: Snippet;
+        content: Snippet;
+        title?: string;
+        description?: string;
+        triggerClass?: string;
+        contentClass?: string;
     }
 
-    let { title, description, trigger, content, triggerClass }: Props = $props();
+    let { trigger, content, title, description, triggerClass, contentClass }: Props = $props();
 
     let open = $state(false);
     const isDesktopMode = new MediaQuery("(min-width: 1024px)");
@@ -25,12 +26,14 @@
             {@render trigger()}
         </Dialog.Trigger>
 
-        <Dialog.Content>
+        <Dialog.Content class={contentClass}>
 
-            <Dialog.Header>
-                <Dialog.Title>{title}</Dialog.Title>
-                <Dialog.Description>{description}</Dialog.Description>
-            </Dialog.Header>
+            {#if title || description}
+                <Dialog.Header>
+                    <Dialog.Title>{title}</Dialog.Title>
+                    <Dialog.Description>{description}</Dialog.Description>
+                </Dialog.Header>
+            {/if}
 
             {@render content()}
 
