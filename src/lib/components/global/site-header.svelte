@@ -5,7 +5,8 @@
     import { Menu, Sun, Moon } from 'lucide-svelte';
     import { SiGithub } from '@icons-pack/svelte-simple-icons';
     import { toggleMode } from "mode-watcher";
-    import { Button, buttonVariants } from '$lib/components/ui/button';
+    import { buttonVariants } from '$lib/components/ui/button';
+    import * as Tooltip from '$lib/components/ui/tooltip';
 
     const isDesktopMode = $state(new MediaQuery("(min-width: 1024px)"));
 </script>
@@ -14,7 +15,7 @@
     <div class="content-sizing flex gap-3 items-center">
 
         {#if !isDesktopMode.current}
-            <ResponsiveDialog title="Menu" triggerClass={buttonVariants({ variant: "ghost" })}>
+            <ResponsiveDialog title="Menu" triggerClass={buttonVariants({ class: 'text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors' })}>
                 {#snippet trigger()}
                     <Menu />
                 {/snippet}
@@ -31,7 +32,7 @@
 
         <!-- Button that looks like search bar -- opens command modal -->
         <ResponsiveDialog
-            triggerClass="mx-auto h-10 w-full max-w-72 flex items-center justify-start text-xs text-muted-foreground px-3 py-2 border border-input rounded-md bg-background/45 hover:text-foreground hover:bg-muted/55 transition-colors"
+            triggerClass="mx-auto h-10 w-full max-w-72 flex items-center justify-start text-xs text-muted-foreground px-3 py-2 border border-input rounded-md bg-background/70 hover:text-foreground hover:bg-muted/55 transition-colors"
             contentClass="p-0"
         >
             {#snippet trigger()}
@@ -52,18 +53,35 @@
             {/snippet}
         </ResponsiveDialog>
 
-        <a
-            href="https://github.com/JaidenDeChon/osrs-ge-skiller-v2"
-            class={['w-10 min-w-10 h-10', buttonVariants({ variant: 'ghost'})]}
-        >
-            <SiGithub />
-            <span class="sr-only">View source on Github</span>
-        </a>
+        <Tooltip.Provider>
+            <Tooltip.Root>
+                <Tooltip.Trigger class={['w-10 min-w-10 h-10 !p-0', buttonVariants({ class: 'text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors'})]}>
+                    <a
+                        class="h-full w-full flex items-center justify-center"
+                        href="https://github.com/JaidenDeChon/osrs-ge-skiller-v2"
+                        target="_blank"
+                    >
+                        <SiGithub />
+                        <span class="sr-only">View source on Github</span>
+                    </a>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                    <p>View source on GitHub</p>
+                </Tooltip.Content>
+            </Tooltip.Root>
+        </Tooltip.Provider>
 
-        <Button variant="ghost" size="icon" onclick={toggleMode} class="min-w-10">
-            <Sun class="dark:scale-0" />
-            <Moon class="absolute scale-0 dark:scale-100" />
-            <span class="sr-only">Toggle theme</span>
-        </Button>
+        <Tooltip.Provider>
+            <Tooltip.Root>
+                <Tooltip.Trigger class={['w-10 min-w-10 h-10', buttonVariants({ class: 'text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors'})]} onclick={toggleMode}>
+                    <Sun class="dark:scale-0" />
+                    <Moon class="absolute scale-0 dark:scale-100" />
+                    <span class="sr-only">Toggle theme</span>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                    <p>Toggle theme</p>
+                </Tooltip.Content>
+            </Tooltip.Root>
+        </Tooltip.Provider>
     </div>
 </header>
