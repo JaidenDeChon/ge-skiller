@@ -26,7 +26,7 @@
             </ResponsiveDialog>
         {:else}
             <a href="/" aria-label="logo and home link">
-                <span class="rs-font text-primary text-xl">osrs-ge-skiller</span>
+                <span class="rs-font-with-shadow text-primary text-xl">osrs-skillionaire</span>
             </a>
         {/if}
 
