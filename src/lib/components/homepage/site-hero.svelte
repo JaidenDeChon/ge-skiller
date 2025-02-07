@@ -5,15 +5,15 @@
     const ctaText = 'Enter your skill levels';
 </script>
 
-<div class="hero py-3">
-    <div class="content-sizing flex flex-col justify-center items-start gap-6 my-12">
-        <div class="flex flex-col font-black bg-gradient-to-r from-primary to-foreground text-transparent bg-clip-text">
-            <h1 class="text-2xl">osrs-</h1>
-            <h1 class="text-5xl font-black bg-gradient-to-r from-primary to-foreground text-transparent bg-clip-text">
+<div class="hero py-32">
+    <div class="content-sizing flex flex-col justify-center items-start gap-6">
+        <div class="flex flex-col font-black bg-gradient-to-r from-primary to-yellow-600 text-transparent bg-clip-text">
+            <h1 class="text-2xl md:text-3xl">osrs-</h1>
+            <h1 class="text-5xl md:text-6xl font-black bg-gradient-to-r from-primary to-yellow-600 text-transparent bg-clip-text">
                 skillionaire
             </h1>
         </div>
-        <div class="text-lg flex flex-col gap-4">
+        <div class="text-lg flex flex-col gap-1">
             <p>
                 Find the most profitable items you can make with
                 <strong>your levels</strong>.
