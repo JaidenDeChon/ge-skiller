@@ -59,7 +59,7 @@
         @apply border-border;
     }
     body {
-        @apply bg-background text-foreground transition-colors;
+        @apply bg-background text-foreground transition-colors font-sans;
     }
 }
 
@@ -84,6 +84,10 @@
      */
     .rs-font {
         font-family: 'RuneScape', monospace;
+    }
+
+    .rs-font-with-shadow {
+        @apply rs-font;
         text-shadow: .063rem .063rem black;
     }
 }

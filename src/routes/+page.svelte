@@ -3,6 +3,7 @@
     import * as Card from '$lib/components/ui/card';
     import SiteHero from '$lib/components/homepage/site-hero.svelte';
     import ItemCard from '$lib/components/global/item-card.svelte';
+    import ContentToolbar from '$lib/components/global/content-toolbar.svelte';
     import type { PageData } from './$types';
 
     export let data: PageData;
@@ -13,6 +14,8 @@
 </script>
 
 <SiteHero />
+
+<ContentToolbar />
 
 <div class="content-sizing">
     <!-- For each skill... -->
