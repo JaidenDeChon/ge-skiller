@@ -8,7 +8,7 @@
     const isDesktopMode = $state(new MediaQuery("(min-width: 1024px)"));
 </script>
 
-<header class="flex w-full h-16 sticky top-0 border-border border-b custom-bg-blur">
+<header class="flex w-full h-16 sticky top-0 border-border border-b custom-bg-blur z-30">
     <div class="content-sizing p-4 w-full flex gap-3 items-center">
 
         <Sidebar.Trigger

@@ -5,7 +5,7 @@
     import NavFooter from '$lib/components/layout/nav-menu/nav-footer.svelte';
 </script>
 
-<nav>
+<nav class="border-r border-border">
     <Sidebar.Root variant="inset" collapsible="icon">
         <!-- Header -->
         <NavHeader />
