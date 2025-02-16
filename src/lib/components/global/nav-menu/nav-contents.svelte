@@ -1,7 +1,7 @@
 <script lang="ts">
     import * as Sidebar from '$lib/components/ui/sidebar';
     import * as Collapsible from '$lib/components/ui/collapsible';
-    import { Home, Heart, ChartNoAxesColumn, DraftingCompass, MousePointerClick, Anvil } from "lucide-svelte";
+    import { Home, Heart, ChartNoAxesColumn, LayoutDashboard, DraftingCompass, MousePointerClick, Anvil } from "lucide-svelte";
     import ChevronRight from "lucide-svelte/icons/chevron-right";
 
     interface Item {
@@ -15,24 +15,29 @@
     }
 
     const primaryMenuItems: Item[] = [
-      {
-        title: 'Home',
-        url: '#',
-        icon: Home,
-        isActive: true,
-      },
-      {
-        title: 'Favorite Items',
-        url: '#',
-        icon: Heart,
-        isActive: true,
-      },
-      {
-        title: 'Skill levels',
-        url: '#',
-        icon: ChartNoAxesColumn,
-        isActive: true,
-      }
+        {
+            title: 'Home',
+            url: '#',
+            icon: Home,
+            isActive: true,
+        },
+        {
+            title: 'Dashboard',
+            url: '#',
+            icon: LayoutDashboard,
+        },
+        {
+            title: 'Favorite Items',
+            url: '#',
+            icon: Heart,
+            isActive: true,
+        },
+        {
+            title: 'Skill levels',
+            url: '#',
+            icon: ChartNoAxesColumn,
+            isActive: true,
+        }
     ];
 
     const skills: Item[] = [

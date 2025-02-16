@@ -15,7 +15,7 @@
             <NavContents />
         </Sidebar.Content>
 
-        <!-- Footer. -->
+        <!-- Footer -->
         <Sidebar.Footer>
             <NavFooter />
         </Sidebar.Footer>

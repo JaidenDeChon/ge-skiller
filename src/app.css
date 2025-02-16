@@ -93,6 +93,15 @@
         @apply w-full max-w-5xl py-3 px-8 mx-auto;
     }
 
+    /*
+     * Helps size content appropriately. Handles content width and padding. Use on elements you want to be about
+     * half the width of the content-sizing class.
+     */
+    .content-sizing-half {
+        width: 100%;
+        @apply w-full max-w-2xl py-3 px-8 mx-auto;
+    }
+
     /**
      * Applies a background blur to the element.
      */
