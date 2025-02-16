@@ -1,6 +1,5 @@
 <script lang="ts">
     import * as Accordion from '$lib/components/ui/accordion';
-    import * as Card from '$lib/components/ui/card';
     import SiteHero from '$lib/components/homepage/site-hero.svelte';
     import ItemCard from '$lib/components/global/item-card.svelte';
     import ContentToolbar from '$lib/components/global/content-toolbar.svelte';
