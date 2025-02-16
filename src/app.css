@@ -109,6 +109,10 @@
         @apply bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur;
     }
 
+    .custom-card {
+        @apply text-card-foreground p-6 bg-card rounded-xl border shadow;
+    }
+
     /**
      * Applies the OSRS RuneScape font to the element.
      */
