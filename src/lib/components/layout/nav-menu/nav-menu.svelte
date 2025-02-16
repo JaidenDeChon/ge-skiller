@@ -1,8 +1,8 @@
 <script lang="ts">
     import * as Sidebar from '$lib/components/ui/sidebar';
-    import NavHeader from '$lib/components/global/nav-menu/nav-header.svelte';
-    import NavContents from '$lib/components/global/nav-menu/nav-contents.svelte';
-    import NavFooter from '$lib/components/global/nav-menu/nav-footer.svelte';
+    import NavHeader from '$lib/components/layout/nav-menu/nav-header.svelte';
+    import NavContents from '$lib/components/layout/nav-menu/nav-contents.svelte';
+    import NavFooter from '$lib/components/layout/nav-menu/nav-footer.svelte';
 </script>
 
 <nav>

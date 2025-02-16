@@ -1,6 +1,6 @@
 <script lang="ts">
     import * as Command from '$lib/components/ui/command';
-    import ResponsiveDialog from './responsive-dialog.svelte';
+    import ResponsiveDialog from '../global/responsive-dialog.svelte';
     import { MediaQuery } from 'svelte/reactivity';
     import { buttonVariants } from '$lib/components/ui/button';
     import * as Sidebar from '$lib/components/ui/sidebar';
@@ -16,7 +16,7 @@
         />
 
         {#if isDesktopMode.current}
-            <a href="/" aria-label="logo and home link">
+            <a href="/static" aria-label="logo and home link">
                 <span class="rs-font-with-shadow text-primary text-xl">osrs-skillionaire</span>
             </a>
         {/if}

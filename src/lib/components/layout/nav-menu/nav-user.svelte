@@ -2,7 +2,7 @@
     import * as Avatar from '$lib/components/ui/avatar';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
     import * as Sidebar from '$lib/components/ui/sidebar';
-    import { ChevronsUpDown, Heart, BadgeCheck, CreditCard, Bell, LogOut } from 'lucide-svelte';
+    import { ChevronsUpDown, Heart, BadgeCheck, Bell, LogOut } from 'lucide-svelte';
 
     const sidebar = Sidebar.useSidebar();
 

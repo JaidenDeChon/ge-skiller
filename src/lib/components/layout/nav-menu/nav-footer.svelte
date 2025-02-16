@@ -2,7 +2,7 @@
     import { SiGithub } from '@icons-pack/svelte-simple-icons';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import * as Tooltip from '$lib/components/ui/tooltip';
-    import NavUser from '$lib/components/global/nav-menu/nav-user.svelte';
+    import NavUser from '$lib/components/layout/nav-menu/nav-user.svelte';
     import {buttonVariants} from "$lib/components/ui/button";
     import {toggleMode} from "mode-watcher";
     import { Moon, Sun, Info } from "lucide-svelte";
@@ -21,7 +21,7 @@
         <Tooltip.Root>
             <Tooltip.Trigger class={['flex-1 min-h-10 min-w-10 max-h-10', buttonVariants({ class: 'p-0 text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors'})]}>
                 <a
-                    href="/#"
+                    href="/static#"
                     class="h-full w-full flex items-center justify-center"
                 >
                     <Info />
