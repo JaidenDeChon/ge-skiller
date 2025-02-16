@@ -21,7 +21,7 @@
             </a>
         {/if}
 
-        <!-- Button that looks like search bar -- opens command modal -->
+        <!-- Button that looks like search bar; opens command modal. -->
         <ResponsiveDialog
             triggerClass="mx-auto h-10 w-full max-w-72 flex items-center justify-start text-xs text-muted-foreground px-3 py-2 border border-input rounded-md bg-background/70 hover:text-foreground hover:bg-muted/55 transition-colors"
             contentClass="p-0"
