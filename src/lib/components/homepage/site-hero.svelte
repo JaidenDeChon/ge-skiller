@@ -7,7 +7,7 @@
     const { bgUrl } = $props();
 </script>
 
-<div class="py-32 relative overflow-y-hidden">
+<div class="py-32 relative overflow-hidden">
     <div
         class="content-sizing relative flex flex-col justify-center items-start gap-6 z-20"
     >
@@ -18,7 +18,7 @@
         <img
             src={bgUrl}
             alt="randomly-selected background"
-            class="w-64 absolute top-3/4 right-1/4 translate-x-1/2 -translate-y-1/2 z-10 opacity-15 xl:opacity-100"
+            class="w-64 absolute top-1/3 right-1/4 translate-x-1/2 -translate-y-1/4 z-10 opacity-15 xl:opacity-100"
         />
 
         <div

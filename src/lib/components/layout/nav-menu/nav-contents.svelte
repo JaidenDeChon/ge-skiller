@@ -1,64 +1,69 @@
 <script lang="ts">
-    import * as Sidebar from '$lib/components/ui/sidebar';
-    import { Home, Heart, ChartNoAxesColumn, LayoutDashboard, DraftingCompass, MousePointerClick, Anvil } from "lucide-svelte";
+    import * as Sidebar from "$lib/components/ui/sidebar";
+    import {
+        Home,
+        Heart,
+        ChartNoAxesColumn,
+        LayoutDashboard,
+    } from "lucide-svelte";
 
     interface Item {
-      title: string;
-      url: string;
-      // Use if providing an icon with Lucide.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      icon?: any;
-      // Use if using a custom image a san icon.
-      iconString?: string;
-      isActive?: boolean;
-      items?: Item[]
+        title: string;
+        url: string;
+        // Use if providing an icon with Lucide.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        icon?: any;
+        // Use if using a custom image a san icon.
+        iconString?: string;
+        isActive?: boolean;
+        items?: Item[];
     }
 
     const primaryMenuItems: Item[] = [
         {
-            title: 'Home',
-            url: '#',
+            title: "Home",
+            url: "/",
             icon: Home,
             isActive: true,
         },
         {
-            title: 'Dashboard',
-            url: '#',
+            title: "Dashboard",
+            url: "dashboard",
             icon: LayoutDashboard,
         },
         {
-            title: 'Favorite Items',
-            url: '#',
+            title: "Favorite Items",
+            url: "#",
             icon: Heart,
             isActive: true,
         },
         {
-            title: 'Skill levels',
-            url: '#',
+            title: "Skill levels",
+            url: "#",
             icon: ChartNoAxesColumn,
             isActive: true,
-        }
+        },
     ];
 
     const skills: Item[] = [
-      {
-        title: 'Crafting',
-        url: '#',
-        iconString: '/skill-images/crafting.png',
-        isActive: false,
-      },
-      {
-        title: 'Fletching',
-        url: '#',
-        iconString: '/skill-images/fletching.png',
-        isActive: false,
-      },
-      {
-        title: 'Smithing',
-        url: '#',
-        iconString: '/skill-images/smithing.png',
-        isActive: false,
-      }
+        {
+            title: "Crafting",
+            url: "#",
+            iconString: "/skill-images/crafting.png",
+            isActive: false,
+        },
+        {
+            title: "Fletching",
+            url: "#",
+            iconString: "/skill-images/fletching.png",
+            isActive: false,
+        },
+        {
+            title: "Smithing",
+            url: "#",
+            iconString: "/skill-images/smithing.png",
+            isActive: false,
+        },
     ];
 </script>
 
@@ -97,7 +102,11 @@
                         {#if skill.icon}
                             <skill.icon />
                         {:else if skill.iconString}
-                                <img src={skill.iconString} alt="skill icon" class="w-4 h-4" />
+                            <img
+                                src={skill.iconString}
+                                alt="skill icon"
+                                class="w-4 h-4"
+                            />
                         {/if}
                         <span>{skill.title}</span>
                     </Sidebar.MenuButton>

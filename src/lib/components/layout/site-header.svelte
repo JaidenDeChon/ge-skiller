@@ -1,9 +1,9 @@
 <script lang="ts">
-    import * as Command from "$lib/components/ui/command";
     import ResponsiveDialog from "../global/responsive-dialog.svelte";
+    import * as Command from "$lib/components/ui/command";
+    import * as Sidebar from "$lib/components/ui/sidebar";
     import { MediaQuery } from "svelte/reactivity";
     import { buttonVariants } from "$lib/components/ui/button";
-    import * as Sidebar from "$lib/components/ui/sidebar";
     import { Search } from "lucide-svelte";
 
     const isDesktopMode = $state(new MediaQuery("(min-width: 1024px)"));
