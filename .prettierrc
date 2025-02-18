@@ -2,5 +2,7 @@
     "tabWidth": 4,
     "useTabs": false,
     "svelteSortOrder": "options-scripts-markup-styles",
-    "svelteIndentScriptAndStyle": true
+    "svelteIndentScriptAndStyle": true,
+    "printWidth": 120,
+    "singleQuote": true
 }
