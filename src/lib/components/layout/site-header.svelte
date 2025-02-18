@@ -1,28 +1,24 @@
 <script lang="ts">
-    import ResponsiveDialog from "../global/responsive-dialog.svelte";
-    import * as Command from "$lib/components/ui/command";
-    import * as Sidebar from "$lib/components/ui/sidebar";
-    import { MediaQuery } from "svelte/reactivity";
-    import { buttonVariants } from "$lib/components/ui/button";
-    import { Search } from "lucide-svelte";
+    import ResponsiveDialog from '../global/responsive-dialog.svelte';
+    import * as Command from '$lib/components/ui/command';
+    import * as Sidebar from '$lib/components/ui/sidebar';
+    import { MediaQuery } from 'svelte/reactivity';
+    import { buttonVariants } from '$lib/components/ui/button';
+    import { Search } from 'lucide-svelte';
 
-    const isDesktopMode = $state(new MediaQuery("(min-width: 1024px)"));
+    const isDesktopMode = $state(new MediaQuery('(min-width: 1024px)'));
 </script>
 
-<header
-    class="flex w-full h-16 sticky top-0 border-border border-b custom-bg-blur z-30"
->
-    <div class="p-4 w-full flex gap-3 items-center">
+<header class="flex w-full h-16 sticky top-0 border-border border-b custom-bg-blur z-30">
+    <div class="py-4 px-8 w-full flex gap-3 items-center">
         <Sidebar.Trigger
             class={buttonVariants({
-                class: "h-10 w-10 min-h-10 min-w-10 text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors",
+                class: 'h-10 w-10 min-h-10 min-w-10 text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors',
             })}
         />
 
         <a href="/" aria-label="logo and home link">
-            <span class="rs-font-with-shadow text-primary text-xl"
-                >osrs-skillionaire</span
-            >
+            <span class="rs-font-with-shadow text-primary text-xl">osrs-skillionaire</span>
         </a>
 
         <!-- Button that looks like search bar; opens command modal. -->
@@ -32,9 +28,7 @@
         >
             {#snippet trigger()}
                 <Search class="h-4 w-4" />
-                <span class="text-muted-foreground ml-3 hidden lg:block"
-                    >Search...</span
-                >
+                <span class="text-muted-foreground ml-3 hidden lg:block">Search...</span>
             {/snippet}
 
             {#snippet content()}
