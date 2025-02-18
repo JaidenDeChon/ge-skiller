@@ -18,7 +18,7 @@
         <img
             src={bgUrl}
             alt="randomly-selected background"
-            class="w-64 absolute top-1/3 right-1/4 translate-x-1/2 -translate-y-1/4 z-10 opacity-15 xl:opacity-100"
+            class="w-64 absolute top-1/3 right-1/4 translate-x-1/2 -translate-y-1/4 z-10 opacity-15 transition-opacity xl:opacity-100"
         />
 
         <div
@@ -31,7 +31,7 @@
                 skillionaire
             </h1>
         </div>
-        <div class="text-lg flex flex-col gap-1">
+        <div class="text-lg flex flex-col gap-1 z-20 max-w-lg">
             <p>
                 A free tool for finding the most valuable items you can make
                 with

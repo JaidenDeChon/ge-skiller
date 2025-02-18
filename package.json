@@ -51,6 +51,7 @@
 		"@icons-pack/svelte-simple-icons": "^4.0.1",
 		"bson": "^6.10.2",
 		"mongoose": "^8.9.6",
+		"svelte-device-info": "^1.0.6",
 		"svelte-persisted-store": "^0.12.0"
 	}
 }

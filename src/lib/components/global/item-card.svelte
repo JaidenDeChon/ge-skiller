@@ -1,11 +1,29 @@
 <script lang="ts">
-    import { Heart } from "lucide-svelte";
-    import { Button } from "$lib/components/ui/button";
-    import * as Avatar from "$lib/components/ui/avatar";
-    import { timeSince } from "$lib/helpers/time-since";
-    import type { GameItem } from "$lib/models/game-item";
+    import { onMount } from 'svelte';
+    import Device from 'svelte-device-info';
+    import { Heart } from 'lucide-svelte';
+    import { Button } from '$lib/components/ui/button';
+    import * as Avatar from '$lib/components/ui/avatar';
+    import { timeSince } from '$lib/helpers/time-since';
+    import { favoritesStore } from '$lib/stores/favorites-store';
+    import type { GameItem } from '$lib/models/game-item';
 
-    export let item: GameItem;
+    const { item, handleFavoriteClick } = $props<{
+        item: GameItem;
+        handleFavoriteClick?: Function;
+    }>();
+
+    const isFavorited = $derived($favoritesStore.favorites.includes(item.id));
+
+    let isTouch = $state(true);
+
+    onMount(() => {
+        isTouch = Device.isMobile || Device.isTablet;
+    });
+
+    $effect(() => {
+        console.log(isFavorited);
+    });
 </script>
 
 <div class="custom-card group">
@@ -16,11 +34,7 @@
             <span class="text-muted-foreground">{item.examineText}</span>
         </div>
         <Avatar.Root class="p-2 bg-muted border h-12 w-12">
-            <Avatar.Image
-                src="/item-images/{item.image}"
-                alt={item.name}
-                class="object-contain"
-            />
+            <Avatar.Image src="/item-images/{item.image}" alt={item.name} class="object-contain" />
             <Avatar.Fallback>{item.name}</Avatar.Fallback>
         </Avatar.Root>
     </div>
@@ -38,11 +52,16 @@
             {/if}
         </div>
         <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
-            class="rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+            class={[
+                'rounded-full transition-opacity',
+                isFavorited && 'text-primary',
+                !isFavorited && !isTouch && 'opacity-0 group-hover:opacity-100',
+            ]}
+            onclick={handleFavoriteClick}
         >
-            <Heart />
+            <Heart fill={isFavorited ? 'hsl(var(--primary))' : 'transparent'} />
         </Button>
     </div>
 </div>
