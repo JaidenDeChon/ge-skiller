@@ -26,18 +26,18 @@
     });
 </script>
 
-<div class="custom-card group">
+<div class="item-card custom-card group">
     <!-- Header -->
-    <div class="flex justify-between gap-6">
+    <header class="flex justify-between gap-6">
         <div class="flex flex-col mb-2 text-sm">
             <span class="font-medium">{item.name}</span>
             <span class="text-muted-foreground">{item.examineText}</span>
         </div>
-        <Avatar.Root class="p-2 bg-muted border h-12 w-12">
-            <Avatar.Image src="/item-images/{item.image}" alt={item.name} class="object-contain" />
+        <Avatar.Root class="p-2 bg-muted border item-card__img-background h-12 w-12">
+            <Avatar.Image src="/item-images/{item.image}" alt={item.name} class="item-card__image object-contain" />
             <Avatar.Fallback>{item.name}</Avatar.Fallback>
         </Avatar.Root>
-    </div>
+    </header>
 
     <!-- Body -->
     <div class="flex justify-between items-end gap-6 mt-6">
@@ -65,3 +65,9 @@
         </Button>
     </div>
 </div>
+
+<style>
+    .item-card :global(header img) {
+        filter: drop-shadow(2px 2px 5px rgba(0, 0, 0, 0.4));
+    }
+</style>
