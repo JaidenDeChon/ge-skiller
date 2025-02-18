@@ -16,11 +16,13 @@
         let favorites = get(favoritesStore).favorites; // Get current favorites array
         let updatedFavorites;
 
-        if (favorites.includes(item.id)) updatedFavorites = favorites.filter((id) => id !== item.id);
+        const isFavorited = favorites.includes(item.id);
+
+        if (isFavorited) updatedFavorites = favorites.filter((id) => id !== item.id);
         else updatedFavorites = [...favorites, item.id];
 
         favoritesStore.set({ favorites: updatedFavorites });
-        toast.success(`Item ${item.name} has been ${favorites.includes(item.id) ? 'unfavorited' : 'favorited'}.`);
+        toast.success(`"${item.name}" has been ${isFavorited ? 'unfavorited' : 'favorited'}.`);
     }
 </script>
 
