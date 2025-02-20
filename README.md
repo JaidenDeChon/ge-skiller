@@ -1,3 +1,5 @@
+[![Netlify Status](https://api.netlify.com/api/v1/badges/f3006d03-977d-47e9-b484-bcb425e1f193/deploy-status)](https://app.netlify.com/sites/osrs-skillionaire/deploys)
+
 # sv
 
 Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
