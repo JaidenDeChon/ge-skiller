@@ -19,7 +19,7 @@ async function assembleHomepageData(): Promise<HomepageData['imageUrl']> {
         return `/npc-images/${randomImage}`;
     } catch (err) {
         console.error(err);
-        throw error(500, 'Something went wrong while retrieving your image.');
+        throw error(500, err as any);
     }
 }
 
