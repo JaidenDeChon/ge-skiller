@@ -1,6 +1,5 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { error } from '@sveltejs/kit';
 
 interface HomepageData {
     imageUrl?: string;
