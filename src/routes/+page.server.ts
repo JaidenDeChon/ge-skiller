@@ -17,9 +17,9 @@ async function assembleHomepageData(): Promise<HomepageData['imageUrl']> {
 
         const randomImage = imageFiles[Math.floor(Math.random() * imageFiles.length)];
         return `/npc-images/${randomImage}`;
-    } catch (err) {
-        console.error(err);
-        throw error(500, err as any);
+    } catch {
+        // Fallback to a default image.
+        return '/npc-images/charlie-the-tramp.png';
     }
 }
 
