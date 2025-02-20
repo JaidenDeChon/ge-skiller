@@ -20,10 +20,6 @@
     onMount(() => {
         isTouch = Device.isMobile || Device.isTablet;
     });
-
-    $effect(() => {
-        console.log(isFavorited);
-    });
 </script>
 
 <div class="item-card custom-card group">

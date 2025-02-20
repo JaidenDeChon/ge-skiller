@@ -6,22 +6,24 @@ interface HomepageData {
     imageUrl?: string;
 }
 
-export async function load(): Promise<HomepageData> {
+async function assembleHomepageData(): Promise<HomepageData['imageUrl']> {
     const imagesPath = path.join(process.cwd(), 'static/npc-images');
-    const homepageData: HomepageData = {};
 
     try {
         const files = await fs.readdir(imagesPath);
         const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file));
 
-        if (imageFiles.length === 0) return homepageData;
+        if (imageFiles.length === 0) return '';
 
         const randomImage = imageFiles[Math.floor(Math.random() * imageFiles.length)];
-        homepageData.imageUrl = `/npc-images/${randomImage}`;
-
-        return homepageData;
+        return `/npc-images/${randomImage}`;
     } catch (err) {
         console.error(err);
         throw error(500, 'Something went wrong while retrieving your image.');
     }
+}
+
+export async function load(): Promise<HomepageData> {
+    const imageUrl = await assembleHomepageData();
+    return { imageUrl };
 }

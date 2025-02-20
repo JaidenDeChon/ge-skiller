@@ -43,16 +43,3 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
     collectionMetadata.lastUpdated = Date.now();
     await collectionMetadata.save();
 }
-
-/**
- * Checks the age of the cached game item prices. If they are older than 5 minutes, updates them.
- */
-export async function updatePricesIfNeeded(): Promise<void> {
-    const collectionMetadata = await CollectionMetadataModel.findOne({ collectionName: 'game-item-pricing' });
-    const lastUpdated = collectionMetadata?.lastUpdated ?? 0;
-
-    // If the last update was more than 5 minutes ago, update the prices.
-    if (Date.now() - lastUpdated > 300_000) {
-        await updateAllGameItemPricesInMongo();
-    }
-}

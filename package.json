@@ -49,6 +49,7 @@
 	"packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0",
 	"dependencies": {
 		"@icons-pack/svelte-simple-icons": "^4.0.1",
+		"@netlify/functions": "^3.0.0",
 		"bson": "^6.10.2",
 		"mongoose": "^8.9.6",
 		"svelte-device-info": "^1.0.6",

@@ -1,11 +1,6 @@
 <script lang="ts">
-    import * as Sidebar from "$lib/components/ui/sidebar";
-    import {
-        Home,
-        Heart,
-        ChartNoAxesColumn,
-        LayoutDashboard,
-    } from "lucide-svelte";
+    import * as Sidebar from '$lib/components/ui/sidebar';
+    import { Home, Heart, ChartNoAxesColumn, Sword } from 'lucide-svelte';
 
     interface Item {
         title: string;
@@ -21,25 +16,25 @@
 
     const primaryMenuItems: Item[] = [
         {
-            title: "Home",
-            url: "/",
+            title: 'Home',
+            url: '/',
             icon: Home,
             isActive: true,
         },
         {
-            title: "Dashboard",
-            url: "dashboard",
-            icon: LayoutDashboard,
+            title: 'Browse items',
+            url: 'items',
+            icon: Sword,
         },
         {
-            title: "Favorite Items",
-            url: "#",
+            title: 'Favorites',
+            url: '#',
             icon: Heart,
             isActive: true,
         },
         {
-            title: "Skill levels",
-            url: "#",
+            title: 'Skill levels',
+            url: '#',
             icon: ChartNoAxesColumn,
             isActive: true,
         },
@@ -47,21 +42,21 @@
 
     const skills: Item[] = [
         {
-            title: "Crafting",
-            url: "#",
-            iconString: "/skill-images/crafting.png",
+            title: 'Crafting',
+            url: '#',
+            iconString: '/skill-images/crafting.png',
             isActive: false,
         },
         {
-            title: "Fletching",
-            url: "#",
-            iconString: "/skill-images/fletching.png",
+            title: 'Fletching',
+            url: '#',
+            iconString: '/skill-images/fletching.png',
             isActive: false,
         },
         {
-            title: "Smithing",
-            url: "#",
-            iconString: "/skill-images/smithing.png",
+            title: 'Smithing',
+            url: '#',
+            iconString: '/skill-images/smithing.png',
             isActive: false,
         },
     ];
@@ -102,11 +97,7 @@
                         {#if skill.icon}
                             <skill.icon />
                         {:else if skill.iconString}
-                            <img
-                                src={skill.iconString}
-                                alt="skill icon"
-                                class="w-4 h-4"
-                            />
+                            <img src={skill.iconString} alt="skill icon" class="w-4 h-4" />
                         {/if}
                         <span>{skill.title}</span>
                     </Sidebar.MenuButton>

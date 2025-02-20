@@ -8,12 +8,10 @@
 
     const { data }: { data: PageData } = $props();
 
-    const sortedItems = $derived.by(() =>
-        data.gameItems.slice().sort((a, b) => (b.highPrice ?? 0) - (a.highPrice ?? 0)),
-    );
+    const items = $derived.by(() => data.gameItems);
 
     function handleFavorite(item: GameItem) {
-        let favorites = get(favoritesStore).favorites; // Get current favorites array
+        let favorites = get(favoritesStore).favorites;
         let updatedFavorites;
 
         const isFavorited = favorites.includes(item.id);
@@ -26,10 +24,12 @@
     }
 </script>
 
-<h2 class="text-3xl font-bold mb-4">Dashboard</h2>
+<h2 class="text-3xl font-bold mb-4">Browse items</h2>
+
+<h3 class="text-2xl font-bold mb-4">Featured</h3>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    {#each sortedItems as item}
+    {#each items as item}
         <ItemCard {item} handleFavoriteClick={() => handleFavorite(item)} />
     {/each}
 </div>
