@@ -8,3 +8,6 @@
 
 [functions."*"]
   format = "esm"
+
+[functions."update-item-prices"]
+  schedule = "@hourly"
