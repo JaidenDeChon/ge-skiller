@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 
 // MongoDB connection string setup.
-const user = import.meta.env.VITE_MONGO_USERNAME;
-const pw = import.meta.env.VITE_MONGO_PASSWORD;
-const cluster = import.meta.env.VITE_MONGO_DB_CLUSTER_NAME;
-const host = import.meta.env.VITE_MONGO_DB_HOST;
-const dbName = import.meta.env.VITE_MONGO_DB_DB_NAME;
+const user = process.env.VITE_MONGO_USERNAME;
+const pw = process.env.VITE_MONGO_PASSWORD;
+const cluster = process.env.VITE_MONGO_DB_CLUSTER_NAME;
+const host = process.env.VITE_MONGO_DB_HOST;
+const dbName = process.env.VITE_MONGO_DB_DB_NAME;
 const prepend = 'mongodb+srv';
 const append = '?retryWrites=true&w=majority';
 const connectionString = `${prepend}://${user}:${pw}@${cluster}.${host}/${dbName}${append}`;
