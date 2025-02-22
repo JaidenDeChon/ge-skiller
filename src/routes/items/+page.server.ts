@@ -1,10 +1,8 @@
-import type { GameItem } from '$lib/models/game-item';
+// import type { GameItem } from '$lib/models/game-item';
 
-export const load = async ({ fetch, url }) => {
-    const pathname = url.pathname;
+// export const load = async ({ fetch }) => {
+//     const response = await fetch('/api/game-items-by-price');
+//     const gameItems: GameItem[] = await response.json();
 
-    const response = await fetch('/api/game-items-by-price');
-    const gameItems: GameItem[] = await response.json();
-
-    return { gameItems, pathname };
-};
+//     return { gameItems };
+// };
