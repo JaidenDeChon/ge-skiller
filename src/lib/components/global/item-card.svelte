@@ -16,9 +16,12 @@
     const isFavorited = $derived($favoritesStore.favorites.includes(item.id));
 
     let isTouch = $state(true);
+    let timeSinceHighTime = $state('Calculating...');
 
     onMount(() => {
         isTouch = Device.isMobile || Device.isTablet;
+        if (item.highTime) timeSinceHighTime = timeSince(item.highTime);
+        else timeSinceHighTime = '';
     });
 </script>
 
@@ -43,7 +46,7 @@
             </p>
             {#if item.highTime}
                 <p class="text-muted-foreground text-xs">
-                    {timeSince(item.highTime)}
+                    {timeSinceHighTime}
                 </p>
             {/if}
         </div>
