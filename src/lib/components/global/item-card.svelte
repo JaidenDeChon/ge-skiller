@@ -64,8 +64,8 @@
             <Skeleton class="rounded-full size-12" />
         {:else}
             <Avatar.Root class="p-2 bg-muted border item-card__img-background h-12 w-12">
-                <Avatar.Image src="/item-images/{item.image}" alt={item.name} class="item-card__image object-contain" />
-                <Avatar.Fallback>{item.name}</Avatar.Fallback>
+                <Avatar.Image src="/item-images/{item.image}" class="item-card__image object-contain animate-fade-in" />
+                <Avatar.Fallback class="opacity-0">{item.name}</Avatar.Fallback>
             </Avatar.Root>
         {/if}
     </header>
