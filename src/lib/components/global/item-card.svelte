@@ -53,7 +53,7 @@
     <header class="flex justify-between gap-6">
         <div class="flex-1 flex flex-col mb-2 text-sm">
             {#if loading}
-                <Skeleton class="h-4 w-1/3 mb-2" />
+                <Skeleton class="h-4 w-1/3 mb-1" />
                 <Skeleton class="h-4 w-3/5" />
             {:else}
                 <span class="font-medium">{item.name}</span>
@@ -74,8 +74,8 @@
     <div class="flex justify-between items-end gap-6 mt-6">
         <div>
             {#if loading}
-                <Skeleton class="h-6 w-24 mb-4" />
-                <Skeleton class="h-2 w-8" />
+                <Skeleton class="h-5 w-24 mb-3 mt-2" />
+                <Skeleton class="h-2 w-12" />
             {:else}
                 <p class="text-2xl font-bold">
                     <span class="text-primary">{item.highPrice}</span>gp
