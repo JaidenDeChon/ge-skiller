@@ -1,20 +1,41 @@
-import fs from 'fs/promises';
 import path from 'path';
 
 interface HomepageData {
     imageUrl?: string;
 }
 
+const npcImages: string[] = [
+    'aggie.webp',
+    'carpenter.webp',
+    'duke-horacio.webp',
+    'forestry-f.webp',
+    'horvik.webp',
+    'prospector-f.webp',
+    'wise-old-man.png',
+    'anglers-outfit.png',
+    'charlie-the-tramp.png',
+    'evil-chicken-outfit.webp',
+    'forestry-m.webp',
+    'king-narnode-shareen.webp',
+    'prospector-m.webp',
+    'zanik.png',
+    'bob-the-cat.webp',
+    'chicken-outfit.png',
+    'farmer-f.png',
+    'frog-price.png',
+    'lumberjack-f.webp',
+    'sedridor.webp',
+    'captain-barnaby.png',
+    'django.png',
+    'farmer-m.png',
+    'frog-princess.png',
+    'lumberjack-m.png',
+    'shayzien.png'
+];
+
 async function assembleHomepageData(): Promise<HomepageData['imageUrl']> {
-    const imagesPath = path.join(process.cwd(), 'static/npc-images');
-
     try {
-        const files = await fs.readdir(imagesPath);
-        const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file));
-
-        if (imageFiles.length === 0) return '';
-
-        const randomImage = imageFiles[Math.floor(Math.random() * imageFiles.length)];
+        const randomImage = npcImages[Math.floor(Math.random() * npcImages.length)];
         return `/npc-images/${randomImage}`;
     } catch {
         // Fallback to a default image.
