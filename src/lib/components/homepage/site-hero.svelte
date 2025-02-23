@@ -13,11 +13,13 @@
         <div
             class="h-96 w-96 rounded-full bg-primary absolute top-full right-1/4 translate-x-1/2 -translate-y-1/2 z-0 blur-3xl scale-150 opacity-5 xl:opacity-15"
         ></div>
-        <img
-            src={bgUrl}
-            alt="randomly-selected background"
-            class="w-64 absolute top-1/3 right-1/4 translate-x-1/2 -translate-y-1/4 z-10 opacity-15 transition-opacity xl:opacity-100"
-        />
+        {#if bgUrl}
+            <img
+                src={bgUrl}
+                alt="randomly-selected background"
+                class="w-64 absolute top-1/3 right-1/4 translate-x-1/2 -translate-y-1/4 z-10 opacity-15 transition-opacity xl:opacity-100"
+            />
+        {/if}
 
         <div class="flex flex-col font-black bg-gradient-to-r from-primary to-yellow-600 text-transparent bg-clip-text">
             <h1 class="text-2xl md:text-3xl">osrs-</h1>
