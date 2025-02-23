@@ -11,6 +11,8 @@
     import { favoritesStore } from '$lib/stores/favorites-store';
     import type { GameItem } from '$lib/models/game-item';
 
+    const headerTextDivClasses = 'flex-1 flex flex-col mb-2 text-sm';
+
     const emptyGameItem: GameItem = {
         id: '0',
         name: 'Loading...',
@@ -20,9 +22,14 @@
         image: 'loading.gif',
     };
 
-    const { item = emptyGameItem, loading = false } = $props<{
+    const {
+        item = emptyGameItem,
+        loading = false,
+        linkToItemPage = false,
+    } = $props<{
         item?: GameItem;
         loading?: boolean;
+        linkToItemPage?: boolean;
     }>();
 
     const isFavorited = $derived($favoritesStore.favorites.includes(item.id));
@@ -44,28 +51,37 @@
         else updatedFavorites = [...favorites, item.id];
 
         favoritesStore.set({ favorites: updatedFavorites });
-        toast.success(`"${item.name}" has been ${isFavorited ? 'unfavorited' : 'favorited'}.`);
+        toast.success(`"${item.name}" has been ${isFavorited ? 'favorited' : 'unfavorited'}.`);
     }
 </script>
 
+{#snippet itemCardHeaderContent()}
+    <span class="font-medium animate-fade-in">{item.name}</span>
+    <span class="text-muted-foreground animate-fade-in">{item.examineText}</span>
+{/snippet}
+
 <div class="item-card custom-card group">
     <!-- Header -->
-    <header class="flex justify-between gap-6">
-        <div class="flex-1 flex flex-col mb-2 text-sm">
-            {#if loading}
+    <header class="flex justify-between gap-6 group/header">
+        {#if loading}
+            <div class={headerTextDivClasses}>
                 <Skeleton class="h-4 w-1/3 mb-1" />
                 <Skeleton class="h-4 w-3/5" />
-            {:else}
-                <span class="font-medium">{item.name}</span>
-                <span class="text-muted-foreground">{item.examineText}</span>
-            {/if}
-        </div>
+            </div>
+        {:else if linkToItemPage}
+            <a href={`/items/${item.id}`} class="group-hover/header:underline {headerTextDivClasses}">
+                {@render itemCardHeaderContent()}
+            </a>
+        {:else}
+            {@render itemCardHeaderContent()}
+        {/if}
+
         {#if loading}
             <Skeleton class="rounded-full size-12" />
         {:else}
             <Avatar.Root class="p-2 bg-muted border item-card__img-background h-12 w-12">
                 <Avatar.Image src="/item-images/{item.image}" class="item-card__image object-contain animate-fade-in" />
-                <Avatar.Fallback class="opacity-0">{item.name}</Avatar.Fallback>
+                <Avatar.Fallback class="animate-fade-in">{item.name}</Avatar.Fallback>
             </Avatar.Root>
         {/if}
     </header>
@@ -77,11 +93,11 @@
                 <Skeleton class="h-5 w-24 mb-3 mt-2" />
                 <Skeleton class="h-2 w-12" />
             {:else}
-                <p class="text-2xl font-bold">
+                <p class="text-2xl font-bold animate-fade-in">
                     <span class="text-primary">{item.highPrice}</span>gp
                 </p>
                 {#if item.highTime}
-                    <p class="text-muted-foreground text-xs">
+                    <p class="text-muted-foreground text-xs animate-fade-in">
                         {timeSinceHighTime}
                     </p>
                 {/if}

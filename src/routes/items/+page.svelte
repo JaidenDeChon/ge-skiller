@@ -22,13 +22,12 @@
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {#if loading}
-        <ItemCard {loading} />
-        <ItemCard {loading} />
-        <ItemCard {loading} />
-        <ItemCard {loading} />
-        <ItemCard {loading} />
+        {#each { length: 5 }}
+            <ItemCard {loading} />
+        {/each}
+    {:else}
+        {#each gameItems as item}
+            <ItemCard {item} linkToItemPage />
+        {/each}
     {/if}
-    {#each gameItems as item}
-        <ItemCard {item} />
-    {/each}
 </div>
