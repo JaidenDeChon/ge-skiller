@@ -1,14 +1,10 @@
 <script lang="ts">
-    import { get } from 'svelte/store';
     import { onMount } from 'svelte';
     import Device from 'svelte-device-info';
-    import { Heart } from 'lucide-svelte';
-    import { toast } from 'svelte-sonner';
-    import { Button } from '$lib/components/ui/button';
-    import { Skeleton } from '$lib/components/ui/skeleton';
+    import FavoriteButton from './favorite-button.svelte';
     import * as Avatar from '$lib/components/ui/avatar';
+    import { Skeleton } from '$lib/components/ui/skeleton';
     import { timeSince } from '$lib/helpers/time-since';
-    import { favoritesStore } from '$lib/stores/favorites-store';
     import type { GameItem } from '$lib/models/game-item';
 
     const headerTextDivClasses = 'flex-1 flex flex-col mb-2 text-sm';
@@ -32,8 +28,6 @@
         linkToItemPage?: boolean;
     }>();
 
-    const isFavorited = $derived($favoritesStore.favorites.includes(item.id));
-
     let isTouch = $state(true);
     let timeSinceHighTime = $state('Calculating...');
 
@@ -42,17 +36,6 @@
         if (item.highTime) timeSinceHighTime = timeSince(item.highTime);
         else timeSinceHighTime = '';
     });
-
-    function handleFavorite() {
-        let favorites = get(favoritesStore).favorites;
-        let updatedFavorites;
-
-        if (isFavorited) updatedFavorites = favorites.filter((id) => id !== item.id);
-        else updatedFavorites = [...favorites, item.id];
-
-        favoritesStore.set({ favorites: updatedFavorites });
-        toast.success(`"${item.name}" has been ${isFavorited ? 'favorited' : 'unfavorited'}.`);
-    }
 </script>
 
 {#snippet itemCardHeaderContent()}
@@ -104,18 +87,7 @@
             {/if}
         </div>
         {#if !loading}
-            <Button
-                variant="ghost"
-                size="icon"
-                class={[
-                    'rounded-full transition-opacity',
-                    isFavorited && 'text-primary',
-                    !isFavorited && !isTouch && 'opacity-0 group-hover:opacity-100',
-                ]}
-                onclick={handleFavorite}
-            >
-                <Heart fill={isFavorited ? 'hsl(var(--primary))' : 'transparent'} />
-            </Button>
+            <FavoriteButton gameItem={item} />
         {/if}
     </div>
 </div>

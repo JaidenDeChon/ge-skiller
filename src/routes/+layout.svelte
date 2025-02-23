@@ -1,10 +1,10 @@
 <script lang="ts">
-    import "../app.css";
-    import * as Sidebar from "$lib/components/ui/sidebar";
-    import { Toaster } from "$lib/components/ui/sonner";
-    import NavMenu from "$lib/components/layout/nav-menu/nav-menu.svelte";
-    import SiteHeader from "$lib/components/layout/site-header.svelte";
-    import { ModeWatcher } from "mode-watcher";
+    import '../app.css';
+    import * as Sidebar from '$lib/components/ui/sidebar';
+    import { Toaster } from '$lib/components/ui/sonner';
+    import NavMenu from '$lib/components/layout/nav-menu/nav-menu.svelte';
+    import SiteHeader from '$lib/components/layout/site-header.svelte';
+    import { ModeWatcher } from 'mode-watcher';
 
     let { children } = $props();
 </script>
@@ -22,3 +22,9 @@
 </Sidebar.Provider>
 
 <ModeWatcher />
+
+<style>
+    :global(div[data-dialog-overlay]) {
+        @apply duration-300 !important;
+    }
+</style>

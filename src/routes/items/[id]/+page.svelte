@@ -3,6 +3,9 @@
     import { page } from '$app/state';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import * as Avatar from '$lib/components/ui/avatar';
+    import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+    import IconBadge from '$lib/components/global/icon-badge.svelte';
+    import FavoriteButton from '$lib/components/global/favorite-button.svelte';
     import type { GameItem } from '$lib/models/game-item';
 
     const slug = $derived(page.params.id);
@@ -17,7 +20,6 @@
             .then(async (response) => {
                 gameItem = await response.json();
                 loading = false;
-                console.log(gameItem);
             })
             .catch((error) => {
                 console.error(error);
@@ -33,34 +35,85 @@
 </script>
 
 <!-- Header -->
-<div class="flex gap-6 mt-4">
-    <!-- Item image -->
-    {#if loading || !gameItem}
-        <Skeleton class="h-16 w-16 rounded-full" />
-    {:else}
-        <Avatar.Root class="p-3 bg-muted border item-card__img-background h-16 w-16">
-            <Avatar.Image
-                src="/item-images/{gameItem.image}"
-                alt={gameItem.name}
-                class="item-page__item-image object-contain animate-fade-in"
-            />
-            <Avatar.Fallback class="animate-fade-in-delayed">{gameItem.name.substring(0, 2)}</Avatar.Fallback>
-        </Avatar.Root>
-    {/if}
-
-    <!-- Name and description -->
-    <div class="flex flex-col gap-1 justify-center">
+<header>
+    <div class="flex justify-between items-center w-full">
         {#if loading || !gameItem}
-            <Skeleton class="h-7 w-52 mb-2" />
-            <Skeleton class="h-3 w-36" />
+            <div class="flex gap-5">
+                <Skeleton class="h-4 w-10" />
+                <Skeleton class="h-4 w-10" />
+                <Skeleton class="h-4 w-32" />
+            </div>
+            <Skeleton class="rounded-full w-10 h-10" />
         {:else}
-            <h1 class="text-2xl font-bold animate-fade-in">{gameItem.name}</h1>
-            <p class="text-muted-foreground text-sm animate-fade-in">
-                {gameItem.examineText}
-            </p>
+            <!-- Breadcrumbs and favorite -->
+            <Breadcrumb.Root>
+                <Breadcrumb.List>
+                    <!-- Home -->
+                    <Breadcrumb.Item>
+                        <Breadcrumb.Link href="/">Home</Breadcrumb.Link>
+                    </Breadcrumb.Item>
+
+                    <Breadcrumb.Separator />
+
+                    <!-- Items -->
+                    <Breadcrumb.Item>
+                        <Breadcrumb.Link href="/items">Items</Breadcrumb.Link>
+                    </Breadcrumb.Item>
+
+                    <Breadcrumb.Separator />
+
+                    <!-- This page -->
+                    <Breadcrumb.Item>
+                        <Breadcrumb.Page>{gameItem?.name}</Breadcrumb.Page>
+                    </Breadcrumb.Item>
+                </Breadcrumb.List>
+            </Breadcrumb.Root>
+
+            <!-- Favorite button -->
+            <FavoriteButton {gameItem} />
         {/if}
     </div>
-</div>
+
+    <!-- Item name, description, color -->
+    <!-- py-3 makes up for py-3 from .content-sizing -->
+    <div class="flex gap-6 my-4 py-3">
+        <!-- Item image -->
+        {#if loading || !gameItem}
+            <Skeleton class="h-16 w-16 rounded-full" />
+        {:else}
+            <Avatar.Root class="p-3 bg-muted border item-card__img-background h-16 w-16">
+                <Avatar.Image
+                    src="/item-images/{gameItem.image}"
+                    alt={gameItem.name}
+                    class="item-page__item-image object-contain animate-fade-in"
+                />
+                <Avatar.Fallback class="animate-fade-in-delayed">{gameItem.name.substring(0, 2)}</Avatar.Fallback>
+            </Avatar.Root>
+        {/if}
+
+        <!-- Name and description -->
+        <div class="flex flex-col gap-1 justify-center">
+            {#if loading || !gameItem}
+                <Skeleton class="h-7 w-52 mb-2" />
+                <Skeleton class="h-3 w-36" />
+            {:else}
+                <h1 class="text-2xl font-bold animate-fade-in">{gameItem.name}</h1>
+                <p class="text-muted-foreground text-sm animate-fade-in">
+                    {gameItem.examineText}
+                </p>
+            {/if}
+        </div>
+    </div>
+</header>
+
+<!-- Skill tags -->
+<IconBadge text="Crafting">
+    {#snippet icon()}
+        <Avatar.Root class="h-4 w-4">
+            <Avatar.Image src="/skill-images/crafting.png"></Avatar.Image>
+        </Avatar.Root>
+    {/snippet}
+</IconBadge>
 
 <style>
     :global(.item-page__item-image) {
