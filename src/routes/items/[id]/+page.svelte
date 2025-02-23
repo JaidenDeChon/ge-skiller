@@ -1,11 +1,15 @@
 <script lang="ts">
+    import { mount, unmount } from 'svelte';
     import { toast } from 'svelte-sonner';
+    import { OrgChart } from 'd3-org-chart';
     import { page } from '$app/state';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import * as Avatar from '$lib/components/ui/avatar';
     import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+    import * as Card from '$lib/components/ui/card';
     import IconBadge from '$lib/components/global/icon-badge.svelte';
     import FavoriteButton from '$lib/components/global/favorite-button.svelte';
+    import ItemNode from '$lib/components/game-item-tree/item-node.svelte';
     import type { GameItem } from '$lib/models/game-item';
 
     const slug = $derived(page.params.id);
@@ -20,6 +24,7 @@
             .then(async (response) => {
                 gameItem = await response.json();
                 loading = false;
+                renderGameItemTree();
             })
             .catch((error) => {
                 console.error(error);
@@ -32,6 +37,81 @@
                 });
             });
     });
+
+    let gameItemTreeElement = $state();
+    let chartInstance = $state<undefined | OrgChart<unknown>>(undefined);
+
+    function renderGameItemTree() {
+        if (!gameItem) return;
+
+        const chartData = transformGameItemsForOrgChart([gameItem]);
+
+        chartInstance = new OrgChart()
+            .container(gameItemTreeElement as string)
+            .data(chartData)
+            .nodeWidth(() => 72)
+            .nodeHeight(() => 72)
+            .expandAll()
+            .buttonContent(({ node }) => {
+                return `
+                    <button class="h-7 w-7 mx-auto mt-2 bg-background border">
+                        <span class="text-lg">${node.children ? '-' : '+'}</span>
+                    </button>`;
+            })
+            .nodeContent((d) => {
+                const gameItem = d.data as GameItem;
+                const target = document.createElement('div');
+                const props = { gameItem };
+
+                const componentInstance = mount(ItemNode, { target, props });
+                setTimeout(() => unmount(componentInstance), 1000);
+
+                return target.innerHTML;
+            })
+            .onExpandOrCollapse(() => fitChartToContainer)
+            .svgHeight(300)
+            .fit()
+            .render();
+    }
+
+    function fitChartToContainer() {
+        setTimeout(() => chartInstance?.fit(), 2000);
+    }
+
+    type OrgChartNode = {
+        id: string;
+        parentId: string | null;
+        name: string;
+        image?: string;
+        examineText?: string;
+    };
+
+    function transformGameItemsForOrgChart(items: GameItem[]): OrgChartNode[] {
+        const result: OrgChartNode[] = [];
+
+        function processItem(item: GameItem, parentId: string | null = null) {
+            // Add the current item as a node
+            result.push({
+                id: item.id,
+                parentId,
+                name: item.name,
+                image: item.image ? `/item-images/${item.image}` : undefined,
+                examineText: item.examineText,
+            });
+
+            // If the item has ingredients, process them as children
+            if (item.creationSpecs?.ingredients) {
+                item.creationSpecs.ingredients.forEach((ingredient) => {
+                    processItem(ingredient.item, item.id);
+                });
+            }
+        }
+
+        // Process all root-level items (items that are not explicitly ingredients of another item)
+        items.forEach((item) => processItem(item));
+
+        return result;
+    }
 </script>
 
 <!-- Header -->
@@ -114,6 +194,17 @@
         </Avatar.Root>
     {/snippet}
 </IconBadge>
+
+<!-- Item tree -->
+<Card.Root class="mt-4">
+    <Card.Header>
+        <Card.Title class="text-xl">Item ingredients tree</Card.Title>
+        <Card.Description>Explore the ingredients that make up this item</Card.Description>
+    </Card.Header>
+    <Card.Content>
+        <div bind:this={gameItemTreeElement}></div>
+    </Card.Content>
+</Card.Root>
 
 <style>
     :global(.item-page__item-image) {
