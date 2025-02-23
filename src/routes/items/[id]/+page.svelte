@@ -1,21 +1,25 @@
 <script lang="ts">
-    import { mount, unmount, tick } from 'svelte';
+    import { onMount } from 'svelte';
     import { toast } from 'svelte-sonner';
-    import { OrgChart } from 'd3-org-chart';
     import { page } from '$app/state';
+    import { TriangleAlert } from 'lucide-svelte';
     import { Skeleton } from '$lib/components/ui/skeleton';
+    import * as Alert from '$lib/components/ui/alert';
     import * as Avatar from '$lib/components/ui/avatar';
     import * as Breadcrumb from '$lib/components/ui/breadcrumb';
     import * as Card from '$lib/components/ui/card';
+    import * as Tabs from '$lib/components/ui/tabs';
     import IconBadge from '$lib/components/global/icon-badge.svelte';
     import FavoriteButton from '$lib/components/global/favorite-button.svelte';
     import GameItemTree from '$lib/components/game-item-tree/game-item-tree.svelte';
-    import ItemNode from '$lib/components/game-item-tree/item-node.svelte';
     import type { GameItem } from '$lib/models/game-item';
 
     const slug = $derived(page.params.id);
+    let isWebkit = $state(false);
     let loading = $state(true);
     let gameItem = $state<GameItem | null>(null);
+
+    onMount(() => determineIfWebkit());
 
     // Load the game item data once it's available.
     $effect(() => {
@@ -39,6 +43,15 @@
     });
 
     const renderChart = $derived(!!gameItem?.creationSpecs?.ingredients?.length);
+
+    function determineIfWebkit() {
+        isWebkit = /iPad|iPhone|iPod/.test(navigator.userAgent) || navigator.userAgent.includes('WebKit');
+    }
+
+    const gameItemTreeTabs = {
+        VISUAL: 'Visual',
+        TABLE: 'Table',
+    } as const;
 </script>
 
 <!-- Header -->
@@ -141,9 +154,33 @@
 
         <!-- Chart contents -->
         {#if renderChart}
-            <Card.Content class="p-0 bg-muted mx-5 mt-5 rounded-md">
-                <GameItemTree gameItem={gameItem!} />
-            </Card.Content>
+            <Tabs.Root value={gameItemTreeTabs.VISUAL} class="w-full my-5 px-5">
+                <Tabs.List class="w-full grid grid-cols-2">
+                    <Tabs.Trigger value={gameItemTreeTabs.VISUAL}>Visual</Tabs.Trigger>
+                    <Tabs.Trigger value={gameItemTreeTabs.TABLE}>Table</Tabs.Trigger>
+                </Tabs.List>
+                <Card.Content class="p-0 mt-5">
+                    <Tabs.Content value={gameItemTreeTabs.VISUAL}>
+                        <!-- Apple user warning -->
+                        {#if isWebkit}
+                            <Alert.Root variant="destructive" class="mb-5">
+                                <TriangleAlert class="size-4" />
+                                <Alert.Title>Heads up!</Alert.Title>
+                                <Alert.Description>
+                                    The Visual view does not render correctly in Safari on any platform, or in any
+                                    browser on iOS or iPadOS.
+                                </Alert.Description>
+                            </Alert.Root>
+                        {/if}
+
+                        <div class="bg-muted rounded-md">
+                            <GameItemTree gameItem={gameItem!} />
+                        </div>
+                    </Tabs.Content>
+
+                    <Tabs.Content value={gameItemTreeTabs.TABLE}>Table view</Tabs.Content>
+                </Card.Content>
+            </Tabs.Root>
         {/if}
     {/if}
 </Card.Root>
