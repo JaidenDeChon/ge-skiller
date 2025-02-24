@@ -5,10 +5,9 @@
     import ItemNode from '$lib/components/game-item-tree/item-node.svelte';
     import type { GameItem } from '$lib/models/game-item';
 
-    const { gameItem }: { gameItem: GameItem } = $props();
+    const { gameItem }: { gameItem: GameItem | null } = $props();
 
     let gameItemTreeElement = $state();
-    let chartInstance = $state<undefined | OrgChart<unknown>>(undefined);
     const renderChart = $derived(!!gameItem?.creationSpecs?.ingredients?.length);
 
     onMount(() => renderGameItemTree());
@@ -19,7 +18,7 @@
 
         const chartData = transformGameItemsForOrgChart([gameItem!]);
 
-        chartInstance = new OrgChart()
+        new OrgChart()
             .container(gameItemTreeElement as string)
             .data(chartData)
             .nodeWidth(() => 72)

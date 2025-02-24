@@ -130,4 +130,11 @@
         @apply rs-font;
         text-shadow: .063rem .063rem black;
     }
+
+    /**
+     * Applies a shadow sized for rendering beneath a smallish GameItem image.
+     */
+    .game-item-shadow {
+        filter: drop-shadow(0.125rem 0.125rem 0.3125rem rgba(0, 0, 0, 0.4));
+    }
 }
