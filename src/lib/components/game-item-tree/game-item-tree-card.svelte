@@ -94,8 +94,12 @@
             </Tabs.Root>
 
             <Card.Content class="hidden px-5 mt-5 gap-4 grid-cols-2 xl:grid">
-                {@render visualView()}
-                {@render tableView()}
+                <div>
+                    {@render visualView()}
+                </div>
+                <div>
+                    {@render tableView()}
+                </div>
             </Card.Content>
         {/if}
     {/if}
