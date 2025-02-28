@@ -1,13 +1,27 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { TriangleAlert } from 'lucide-svelte';
+    import platformDetect from 'platform-detect';
     import * as Card from '$lib/components/ui/card';
     import * as Alert from '$lib/components/ui/alert';
     import * as Tabs from '$lib/components/ui/tabs';
+    import ScrollArea from '../ui/scroll-area/scroll-area.svelte';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import GameItemTree from '$lib/components/game-item-tree/game-item-tree.svelte';
     import GameItemTreeTable from '$lib/components/game-item-tree/game-item-tree-table.svelte';
     import type { GameItem } from '$lib/models/game-item';
+
+    const { ios, macos, safari } = platformDetect;
+
+    let isIos = $state(false);
+    let isSafariOnMac = $state(false);
+
+    onMount(() => {
+        isIos = ios;
+        isSafariOnMac = macos && safari;
+    });
+
+    const showWebKitWarning = $derived(isIos || isSafariOnMac);
 
     interface GameItemTreeCardProps {
         gameItem: GameItem | null;
@@ -18,14 +32,6 @@
 
     const { gameItem, loading, renderChart, rootClass = '' }: GameItemTreeCardProps = $props();
 
-    onMount(() => determineIfWebkit());
-
-    let isWebkit = $state(false);
-
-    function determineIfWebkit() {
-        isWebkit = /iPad|iPhone|iPod/.test(navigator.userAgent) || navigator.userAgent.includes('WebKit');
-    }
-
     const gameItemTreeTabs = {
         VISUAL: 'Visual',
         TABLE: 'Table',
@@ -34,8 +40,8 @@
 
 {#snippet visualView()}
     <!-- Warning for WebKit users -->
-    {#if isWebkit}
-        <Alert.Root variant="destructive" class="mb-5">
+    {#if showWebKitWarning}
+        <Alert.Root variant="destructive" class="mb-4">
             <TriangleAlert class="size-4" />
             <Alert.Title>Heads up!</Alert.Title>
             <Alert.Description>
@@ -45,7 +51,7 @@
     {/if}
 
     <!-- GameItemTree -->
-    <div class="bg-muted rounded-md">
+    <div class="border rounded-md">
         <GameItemTree {gameItem} />
     </div>
 {/snippet}
@@ -72,7 +78,10 @@
 
         <!-- Body -->
         {#if renderChart}
-            <Tabs.Root value={gameItemTreeTabs.VISUAL} class="w-full my-5 px-5 xl:hidden">
+            <Tabs.Root
+                value={showWebKitWarning ? gameItemTreeTabs.TABLE : gameItemTreeTabs.VISUAL}
+                class="w-full my-5 px-5 xl:hidden"
+            >
                 <!-- Tabs -->
                 <Tabs.List class="w-full grid grid-cols-2">
                     <Tabs.Trigger value={gameItemTreeTabs.VISUAL}>Visual</Tabs.Trigger>
@@ -97,9 +106,9 @@
                 <div>
                     {@render visualView()}
                 </div>
-                <div>
+                <ScrollArea class="max-h-[300px] px-3 border rounded-md">
                     {@render tableView()}
-                </div>
+                </ScrollArea>
             </Card.Content>
         {/if}
     {/if}

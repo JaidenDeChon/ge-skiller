@@ -1,5 +1,5 @@
 <script lang="ts">
-    import ItemCardCompact from '../global/item-card-compact.svelte';
+    import ItemIngredientAccordion from '$lib/components/global/item-ingredient-accordion.svelte';
     import type { GameItem } from '$lib/models/game-item';
 
     interface GameItemTreeTableProps {
@@ -9,4 +9,4 @@
     const { gameItem }: GameItemTreeTableProps = $props();
 </script>
 
-<ItemCardCompact {gameItem} />
+<ItemIngredientAccordion {gameItem} />

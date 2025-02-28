@@ -33,7 +33,7 @@
             {#if linkToItem}
                 <a href="/items/{gameItem.id}" class="hover:underline">{gameItem.name}</a>
             {:else}
-                <p class="text-sm">{gameItem.name}</p>
+                <p>{gameItem.name}</p>
             {/if}
 
             {#if gameItem.creationSpecs?.ingredients.length}
