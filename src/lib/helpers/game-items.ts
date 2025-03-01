@@ -7,6 +7,9 @@ import type { GameItemCreationIngredient } from '$lib/models/game-item';
 type GameItemDoc = Document<unknown, object, IGameItem> & IGameItem & { _id: Types.ObjectId };
 type GameItemPricingDoc = Document<unknown, object, IGameItemPricing> & IGameItemPricing & { _id: Types.ObjectId };
 
+const MIN_GAME_ITEMS_BY_PRICE = 1;
+const MAX_GAME_ITEMS_BY_PRICE = 200;
+
 /**
  * Retrieves one GameItem object using the given ID.
  * @param id {GameItem['id']} The ID of the game item to retrieve.
@@ -29,9 +32,9 @@ export async function getGameItemById(id: GameItem['id']): Promise<GameItem> {
  * @param quantity {number} The amount of items to retrieve. Must be between 1 and 100.
  * @returns The top X amount of game items by price.
  */
-export async function getGameItemsByPrice(quantity: number = 100): Promise<GameItem[]> {
-    if (quantity < 1) throw new Error('Quantity must be greater than 0.');
-    if (quantity > 100) throw new Error('Quantity must be less than or equal to 100.');
+export async function getGameItemsByPrice(quantity: number = MAX_GAME_ITEMS_BY_PRICE): Promise<GameItem[]> {
+    if (quantity < MIN_GAME_ITEMS_BY_PRICE) throw new Error('Quantity must be greater than 0.');
+    if (quantity > MAX_GAME_ITEMS_BY_PRICE) throw new Error('Quantity must be less than or equal to 200.');
 
     // Get top x highest item prices.
     const highestPrices = await GameItemPricingModel.find().sort({ highPrice: -1 }).limit(quantity).exec();
@@ -41,11 +44,11 @@ export async function getGameItemsByPrice(quantity: number = 100): Promise<GameI
     const gameItems = await GameItemModel.find({ _id: { $in: highestPriceIds } }).exec();
 
     if (!gameItems || !gameItems.length) throw new Error('No game items found.');
-    if (gameItems.length !== highestPrices.length) throw new Error('Mismatch between game items and prices.');
+    // if (gameItems.length !== highestPrices.length) throw new Error('Mismatch between game items and prices.');
 
     // Construct the GameItem objects.
     const finishedGameItems: GameItem[] = [];
-    for (let i = 0; i < gameItems.length; i++) {
+    for (let i = 0; i < Math.min(gameItems.length, highestPriceIds.length); i++) {
         const pricing = highestPrices.find(price => price.associatedGameItemDocId.equals(gameItems[i]._id));
         if (!pricing) throw new Error('Pricing not found for item.');
 
