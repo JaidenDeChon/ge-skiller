@@ -85,12 +85,15 @@
             <Skeleton class="h-16 w-16 rounded-full" />
         {:else}
             <Avatar.Root class="p-3 bg-muted border item-card__img-background h-16 w-16">
-                <Avatar.Image
-                    src="/item-images/{gameItem.image}"
-                    alt={gameItem.name}
-                    class="item-page__item-image object-contain animate-fade-in"
-                />
-                <Avatar.Fallback class="animate-fade-in-delayed">{gameItem.name.substring(0, 2)}</Avatar.Fallback>
+                {#if gameItem.image}
+                    <Avatar.Image
+                        src="/item-images/{gameItem.image}"
+                        alt={gameItem.name}
+                        class="item-page__item-image object-contain animate-fade-in"
+                    />
+                {:else}
+                    <Avatar.Fallback class="animate-fade-in-delayed">{gameItem.name?.substring(0, 2)}</Avatar.Fallback>
+                {/if}
             </Avatar.Root>
         {/if}
 
