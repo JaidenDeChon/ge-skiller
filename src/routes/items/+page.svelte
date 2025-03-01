@@ -18,7 +18,7 @@
 
 <h1 class="text-3xl font-bold mb-4">Browse items</h1>
 
-<h2 class="text-2xl font-bold mb-4">Featured</h2>
+<h2 class="text-2xl font-bold mb-4">All items</h2>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {#if loading}
