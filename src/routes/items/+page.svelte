@@ -16,9 +16,9 @@
     });
 </script>
 
-<h2 class="text-3xl font-bold mb-4">Browse items</h2>
+<h1 class="text-3xl font-bold mb-4">Browse items</h1>
 
-<h3 class="text-2xl font-bold mb-4">Featured</h3>
+<h2 class="text-2xl font-bold mb-4">Featured</h2>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {#if loading}
