@@ -1,24 +1,19 @@
 import mongoose from 'mongoose';
 
-let user: string;
-let pw: string;
-let cluster: string;
-let host: string;
-let dbName: string;
+const useImportMetaEnv = typeof import.meta !== 'undefined' && import.meta.env;
+const useProcessEnv = typeof process !== 'undefined' && process.env;
 
-if (import.meta.env.PROD) {
-    user = process.env.VITE_MONGO_USERNAME ?? '';
-    pw = process.env.VITE_MONGO_PASSWORD ?? '';
-    cluster = process.env.VITE_MONGO_DB_CLUSTER_NAME ?? '';
-    host = process.env.VITE_MONGO_DB_HOST ?? '';
-    dbName = process.env.VITE_MONGO_DB_DB_NAME ?? '';
-} else {
-    user = import.meta.env.VITE_MONGO_USERNAME ?? '';
-    pw = import.meta.env.VITE_MONGO_PASSWORD ?? '';
-    cluster = import.meta.env.VITE_MONGO_DB_CLUSTER_NAME ?? '';
-    host = import.meta.env.VITE_MONGO_DB_HOST ?? '';
-    dbName = import.meta.env.VITE_MONGO_DB_DB_NAME ?? '';
+function getEnvVariable(key: string): string | undefined {
+    if (useImportMetaEnv && key in import.meta.env) return import.meta.env[key];
+    else if (useProcessEnv) return process.env[key];
+    return undefined;
 }
+
+const user = getEnvVariable('VITE_MONGO_USERNAME') || '';
+const pw = getEnvVariable('VITE_MONGO_PASSWORD') || '';
+const cluster = getEnvVariable('VITE_MONGO_DB_CLUSTER_NAME') || '';
+const host = getEnvVariable('VITE_MONGO_DB_HOST') || '';
+const dbName = getEnvVariable('VITE_MONGO_DB_DB_NAME') || '';
 
 // MongoDB connection string setup.
 const prepend = 'mongodb+srv';
