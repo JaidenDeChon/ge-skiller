@@ -1,7 +1,6 @@
 import type { AnyBulkWriteOperation } from 'mongoose';
 import { GameItemModel } from '$lib/models/mongo-schemas/game-item-schema';
-import { GameItemPricingModel } from '$lib/models/mongo-schemas/game-item-pricing-schema';
-import { CollectionMetadataModel } from '$lib/models/mongo-schemas/collection-metadata-schema';
+import { CollectionMetadataModel, type ICollectionMetadata } from '$lib/models/mongo-schemas/collection-metadata-schema';
 import { geDataCombined } from '$lib/services/grand-exchange-api-service';
 
 /**
@@ -13,14 +12,14 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
 
     const bulkOperations: AnyBulkWriteOperation[] = [];
 
-    // For every item in gameItems, find the matching item in GameItemPricingModel and update its prices.
+    // Update the price of every game item.
     for (const item of gameItems) {
         const pricing = prices[item.id];
         if (!pricing) continue;
 
         bulkOperations.push({
             updateOne: {
-                filter: { associatedGameItemDocId: item._id},
+                filter: { _id: item._id },
                 update: {
                     highPrice: pricing.highPrice,
                     highTime: pricing.highTime,
@@ -33,13 +32,13 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
     }
 
     // Update the data to the database.
-    await GameItemPricingModel.bulkWrite(bulkOperations);
+    await GameItemModel.bulkWrite(bulkOperations);
+
+    const collectionName = 'game-item';
+    const lastUpdated = Date.now();
 
     // Update the collection metadata.
-    let collectionMetadata = await CollectionMetadataModel.findOne({ collectionName: 'game-item-pricing'});
-    if (!collectionMetadata) {
-        collectionMetadata = new CollectionMetadataModel({ collectionName: 'game-item-pricing' });
-    }
-    collectionMetadata.lastUpdated = Date.now();
-    await collectionMetadata.save();
+    await CollectionMetadataModel
+        .findOneAndUpdate({ collectionName }, { lastUpdated, collectionName }, { upsert: true })
+        .exec();
 }

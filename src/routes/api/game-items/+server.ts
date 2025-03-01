@@ -1,17 +1,17 @@
-
 import type { RequestHandler } from '@sveltejs/kit';
-import { getAllGameItems, getItemById } from '$lib/services/game-item-cache-service';
+import { getGameItems } from '$lib/services/game-item-mongo-service.server';
 
 export const GET: RequestHandler = async ({ url }) => {
-    // Get a single game item by id if id is provided in the query string.
-    const id = url.searchParams.get('id');
+    // Get all "id" parameters from the query string (supports multiple IDs).
+    const ids = url.searchParams.getAll('id');
 
-    if (id) {
-        const gameItem = await getItemById(id);
-        return new Response(JSON.stringify(gameItem));
+    if (ids.length > 0) {
+        // Fetch all requested items concurrently.
+        const gameItems = await getGameItems(ids);
+        return new Response(JSON.stringify(gameItems));
     }
 
     // Otherwise, get all game items.
-    const gameItems = await getAllGameItems();
+    const gameItems = await getGameItems();
     return new Response(JSON.stringify(gameItems));
-}
+};

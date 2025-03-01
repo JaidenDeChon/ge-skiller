@@ -7,17 +7,17 @@
     import IconBadge from '$lib/components/global/icon-badge.svelte';
     import FavoriteButton from '$lib/components/global/favorite-button.svelte';
     import GameItemTreeCard from '$lib/components/game-item-tree/game-item-tree-card.svelte';
-    import type { GameItem } from '$lib/models/game-item';
+    import type { IGameItem } from '$lib/models/game-item';
 
     const slug = $derived(page.params.id);
     let loading = $state(true);
-    let gameItem = $state<GameItem | null>(null);
+    let gameItem = $state<IGameItem | null>(null);
 
     // Load the game item data once it's available.
     $effect(() => {
         if (!slug) return;
 
-        fetch(`/api/game-items/?id=${slug}`)
+        fetch(`/api/game-item-full-tree/?id=${slug}`)
             .then(async (response) => {
                 gameItem = await response.json();
                 loading = false;

@@ -27,7 +27,7 @@ export type SkillLevelDesignation = {
 export type GameItemCreationIngredient = {
     consumedDuringCreation: boolean;
     amount: number;
-    item: GameItem
+    item: IGameItem
 }
 
 /**
@@ -44,24 +44,24 @@ export type GameItemCreationSpecs = {
 
 /**
  * Represents an in-game item.
- * @property id - The ID number of the item.
- * @property name - The name of the item.
- * @property examineText - The "examine" text of the item. Works as a description.
- * @property image - The name of the file for the image of this item.
- * @property highPrice - The most recent high price at which the item was sold.
- * @property highTime - The time at which the item sold at the most recent high price.
- * @property lowPrice - The most recent low price at which the item was sold.
- * @property lowTime - The time at which the item sold at the most recent low price.
- * @property highAlch - The high alchemy value of the item.
- * @property lowAlch - The low alchemy value of the item.
- * @property creationSpecs - The character requirements for creating this item.
+ * @property id             - The ID number of the item.
+ * @property name           - The name of the item.
+ * @property image          - The name of the file for the image of this item.
+ * @property examineText    - The "examine" text of the item. Works as a description.
+ * @property highPrice      - The most recent high price at which the item was sold.
+ * @property highTime       - The time at which the item sold at the most recent high price.
+ * @property lowPrice       - The most recent low price at which the item was sold.
+ * @property lowTime        - The time at which the item sold at the most recent low price.
+ * @property highAlch       - The high alchemy value of the item.
+ * @property lowAlch        - The low alchemy value of the item.
+ * @property creationSpecs  - The character requirements for creating this item.
  */
-export type GameItem = {
+export interface IGameItem {
     [key: string]: undefined | string | number | GameItemCreationSpecs;
     id: string;
     name: string;
-    examineText?: string;
     image?: string;
+    examineText?: string;
     highPrice?: number;
     highTime?: number;
     lowPrice?: number;
@@ -78,7 +78,7 @@ export type GameItem = {
  */
 export type GameItemsByCategory = {
     categoryName: string;
-    items: GameItem[];
+    items: IGameItem[];
 };
 
 /**

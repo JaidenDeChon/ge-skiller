@@ -7,7 +7,7 @@
     let gameItems = $state([] as GameItem[]);
 
     onMount(async () => {
-        const response = await fetch('/api/game-items-by-price');
+        const response = await fetch('/api/game-items');
         const responseGameItems: GameItem[] = await response.json();
 
         responseGameItems.sort((a, b) => (b.highPrice ?? 0) - (a.highPrice ?? 0));

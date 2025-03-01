@@ -1,11 +1,11 @@
 import mongoose from 'mongoose'
 
-export interface IMetadata {
+export interface ICollectionMetadata {
     collectionName: string;
     lastUpdated: number;
 }
 
-const MetadataSchema = new mongoose.Schema<IMetadata>({
+const MetadataSchema = new mongoose.Schema<ICollectionMetadata>({
     collectionName: String,
     lastUpdated: {
         type: Number,
@@ -13,7 +13,7 @@ const MetadataSchema = new mongoose.Schema<IMetadata>({
     }
 });
 
-let CollectionMetadataModel: mongoose.Model<IMetadata>;
+let CollectionMetadataModel: mongoose.Model<ICollectionMetadata>;
 
 if (mongoose.models.Metadata) {
     CollectionMetadataModel = mongoose.models.Metadata;

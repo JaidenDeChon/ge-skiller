@@ -1,16 +1,9 @@
 import mongoose from 'mongoose';
-import type { GameItemCreationSpecs } from '$lib/models/game-item';
+import type { IGameItem } from '$lib/models/game-item';
 
-export interface IGameItem {
-    id: string;
-    name: string;
-    image: string;
-    examineText?: string;
-    creationSpecs?: GameItemCreationSpecs;
-    highAlch?: number;
-    lowAlch?: number;
-}
-
+/**
+ * Mongoose schema derived from the IGameItem interface.
+ */
 export const gameItemSchema = new mongoose.Schema<IGameItem>({
     id: {
         type: String,
@@ -27,6 +20,22 @@ export const gameItemSchema = new mongoose.Schema<IGameItem>({
     examineText: {
         type: String,
         required: true
+    },
+    highPrice: {
+        type: Number,
+        required: false,
+    },
+    lowPrice: {
+        type: Number,
+        required: false,
+    },
+    highTime: {
+        type: Number,
+        required: false,
+    },
+    lowTime: {
+        type: Number,
+        required: false,
     },
     highAlch: {
         type: Number,
