@@ -5,7 +5,7 @@
     const { icon, text }: { icon: Snippet; text?: string } = $props();
 </script>
 
-<Badge class="gap-2" variant="secondary">
+<Badge class="gap-2 capitalize" variant="outline">
     {@render icon()}
     {text}
 </Badge>

@@ -12,6 +12,7 @@
     const slug = $derived(page.params.id);
     let loading = $state(true);
     let gameItem = $state<IGameItem | null>(null);
+    let associatedSkills = $state([] as string[]);
 
     // Load the game item data once it's available.
     $effect(() => {
@@ -20,6 +21,10 @@
         fetch(`/api/game-item-full-tree/?id=${slug}`)
             .then(async (response) => {
                 gameItem = await response.json();
+
+                if (!gameItem) throw new Error('');
+
+                getAssociatedSkills(gameItem);
                 loading = false;
             })
             .catch((error) => {
@@ -35,6 +40,36 @@
     });
 
     const renderChart = $derived(!!gameItem?.creationSpecs?.ingredients?.length);
+
+    /**
+     * Recursively searches through the IGameItem object's `creationSpecs` property to gather a list of all associated
+     * skills.
+     * @param item {IGameItem} The IGameItem object to search.
+     */
+    function getAssociatedSkills(item: IGameItem): void {
+        const skills: string[] = [];
+
+        function extractSkills(gameItem: IGameItem) {
+            if (gameItem.creationSpecs?.requiredSkills) {
+                gameItem.creationSpecs.requiredSkills.forEach((skill) => {
+                    if (!skills.includes(skill.skillName)) {
+                        skills.push(skill.skillName);
+                    }
+                });
+            }
+
+            if (gameItem.creationSpecs?.ingredients) {
+                gameItem.creationSpecs.ingredients.forEach((ingredient) => {
+                    if (ingredient.item) {
+                        extractSkills(ingredient.item);
+                    }
+                });
+            }
+        }
+
+        extractSkills(item);
+        associatedSkills = skills;
+    }
 </script>
 
 <!-- Header -->
@@ -113,13 +148,18 @@
 </header>
 
 <!-- Skill tags -->
-<IconBadge text="Crafting">
-    {#snippet icon()}
-        <Avatar.Root class="h-4 w-4">
-            <Avatar.Image src="/skill-images/crafting.png"></Avatar.Image>
-        </Avatar.Root>
-    {/snippet}
-</IconBadge>
+
+<div class="flex gap-3 flex-wrap">
+    {#each associatedSkills as associatedSkill}
+        <IconBadge text={associatedSkill}>
+            {#snippet icon()}
+                <Avatar.Root class="size-5 p-0.5">
+                    <Avatar.Image src="/skill-images/{associatedSkill}.png"></Avatar.Image>
+                </Avatar.Root>
+            {/snippet}
+        </IconBadge>
+    {/each}
+</div>
 
 <!-- Item tree card -->
 <GameItemTreeCard rootClass="mt-4 pb-5" {gameItem} {loading} {renderChart} />
