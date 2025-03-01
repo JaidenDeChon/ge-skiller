@@ -25,11 +25,11 @@
 
         <div class="text-lg flex flex-col gap-1 z-20 max-w-lg">
             <p>
-                A free tool for finding the most valuable items you can make with
-                <strong>your levels</strong>.
+                A free tool for finding the most valuable items you can <span class="text-primary">make</span> with
+                <span class="font-bold">your levels</span>.
             </p>
 
-            <p class="text-muted-foreground">Powered by real-time GE prices.</p>
+            <p class="text-muted-foreground">Powered by hourly GE prices.</p>
         </div>
 
         <div class="flex flex-col gap-3 md:flex-row z-30">
