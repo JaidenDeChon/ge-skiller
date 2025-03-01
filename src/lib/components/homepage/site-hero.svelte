@@ -36,7 +36,7 @@
             <ResponsiveDialog title={ctaText} triggerClass={buttonVariants({ variant: 'default' })}>
                 {#snippet trigger()}
                     <img src="/skill-images/skills.png" alt="OSRS skills icon" class="w-6 h-6" />
-                    <span class="primary rs-font text-xl">{ctaText}</span>
+                    <span class="rs-font text-xl">{ctaText}</span>
                 {/snippet}
 
                 {#snippet content()}
@@ -44,9 +44,9 @@
                 {/snippet}
             </ResponsiveDialog>
 
-            <a href="items" class={buttonVariants({ variant: 'secondary' })}>
+            <a href="items" class={buttonVariants({ variant: 'default' })}>
                 <img src="/other-images/inventory-backpack.png" alt="Inventory backpack" class="w-6 h-6" />
-                <span class="rs-font text-xl dark:text-primary">Start browsing items</span>
+                <span class="rs-font text-xl">Start browsing items</span>
             </a>
         </div>
     </div>
