@@ -23,13 +23,25 @@
 
         <h1 class="rs-font-with-shadow dark:rs-font text-5xl md:text-6xl text-primary">ge-skiller</h1>
 
-        <div class="text-lg flex flex-col gap-1 z-20 max-w-lg">
-            <p>
-                A free tool for finding the most valuable items you can <span class="text-primary">make</span> with
-                <span class="font-bold">your levels</span>.
-            </p>
+        <div class="text-lg flex flex-col gap-1 z-20 max-w-md">
+            <span>
+                Find the most profitable items to
+                <span
+                    class="text-primary font-extrabold inline-flex flex-col h-[calc(theme(fontSize.base)*theme(lineHeight.tight))] md:h-[calc(theme(fontSize.base)*theme(lineHeight.tight))] overflow-hidden"
+                >
+                    <ul class="animate-text-slide block text-left leading-tight [&_li]:block">
+                        <li>craft</li>
+                        <li>smith</li>
+                        <li>cook</li>
+                        <li>fletch</li>
+                        <li>farm</li>
+                        <li aria-hidden="true">craft</li>
+                    </ul>
+                </span>
+                using your own skill levels
+            </span>
 
-            <p class="text-muted-foreground">Powered by hourly GE prices.</p>
+            <p class="text-muted-foreground">Powered by hourly GE prices</p>
         </div>
 
         <div class="flex flex-col gap-3 md:flex-row z-30">
