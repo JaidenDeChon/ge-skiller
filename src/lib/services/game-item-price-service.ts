@@ -18,7 +18,9 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
         const fullItemData = updatedGameItems[item.id];
         if (!fullItemData) continue;
 
-        fullItemData.icon = `${_.kebabCase(fullItemData.name)}.png`
+        // If this doesn't fix 'Magic logs', I guess just hard-code a list of items whose icons are gifs and use that
+        const iconFileExtension = fullItemData.icon.split('.').pop() || 'png';
+        fullItemData.icon = `${_.kebabCase(fullItemData.name)}.${iconFileExtension}`;
 
         bulkOperations.push({
             updateOne: {
