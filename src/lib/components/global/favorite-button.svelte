@@ -4,9 +4,9 @@
     import { Heart } from 'lucide-svelte';
     import { Button } from '../ui/button';
     import { favoritesStore } from '$lib/stores/favorites-store';
-    import type { GameItem } from '$lib/models/game-item';
+    import type { IGameItem } from '$lib/models/game-item';
 
-    const { gameItem }: { gameItem: GameItem } = $props();
+    const { gameItem }: { gameItem: IGameItem } = $props();
 
     const isFavorited = $derived.by(() => {
         if (!gameItem || !gameItem.id) return false;

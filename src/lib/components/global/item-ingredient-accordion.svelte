@@ -1,19 +1,20 @@
 <script lang="ts">
     import Self from './item-ingredient-accordion.svelte';
     import * as Accordion from '$lib/components/ui/accordion';
-    import type { GameItem } from '$lib/models/game-item';
+    import type { IGameItem } from '$lib/models/game-item';
 
     interface ItemIngredientAccordionProps {
-        gameItem: GameItem | null;
+        gameItem: IGameItem | null;
         linkToItem?: boolean;
         disabled?: boolean;
+        index?: number;
     }
 
-    const { gameItem, linkToItem = false, disabled = false }: ItemIngredientAccordionProps = $props();
+    const { gameItem, linkToItem = false, disabled = false, index = 0 }: ItemIngredientAccordionProps = $props();
 </script>
 
-<Accordion.Root type="multiple" {disabled} class="w-full">
-    <Accordion.Item>
+<Accordion.Root type="multiple" value={index === 0 ? ['root'] : []} disabled={disabled || index === 0} class="w-full">
+    <Accordion.Item class="border-transparent" value="root">
         <Accordion.Trigger class="accordion-trigger">
             <div class="flex gap-3 items-center">
                 <!-- Image -->
@@ -40,6 +41,7 @@
                         gameItem={ingredient.item}
                         linkToItem
                         disabled={!ingredient.item.creationSpecs?.ingredients.length}
+                        index={index + 1}
                     />
                 {/each}
             {/if}

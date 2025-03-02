@@ -59,7 +59,9 @@
 {/snippet}
 
 {#snippet tableView()}
-    <GameItemTreeTable {gameItem} />
+    <ScrollArea class="h-[18.75rem] px-3 border rounded-md">
+        <GameItemTreeTable {gameItem} />
+    </ScrollArea>
 {/snippet}
 
 <Card.Root class={rootClass}>
@@ -95,7 +97,7 @@
                     </Tabs.Content>
 
                     <!-- "Table" view -->
-                    <Tabs.Content value={gameItemTreeTabs.TABLE}>
+                    <Tabs.Content class="h-[18.75rem]" value={gameItemTreeTabs.TABLE}>
                         {@render tableView()}
                     </Tabs.Content>
                 </Card.Content>
@@ -105,9 +107,9 @@
                 <div>
                     {@render visualView()}
                 </div>
-                <ScrollArea class="max-h-[300px] px-3 border rounded-md">
+                <div>
                     {@render tableView()}
-                </ScrollArea>
+                </div>
             </Card.Content>
         {/if}
     {/if}
