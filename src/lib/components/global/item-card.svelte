@@ -5,17 +5,27 @@
     import * as Avatar from '$lib/components/ui/avatar';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import { timeSince } from '$lib/helpers/time-since';
-    import type { GameItem } from '$lib/models/game-item';
+    import type { IGameItem } from '$lib/models/game-item';
 
     const headerTextDivClasses = 'flex-1 flex flex-col mb-2 text-sm';
 
-    const emptyGameItem: GameItem = {
-        id: '0',
-        name: 'Loading...',
-        examineText: 'Loading...',
-        highPrice: 0,
-        highTime: 0,
-        image: 'loading.gif',
+    const emptyGameItem: IGameItem = {
+        id: -1,
+        name: '',
+        icon: '',
+        examine: '',
+        wikiName: '',
+        cost: -1,
+        highalch: -1,
+        lowalch: -1,
+        incomplete: false,
+        members: false,
+        tradeable: false,
+        buyLimit: -1,
+        highPrice: -1,
+        highTime: -1,
+        lowPrice: -1,
+        lowTime: -1,
     };
 
     const {
@@ -23,7 +33,7 @@
         loading = false,
         linkToItemPage = false,
     } = $props<{
-        item?: GameItem;
+        item?: IGameItem;
         loading?: boolean;
         linkToItemPage?: boolean;
     }>();
@@ -40,7 +50,7 @@
 
 {#snippet itemCardHeaderContent()}
     <span class="font-medium animate-fade-in">{item.name}</span>
-    <span class="text-muted-foreground animate-fade-in">{item.examineText}</span>
+    <span class="text-muted-foreground animate-fade-in">{item.examine}</span>
 {/snippet}
 
 <div class="item-card custom-card group">
@@ -63,7 +73,7 @@
             <Skeleton class="rounded-full size-12" />
         {:else}
             <Avatar.Root class="p-2 bg-muted border item-card__img-background h-12 w-12">
-                <Avatar.Image src="/item-images/{item.image}" class="item-card__image object-contain animate-fade-in" />
+                <Avatar.Image src="/item-images/{item.icon}" class="item-card__image object-contain animate-fade-in" />
                 <Avatar.Fallback class="animate-fade-in">{item.name}</Avatar.Fallback>
             </Avatar.Root>
         {/if}

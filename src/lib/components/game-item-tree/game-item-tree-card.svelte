@@ -9,7 +9,7 @@
     import { Skeleton } from '$lib/components/ui/skeleton';
     import GameItemTree from '$lib/components/game-item-tree/game-item-tree.svelte';
     import GameItemTreeTable from '$lib/components/game-item-tree/game-item-tree-table.svelte';
-    import type { GameItem } from '$lib/models/game-item';
+    import type { IGameItem } from '$lib/models/game-item';
 
     const { ios, macos, safari } = platformDetect;
 
@@ -24,7 +24,7 @@
     const showWebKitWarning = $derived(isIos || isSafariOnMac);
 
     interface GameItemTreeCardProps {
-        gameItem: GameItem | null;
+        gameItem: IGameItem | null;
         loading: boolean;
         renderChart: boolean;
         rootClass?: string;
@@ -36,6 +36,8 @@
         VISUAL: 'Visual',
         TABLE: 'Table',
     } as const;
+
+    const defaultTab = $derived(showWebKitWarning ? gameItemTreeTabs.TABLE : gameItemTreeTabs.VISUAL);
 </script>
 
 {#snippet visualView()}
@@ -78,10 +80,7 @@
 
         <!-- Body -->
         {#if renderChart}
-            <Tabs.Root
-                value={showWebKitWarning ? gameItemTreeTabs.TABLE : gameItemTreeTabs.VISUAL}
-                class="w-full my-5 px-5 xl:hidden"
-            >
+            <Tabs.Root value={defaultTab} class="w-full my-5 px-5 xl:hidden">
                 <!-- Tabs -->
                 <Tabs.List class="w-full grid grid-cols-2">
                     <Tabs.Trigger value={gameItemTreeTabs.VISUAL}>Visual</Tabs.Trigger>

@@ -6,34 +6,38 @@ import type { IGameItem } from '$lib/models/game-item';
  */
 export const gameItemSchema = new mongoose.Schema<IGameItem>({
     id: {
-        type: String,
-        required: true
+        type: Number,
+        required: true,
     },
     name: {
         type: String,
-        required: true
+        required: true,
     },
-    image: {
+    icon: {
         type: String,
-        required: true
+        required: true,
     },
-    examineText: {
+    examine: {
         type: String,
-        required: true
+        required: true,
     },
-    highPrice: {
+    incomplete: {
+        type: Boolean,
+        required: false,
+    },
+    members: {
+        type: Boolean,
+        required: false,
+    },
+    tradeable: {
+        type: Boolean,
+        required: false,
+    },
+    buyLimit: {
         type: Number,
         required: false,
     },
-    lowPrice: {
-        type: Number,
-        required: false,
-    },
-    highTime: {
-        type: Number,
-        required: false,
-    },
-    lowTime: {
+    cost: {
         type: Number,
         required: false,
     },
@@ -44,6 +48,22 @@ export const gameItemSchema = new mongoose.Schema<IGameItem>({
     lowAlch: {
         type: Number,
         required: false
+    },
+    highPrice: {
+        type: Number,
+        required: false,
+    },
+    highTime: {
+        type: Number,
+        required: false,
+    },
+    lowPrice: {
+        type: Number,
+        required: false,
+    },
+    lowTime: {
+        type: Number,
+        required: false,
     },
     creationSpecs: {
         experienceGranted: [

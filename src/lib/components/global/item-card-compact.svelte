@@ -2,10 +2,10 @@
     import Self from './item-card-compact.svelte';
     import Button from '../ui/button/button.svelte';
     import { ChevronDown } from 'lucide-svelte';
-    import type { GameItem } from '$lib/models/game-item';
+    import type { IGameItem } from '$lib/models/game-item';
 
     interface ItemCardCompactProps {
-        gameItem: GameItem | null;
+        gameItem: IGameItem | null;
         linkToItem?: boolean;
         rootClassname?: string;
     }
@@ -24,7 +24,7 @@
             <div class="flex justify-center items-center size-9 bg-muted rounded-full border group-hover:bg-background">
                 <img
                     class="game-item-shadow transition-fade-in-delayed size-5"
-                    src="/item-images/{gameItem.image}"
+                    src="/item-images/{gameItem.icon}"
                     alt={gameItem.name}
                 />
             </div>

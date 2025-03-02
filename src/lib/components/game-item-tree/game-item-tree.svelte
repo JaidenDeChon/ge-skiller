@@ -3,9 +3,9 @@
     import * as d3 from 'd3';
     import { OrgChart } from 'd3-org-chart';
     import ItemNode from '$lib/components/game-item-tree/item-node.svelte';
-    import type { GameItem } from '$lib/models/game-item';
+    import type { IGameItem, GameItemCreationIngredient } from '$lib/models/game-item';
 
-    const { gameItem }: { gameItem: GameItem | null } = $props();
+    const { gameItem }: { gameItem: IGameItem | null } = $props();
 
     let gameItemTreeElement = $state();
     const renderChart = $derived(!!gameItem?.creationSpecs?.ingredients?.length);
@@ -25,7 +25,7 @@
             .nodeHeight(() => 72)
             .expandAll()
             .nodeContent((d) => {
-                const gameItem = d.data as GameItem;
+                const gameItem = d.data as IGameItem;
                 const target = document.createElement('div');
                 const props = { gameItem };
 
@@ -43,29 +43,29 @@
     }
 
     type OrgChartNode = {
-        id: string;
-        parentId: string | null;
-        name: string;
-        image?: string;
-        examineText?: string;
+        id: IGameItem['id'];
+        parentId: IGameItem['id'] | null;
+        name: IGameItem['name'];
+        icon?: IGameItem['icon'];
+        examine?: IGameItem['examine'];
     };
 
-    function transformGameItemsForOrgChart(items: GameItem[]): OrgChartNode[] {
+    function transformGameItemsForOrgChart(items: IGameItem[]): OrgChartNode[] {
         const result: OrgChartNode[] = [];
 
-        function processItem(item: GameItem, parentId: string | null = null) {
+        function processItem(item: IGameItem, parentId: OrgChartNode['parentId'] | null = null) {
             // Add the current item as a node
             result.push({
                 id: item.id,
                 parentId,
                 name: item.name,
-                image: item.image ? `/item-images/${item.image}` : undefined,
-                examineText: item.examineText,
+                icon: item.icon ? `/item-images/${item.icon}` : undefined,
+                examine: item.examine,
             });
 
             // If the item has ingredients, process them as children
             if (item.creationSpecs?.ingredients) {
-                item.creationSpecs.ingredients.forEach((ingredient) => {
+                item.creationSpecs.ingredients.forEach((ingredient: GameItemCreationIngredient) => {
                     processItem(ingredient.item, item.id);
                 });
             }

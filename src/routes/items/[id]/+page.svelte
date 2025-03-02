@@ -1,6 +1,7 @@
 <script lang="ts">
     import { page } from '$app/state';
     import { toast } from 'svelte-sonner';
+    import { Star, StarOff } from 'lucide-svelte';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import * as Avatar from '$lib/components/ui/avatar';
     import * as Breadcrumb from '$lib/components/ui/breadcrumb';
@@ -107,6 +108,8 @@
                 </Breadcrumb.List>
             </Breadcrumb.Root>
 
+            <!-- Members indicator -->
+
             <!-- Favorite button -->
             <FavoriteButton {gameItem} />
         {/if}
@@ -120,9 +123,9 @@
             <Skeleton class="h-16 w-16 rounded-full" />
         {:else}
             <Avatar.Root class="p-3 bg-muted border item-card__img-background h-16 w-16">
-                {#if gameItem.image}
+                {#if gameItem.icon}
                     <Avatar.Image
-                        src="/item-images/{gameItem.image}"
+                        src="/item-images/{gameItem.icon}"
                         alt={gameItem.name}
                         class="item-page__item-image object-contain animate-fade-in"
                     />
@@ -140,7 +143,7 @@
             {:else}
                 <h1 class="text-2xl font-bold animate-fade-in">{gameItem.name}</h1>
                 <p class="text-muted-foreground text-sm animate-fade-in">
-                    {gameItem.examineText}
+                    {gameItem.examine}
                 </p>
             {/if}
         </div>
@@ -150,6 +153,17 @@
 <!-- Skill tags -->
 
 <div class="flex gap-3 flex-wrap">
+    <IconBadge text={gameItem?.members ? 'Members' : 'Free to play'}>
+        {#snippet icon()}
+            <!-- Members indicator -->
+            {#if gameItem?.members}
+                <Star class="size-5 p-0.5 text-primary" />
+            {:else}
+                <StarOff class="size-5 p-0.5 text-muted-foreground" />
+            {/if}
+        {/snippet}
+    </IconBadge>
+
     {#each associatedSkills as associatedSkill}
         <IconBadge text={associatedSkill}>
             {#snippet icon()}

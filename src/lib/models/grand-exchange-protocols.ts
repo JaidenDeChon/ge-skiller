@@ -29,15 +29,18 @@ export type FullTransactionData = {
  * @property name - The name.
  */
 export type MapData = {
-    examine: string;
     id: number;
-    members: boolean;
-    lowalch?: number;
-    limit?: number;
-    value: number;
-    highalch?: number;
-    icon: string;
     name: string;
+    icon: string;
+    examine: string;
+    incomplete: boolean;
+    members: boolean;
+    tradeable: boolean;
+    buyLimit: number;
+    cost: number;
+    lowalch: number;
+    highalch: number;
+    wikiName: string;
 };
 
 /**

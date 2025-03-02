@@ -63,12 +63,11 @@ export const geDataCombined = async (): Promise<Types.FullMapDataCombined> => {
     const itemMapping = await mapping();
 
     Object.keys(latestPrices).forEach((itemId: string) => {
-        const itemData = itemMapping[itemId];
         const highPrice = latestPrices[itemId].high;
         const highTime = latestPrices[itemId].highTime;
         const lowPrice = latestPrices[itemId].low;
         const lowTime = latestPrices[itemId].lowTime;
-        geData[itemId] = { ...itemData, highPrice, highTime, lowPrice, lowTime };
+        geData[itemId] = { ...itemMapping[itemId], highPrice, highTime, lowPrice, lowTime };
     });
 
     return geData;

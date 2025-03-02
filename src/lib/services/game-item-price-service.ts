@@ -1,33 +1,31 @@
-import type { AnyBulkWriteOperation } from 'mongoose';
+import _ from 'lodash';
 import { GameItemModel } from '$lib/models/mongo-schemas/game-item-schema';
-import { CollectionMetadataModel, type ICollectionMetadata } from '$lib/models/mongo-schemas/collection-metadata-schema';
+import { CollectionMetadataModel } from '$lib/models/mongo-schemas/collection-metadata-schema';
 import { geDataCombined } from '$lib/services/grand-exchange-api-service';
+import type { AnyBulkWriteOperation } from 'mongoose';
 
 /**
  * Updates the prices of all GameItems in the database.
  */
 export async function updateAllGameItemPricesInMongo(): Promise<void> {
-    const prices = await geDataCombined();
-    const gameItems = await GameItemModel.find();
+    const updatedGameItems = await geDataCombined();
+    const gameItemsInMongo = await GameItemModel.find();
 
     const bulkOperations: AnyBulkWriteOperation[] = [];
+    
+    // Update the price of every game item in MongoDB.
+    for (const item of gameItemsInMongo) {
+        const fullItemData = updatedGameItems[item.id];
+        if (!fullItemData) continue;
 
-    // Update the price of every game item.
-    for (const item of gameItems) {
-        const pricing = prices[item.id];
-        if (!pricing) continue;
+        fullItemData.icon = `${_.kebabCase(fullItemData.name)}.png`
 
         bulkOperations.push({
             updateOne: {
                 filter: { _id: item._id },
-                update: {
-                    highPrice: pricing.highPrice,
-                    highTime: pricing.highTime,
-                    lowPrice: pricing.lowPrice,
-                    lowTime: pricing.lowTime,
-                },
+                update: fullItemData,
                 upsert: true,
-            }
+            },
         });
     }
 
