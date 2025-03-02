@@ -45,31 +45,20 @@ export type GameItemCreationSpecs = {
 }
 
 /**
- * Represents an in-game item.
- * @property id             - Unique OSRS item ID number.
- * @property name           - The name of the item.
- * @property image          - The name of the file for the image of this item.
- * @property examineText    - The "examine" text of the item. Works as a description.
- * @property incomplete     - If the item has incomplete wiki data.
- * @property members        - If the item is members-only.
- * @property tradeable      - If the item is tradeable (between players and on the GE).
- * @property buyLimit       - The GE buy limit of the item.
- * @property storePrice     - The store price of the item.
+ * Represents an in-game item with creation specs and GE price data attached.
+ * @property creationSpecs  - The character requirements for creating this item.
  * @property highPrice      - The most recent high price at which the item was sold.
  * @property highTime       - The time at which the item sold at the most recent high price.
  * @property lowPrice       - The most recent low price at which the item was sold.
  * @property lowTime        - The time at which the item sold at the most recent low price.
- * @property highAlch       - The high alchemy value of the item (cost * 0.6).
- * @property lowAlch        - The low alchemy value of the item (cost * 0.4).
- * @property creationSpecs  - The character requirements for creating this item.
  */
 export interface IGameItem extends MapData {
     [key: string]: undefined | string | number | boolean | GameItemCreationSpecs;
+    creationSpecs?: GameItemCreationSpecs;
     highPrice?: number;
     highTime?: number;
     lowPrice?: number;
     lowTime?: number;
-    creationSpecs?: GameItemCreationSpecs;
 }
 
 /**

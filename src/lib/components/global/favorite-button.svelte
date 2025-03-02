@@ -30,7 +30,10 @@
 <Button
     variant="ghost"
     size="icon"
-    class={['rounded-full transition-opacity', isFavorited && 'text-primary']}
+    class={[
+        'rounded-full transition-colors text-muted-foreground hover:text-muted-foreground',
+        isFavorited && 'text-primary hover:text-muted-foreground',
+    ]}
     onclick={handleFavorite}
 >
     <Heart fill={isFavorited ? 'hsl(var(--primary))' : 'transparent'} />

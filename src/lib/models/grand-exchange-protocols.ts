@@ -17,16 +17,19 @@ export type FullTransactionData = {
 };
 
 /**
- * An item's description.
- * @property examine - The examine text.
- * @property id - The id.
- * @property members - States if it's members-only.
- * @property lowalch - The low alch value.
- * @property limit - The Grand Exchange limit.
- * @property value - The value.
- * @property highalch - The high alch price.
- * @property icon - The icon location.
- * @property name - The name.
+ * Represents an in-game item.
+ * @property id          - Unique OSRS item ID number.
+ * @property name        - The name of the item.
+ * @property icon        - The name of the file for the image of this item.
+ * @property examine     - The "examine" text of the item. Works as a description.
+ * @property incomplete  - If the item has incomplete wiki data.
+ * @property members     - If the item is members-only.
+ * @property tradeable   - If the item is tradeable (between players and on the GE).
+ * @property buyLimit    - The GE buy limit of the item.
+ * @property cost        - The store price of the item.
+ * @property lowAlch     - The low alchemy value of the item (cost * 0.4).
+ * @property highAlch    - The high alchemy value of the item (cost * 0.6).
+ * @property wikiName    - The name of the OSRS Wiki entry for this item.
  */
 export type MapData = {
     id: number;

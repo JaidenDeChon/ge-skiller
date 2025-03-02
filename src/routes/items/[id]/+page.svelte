@@ -8,12 +8,14 @@
     import IconBadge from '$lib/components/global/icon-badge.svelte';
     import FavoriteButton from '$lib/components/global/favorite-button.svelte';
     import GameItemTreeCard from '$lib/components/game-item-tree/game-item-tree-card.svelte';
-    import type { IGameItem } from '$lib/models/game-item';
+    import type { IGameItem, SkillLevelDesignation } from '$lib/models/game-item';
+
+    type AssociatedSkillsArray = NonNullable<IGameItem['creationSpecs']>['requiredSkills'];
 
     const slug = $derived(page.params.id);
     let loading = $state(true);
     let gameItem = $state<IGameItem | null>(null);
-    let associatedSkills = $state([] as string[]);
+    let associatedSkills = $state(undefined as undefined | AssociatedSkillsArray);
 
     // Load the game item data once it's available.
     $effect(() => {
@@ -48,13 +50,17 @@
      * @param item {IGameItem} The IGameItem object to search.
      */
     function getAssociatedSkills(item: IGameItem): void {
-        const skills: string[] = [];
+        const foundSkills: AssociatedSkillsArray = [];
 
         function extractSkills(gameItem: IGameItem) {
             if (gameItem.creationSpecs?.requiredSkills) {
-                gameItem.creationSpecs.requiredSkills.forEach((skill) => {
-                    if (!skills.includes(skill.skillName)) {
-                        skills.push(skill.skillName);
+                gameItem.creationSpecs.requiredSkills.forEach((requiredSkill: SkillLevelDesignation) => {
+                    if (
+                        !foundSkills.some(
+                            (foundSkill: SkillLevelDesignation) => foundSkill.skillName === requiredSkill.skillName,
+                        )
+                    ) {
+                        foundSkills.push(requiredSkill);
                     }
                 });
             }
@@ -69,7 +75,7 @@
         }
 
         extractSkills(item);
-        associatedSkills = skills;
+        associatedSkills = foundSkills;
     }
 </script>
 
@@ -157,22 +163,24 @@
         {#snippet icon()}
             <!-- Members indicator -->
             {#if gameItem?.members}
-                <Star class="size-5 p-0.5 text-primary" />
+                <Star class="size-5 p-0.5 fill-primary text-transparent" />
             {:else}
                 <StarOff class="size-5 p-0.5 text-muted-foreground" />
             {/if}
         {/snippet}
     </IconBadge>
 
-    {#each associatedSkills as associatedSkill}
-        <IconBadge text={associatedSkill}>
-            {#snippet icon()}
-                <Avatar.Root class="size-5 p-0.5">
-                    <Avatar.Image src="/skill-images/{associatedSkill}.png"></Avatar.Image>
-                </Avatar.Root>
-            {/snippet}
-        </IconBadge>
-    {/each}
+    {#if associatedSkills?.length}
+        {#each associatedSkills as associatedSkill}
+            <IconBadge text={associatedSkill.skillName} secondaryText={associatedSkill.skillLevel.toString()}>
+                {#snippet icon()}
+                    <Avatar.Root class="size-5 p-0.5">
+                        <Avatar.Image src="/skill-images/{associatedSkill.skillName}.png"></Avatar.Image>
+                    </Avatar.Root>
+                {/snippet}
+            </IconBadge>
+        {/each}
+    {/if}
 </div>
 
 <!-- Item tree card -->

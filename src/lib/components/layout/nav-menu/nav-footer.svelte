@@ -29,7 +29,7 @@
                         }),
                     ]}
                 >
-                    <a href="/static#" class="h-full w-full flex items-center justify-center">
+                    <a href="/" class="h-full w-full flex items-center justify-center">
                         <Info />
                         <span class="sr-only">About</span>
                     </a>
