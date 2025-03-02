@@ -3,6 +3,9 @@ import { GameItemModel } from '$lib/models/mongo-schemas/game-item-schema';
 import { CollectionMetadataModel } from '$lib/models/mongo-schemas/collection-metadata-schema';
 import { geDataCombined } from '$lib/services/grand-exchange-api-service';
 import type { AnyBulkWriteOperation } from 'mongoose';
+import type { IGameItem } from '$lib/models/game-item';
+
+const gameItemsUsingGifs: string[] = ['Magic logs'];
 
 /**
  * Updates the prices of all GameItems in the database.
@@ -18,8 +21,7 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
         const fullItemData = updatedGameItems[item.id];
         if (!fullItemData) continue;
 
-        // If this doesn't fix 'Magic logs', I guess just hard-code a list of items whose icons are gifs and use that
-        const iconFileExtension = fullItemData.icon.split('.').pop() || 'png';
+        const iconFileExtension = gameItemsUsingGifs.includes(fullItemData.name) ? 'gif' : 'png';
         fullItemData.icon = `${_.kebabCase(fullItemData.name)}.${iconFileExtension}`;
 
         bulkOperations.push({
