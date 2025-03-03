@@ -28,7 +28,7 @@
         },
         {
             title: 'Favorites',
-            url: 'favorites',
+            url: '/favorites',
             icon: Heart,
             isActive: true,
         },

@@ -1,9 +1,6 @@
 <script lang="ts">
     import { buttonVariants } from '$lib/components/ui/button';
-    import ResponsiveDialog from '../global/responsive-dialog.svelte';
-
-    const ctaText = 'Enter your skill levels';
-
+    import CharacterStatsDialogButton from '../dialogs/character-stats/character-stats-dialog-button.svelte';
     const { bgUrl } = $props();
 </script>
 
@@ -29,12 +26,15 @@
                 <span
                     class="text-primary font-extrabold inline-flex flex-col h-[calc(theme(fontSize.base)*theme(lineHeight.tight))] md:h-[calc(theme(fontSize.base)*theme(lineHeight.tight))] overflow-hidden"
                 >
-                    <ul class="animate-text-slide block text-left leading-tight [&_li]:block">
+                    <ul class="animate-text-slide-8 block text-left leading-tight [&_li]:block">
                         <li>craft</li>
                         <li>smith</li>
-                        <li>cook</li>
                         <li>fletch</li>
+                        <li>steal</li>
+                        <li>mine</li>
                         <li>farm</li>
+                        <li>cook</li>
+                        <li>brew</li>
                         <li aria-hidden="true">craft</li>
                     </ul>
                 </span>
@@ -45,16 +45,7 @@
         </div>
 
         <div class="flex flex-col gap-3 md:flex-row z-30">
-            <ResponsiveDialog title={ctaText} triggerClass={buttonVariants({ variant: 'default' })}>
-                {#snippet trigger()}
-                    <img src="/skill-images/skills.png" alt="OSRS skills icon" class="w-6 h-6" />
-                    <span class="rs-font text-xl">{ctaText}</span>
-                {/snippet}
-
-                {#snippet content()}
-                    ok
-                {/snippet}
-            </ResponsiveDialog>
+            <CharacterStatsDialogButton />
 
             <a href="items" class={buttonVariants({ variant: 'default' })}>
                 <img src="/other-images/inventory-backpack.png" alt="Inventory backpack" class="w-6 h-6" />
