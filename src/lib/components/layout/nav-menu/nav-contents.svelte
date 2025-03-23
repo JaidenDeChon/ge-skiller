@@ -23,7 +23,7 @@
         },
         {
             title: 'Browse items',
-            url: 'items',
+            url: '/items',
             icon: Sword,
         },
         {
@@ -33,7 +33,7 @@
             isActive: true,
         },
         {
-            title: 'Skill levels',
+            title: 'Character stats',
             url: '#',
             icon: ChartNoAxesColumn,
             isActive: true,
