@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { page } from '$app/state';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import { Home, Heart, ChartNoAxesColumn, Sword } from 'lucide-svelte';
 
@@ -60,6 +61,8 @@
             isActive: false,
         },
     ];
+
+    const currentPage = $derived(page.route || '');
 </script>
 
 <Sidebar.Group>
@@ -75,6 +78,9 @@
                             <a href={item.url} {...props}>
                                 <item.icon />
                                 <span>{item.title}</span>
+                                {#if item.url === currentPage.id}
+                                    <div class="active-route-indicator size-3 bg-foreground ml-auto rounded-full opacity-10"></div>
+                                {/if}
                             </a>
                         {/snippet}
                     </Sidebar.MenuButton>
@@ -106,3 +112,9 @@
         </Sidebar.Menu>
     </Sidebar.GroupContent>
 </Sidebar.Group>
+
+<style>
+    .active-route-indicator {
+        view-transition-name: active-route-indicator;
+    }
+</style>
