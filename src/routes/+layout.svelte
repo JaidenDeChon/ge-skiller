@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onNavigate } from '$app/navigation';
     import '../app.css';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import { Toaster } from '$lib/components/ui/sonner';
@@ -7,6 +8,18 @@
     import { ModeWatcher } from 'mode-watcher';
 
     let { children } = $props();
+
+    onNavigate((navigation) => {
+        // Bail early if the browser doesn't support view transitions.
+        if (!document.startViewTransition) return;
+
+        return new Promise((resolve) => {
+            document.startViewTransition(async () => {
+                resolve();
+                await navigation.complete;
+            })
+        });
+    });
 </script>
 
 <Toaster />
