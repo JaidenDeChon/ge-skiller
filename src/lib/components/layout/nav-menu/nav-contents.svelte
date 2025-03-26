@@ -11,7 +11,6 @@
         icon?: any;
         // Use if using a custom image a san icon.
         iconString?: string;
-        isActive?: boolean;
         items?: Item[];
     }
 
@@ -20,7 +19,6 @@
             title: 'Home',
             url: '/',
             icon: Home,
-            isActive: true,
         },
         {
             title: 'Browse items',
@@ -31,13 +29,11 @@
             title: 'Favorites',
             url: '/favorites',
             icon: Heart,
-            isActive: true,
         },
         {
             title: 'Character stats',
             url: '#',
             icon: ChartNoAxesColumn,
-            isActive: true,
         },
     ];
 
@@ -46,24 +42,25 @@
             title: 'Crafting',
             url: '#',
             iconString: '/skill-images/crafting.png',
-            isActive: false,
         },
         {
             title: 'Fletching',
             url: '#',
             iconString: '/skill-images/fletching.png',
-            isActive: false,
         },
         {
             title: 'Smithing',
             url: '#',
             iconString: '/skill-images/smithing.png',
-            isActive: false,
         },
     ];
 
-    const currentPage = $derived(page.route || '');
+    const currentPath = $derived(page.url.pathname || '');
 </script>
+
+{#snippet activeRouteIndicator()}
+    <div class="active-route-indicator size-3 bg-foreground ml-auto rounded-full opacity-10"></div>
+{/snippet}
 
 <Sidebar.Group>
     <Sidebar.GroupContent>
@@ -78,8 +75,8 @@
                             <a href={item.url} {...props}>
                                 <item.icon />
                                 <span>{item.title}</span>
-                                {#if item.url === currentPage.id}
-                                    <div class="active-route-indicator size-3 bg-foreground ml-auto rounded-full opacity-10"></div>
+                                {#if currentPath === item.url || (item.url !== '/' && currentPath.startsWith(item.url))}
+                                    {@render activeRouteIndicator()}
                                 {/if}
                             </a>
                         {/snippet}
