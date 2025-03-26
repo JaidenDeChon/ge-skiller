@@ -1,6 +1,6 @@
 <script lang="ts">
-    import ResponsiveDialog from '../global/responsive-dialog.svelte';
     import * as Command from '$lib/components/ui/command';
+    import * as Dialog from '$lib/components/ui/dialog';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import { MediaQuery } from 'svelte/reactivity';
     import { buttonVariants } from '$lib/components/ui/button';
@@ -22,16 +22,15 @@
         </a>
 
         <!-- Button that looks like search bar; opens command modal. -->
-        <ResponsiveDialog
-            triggerClass="h-10 w-10 ml-auto flex items-center justify-start text-xs text-muted-foreground p-3 border border-input rounded-md bg-background/70 hover:text-foreground hover:bg-muted/55 transition-colors lg:w-full lg:ml-0 lg:absolute lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:max-w-72"
-            contentClass="p-0"
-        >
-            {#snippet trigger()}
+        <Dialog.Root>
+            <Dialog.Trigger
+                class="h-10 w-10 ml-auto flex items-center justify-start text-xs text-muted-foreground p-3 border border-input rounded-md bg-background/70 hover:text-foreground hover:bg-muted/55 transition-colors lg:w-full lg:ml-0 lg:absolute lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:max-w-72"
+            >
                 <Search class="h-4 w-4" />
                 <span class="text-muted-foreground ml-3 hidden lg:block">Search...</span>
-            {/snippet}
+            </Dialog.Trigger>
 
-            {#snippet content()}
+            <Dialog.Content class="p-0">
                 <Command.Root class="w-full rounded-lg border">
                     <Command.Input placeholder="Search..." />
                     <Command.List>
@@ -42,7 +41,7 @@
                         <Command.Item>Iron Platebody</Command.Item>
                     </Command.Group>
                 </Command.Root>
-            {/snippet}
-        </ResponsiveDialog>
+            </Dialog.Content>
+        </Dialog.Root>
     </div>
 </header>
