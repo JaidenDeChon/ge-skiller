@@ -53,6 +53,7 @@
 	"dependencies": {
 		"@icons-pack/svelte-simple-icons": "^4.0.1",
 		"@netlify/functions": "^3.0.0",
+		"@wise-old-man/utils": "^3.3.8",
 		"bson": "^6.10.2",
 		"d3": "^7.9.0",
 		"d3-org-chart": "^3.1.1",
