@@ -47,7 +47,16 @@
             <TriangleAlert class="size-4" />
             <Alert.Title>Heads up!</Alert.Title>
             <Alert.Description>
-                The Visual view does not render correctly in Safari on any platform, or in any browser on iOS or iPadOS.
+                <div class="mt-2 flex flex-col gap-2">
+                    <p>
+                        🇪🇺 <span>EU users:</span> You are using a WebKit browser. To see the "visual view" below properly,
+                        please try another browser, such as FireFox or Chrome.
+                    </p>
+                    <p>
+                        🇺🇸 <span>US users:</span> The "visual view" below does not render correctly in Safari, which includes
+                        every browser on iOS or iPadOS.
+                    </p>
+                </div>
             </Alert.Description>
         </Alert.Root>
     {/if}
