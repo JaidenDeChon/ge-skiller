@@ -47,7 +47,7 @@
         <div class="flex flex-col gap-3 md:flex-row z-30">
             <CharacterStatsDialogButton />
 
-            <a href="items" class={buttonVariants({ variant: 'default' })}>
+            <a href="items" class={buttonVariants({ variant: 'outline' })}>
                 <img src="/other-images/inventory-backpack.png" alt="Inventory backpack" class="w-6 h-6" />
                 <span class="rs-font text-xl">Start browsing items</span>
             </a>

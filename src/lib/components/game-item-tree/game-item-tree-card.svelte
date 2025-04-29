@@ -49,12 +49,14 @@
             <Alert.Description>
                 <div class="mt-2 flex flex-col gap-2">
                     <p>
-                        🇪🇺 <span>EU users:</span> You are using a WebKit browser. To see the "visual view" below properly,
-                        please try another browser, such as FireFox or Chrome.
+                        <span class="font-bold">You appear to be using a WebKit browser.</span>
+                        Webkit browsers cannot render the below chart correctly.
                     </p>
                     <p>
-                        🇺🇸 <span>US users:</span> The "visual view" below does not render correctly in Safari, which includes
-                        every browser on iOS or iPadOS.
+                        🇪🇺 <span class="font-bold">EU users:</span> Please try another browser, such as FireFox or Chrome.
+                    </p>
+                    <p>
+                        🇺🇸 <span class="font-bold">US users:</span> Please use the table view to the right instead.
                     </p>
                 </div>
             </Alert.Description>

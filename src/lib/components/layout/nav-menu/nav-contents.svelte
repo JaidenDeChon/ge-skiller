@@ -39,9 +39,19 @@
 
     const skills: Item[] = [
         {
+            title: 'Cooking',
+            url: '#',
+            iconString: '/skill-images/cooking.png',
+        },
+        {
             title: 'Crafting',
             url: '#',
             iconString: '/skill-images/crafting.png',
+        },
+        {
+            title: 'Fishing',
+            url: '#',
+            iconString: '/skill-images/fishing.png',
         },
         {
             title: 'Fletching',
@@ -49,9 +59,29 @@
             iconString: '/skill-images/fletching.png',
         },
         {
+            title: 'Herblore',
+            url: '#',
+            iconString: '/skill-images/herblore.png',
+        },
+        {
+            title: 'Mining',
+            url: '#',
+            iconString: '/skill-images/mining.png',
+        },
+        {
             title: 'Smithing',
             url: '#',
             iconString: '/skill-images/smithing.png',
+        },
+        {
+            title: 'Thieving',
+            url: '#',
+            iconString: '/skill-images/thieving.png',
+        },
+        {
+            title: 'Woodcutting',
+            url: '#',
+            iconString: '/skill-images/woodcutting.png',
         },
     ];
 
