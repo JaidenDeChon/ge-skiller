@@ -1,44 +1,76 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { get, writable } from 'svelte/store';
-    import { Button } from '$lib/components/ui/button';
-    import { Input } from '$lib/components/ui/input';
-    import { Label } from '$lib/components/ui/label';
-    import { Footer } from '$lib/components/ui/dialog';
-    import { CharacterProfile } from '$lib/models/player-stats';
-    import { characterStore } from '$lib/stores/character-store';
+  import { onMount } from 'svelte';
+  import { toast } from 'svelte-sonner';
+  import { get, writable } from 'svelte/store';
+  import { Button } from '$lib/components/ui/button';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import { Footer } from '$lib/components/ui/dialog';
+  import { CharacterProfile } from '$lib/models/player-stats';
+  import { getStoreRoot, getCharacters } from '$lib/stores/character-store.svelte';
 
-    const { populateCurrentCharacter = true }: { populateCurrentCharacter?: boolean } = $props();
+  // Local reactive handles (legal: $derived in variable initializers)
+  const characterStore = $derived(getStoreRoot());
+  const characters = $derived(getCharacters());
 
-    const newCharacterStats = writable(new CharacterProfile(''));
+  function deepClone<T>(v: T): T {
+    return structuredClone ? structuredClone(v) : JSON.parse(JSON.stringify(v));
+  }
 
-    // Populate the newCharacterStats with the currently-selected character if there is one.
-    onMount(() => {
-        if (!populateCurrentCharacter) return;
-        const currentCharacterId = get(characterStore).activeCharacter;
-        const currentCharacter = get(characterStore).characters.find((c) => c.id === currentCharacterId);
+  const {
+    populateCharacter = '',
+    onClose = () => {},
+    onCharacterSelected = () => {},
+} = $props();
 
-        if (currentCharacter) newCharacterStats.set(currentCharacter);
-    });
+  const populatedStats = writable(new CharacterProfile(''));
 
-    function saveCharacterStats() {
-        const characters = [...get(characterStore).characters];
-        const thisCharacterExistingData = characters.find(
-            (character) => character.name === get(newCharacterStats).name,
-        );
-
-        if (thisCharacterExistingData) thisCharacterExistingData.skillLevels = get(newCharacterStats).skillLevels;
-        else characters.push(get(newCharacterStats));
-
-        characterStore.set({ activeCharacter: get(newCharacterStats).id, characters });
+  // Submit-to-save buffer flow
+  onMount(() => {
+    if (!populateCharacter) {
+      populatedStats.set(new CharacterProfile(''));
+      return;
     }
+    const found = characters.find((c) => c.name === populateCharacter);
+    if (found) populatedStats.set(deepClone(found));
+  });
+
+  function saveCharacterStats() {
+    const buffer = get(populatedStats);
+    const currentCharactersList = characters;
+
+    // If this character already exists (by name since we won't have an ID to match at this point), update it.
+    // Otherwise, add it as new.
+    // Note: This means character names must be unique, but that's probably a reasonable constraint, considering they
+    // are unique in-game.
+    const indexOfThisCharacter = currentCharactersList.findIndex((c: CharacterProfile) => c.name === buffer.name);
+
+    if (indexOfThisCharacter !== -1) {
+      const next = [...currentCharactersList];
+      next[indexOfThisCharacter] = { ...next[indexOfThisCharacter], skillLevels: buffer.skillLevels };
+      characterStore.characters = next;
+    } else {
+      characterStore.characters = [...currentCharactersList, buffer];
+    }
+
+    // Set this character as active, show a toast to the user, and notify parent component of selection.
+    characterStore.activeCharacter = buffer.id;
+    toast.info(`Character "${buffer.name}" has been created.`);
+    onCharacterSelected();
+
+    // Close the dialog.
+    onClose();
+  }
 </script>
 
-<form class="flex flex-col gap-6 xl:p-0">
+<form
+    class="flex flex-col gap-6 xl:p-0"
+    onsubmit={(saveCharacterStats)}
+>
     <div class="max-h-[35vh] overflow-auto px-4 pb-1 flex flex-col gap-6 lg:px-1">
         <div>
             <Label class="capitalize text-xs" for="character-name">Character name</Label>
-            <Input id="character-name" type="text" required aria-required bind:value={$newCharacterStats.name} />
+            <Input id="character-name" type="text" required aria-required bind:value={$populatedStats.name} />
         </div>
         <div class="flex flex-col gap-6">
             <div class="grid grid-cols-3 gap-6">
@@ -47,7 +79,7 @@
                     <Input
                         id="agility"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.agility}
+                        bind:value={$populatedStats.skillLevels.agility}
                         min={1}
                         inputmode="numeric"
                     />
@@ -57,7 +89,7 @@
                     <Input
                         id="attack"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.attack}
+                        bind:value={$populatedStats.skillLevels.attack}
                         min={1}
                         inputmode="numeric"
                     />
@@ -67,7 +99,7 @@
                     <Input
                         id="construction"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.construction}
+                        bind:value={$populatedStats.skillLevels.construction}
                         min={1}
                         inputmode="numeric"
                     />
@@ -77,7 +109,7 @@
                     <Input
                         id="cooking"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.cooking}
+                        bind:value={$populatedStats.skillLevels.cooking}
                         min={1}
                         inputmode="numeric"
                     />
@@ -87,7 +119,7 @@
                     <Input
                         id="crafting"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.crafting}
+                        bind:value={$populatedStats.skillLevels.crafting}
                         min={1}
                         inputmode="numeric"
                     />
@@ -97,7 +129,7 @@
                     <Input
                         id="defence"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.defence}
+                        bind:value={$populatedStats.skillLevels.defence}
                         min={1}
                         inputmode="numeric"
                     />
@@ -107,7 +139,7 @@
                     <Input
                         id="farming"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.farming}
+                        bind:value={$populatedStats.skillLevels.farming}
                         min={1}
                         inputmode="numeric"
                     />
@@ -117,7 +149,7 @@
                     <Input
                         id="firemaking"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.firemaking}
+                        bind:value={$populatedStats.skillLevels.firemaking}
                         min={1}
                         inputmode="numeric"
                     />
@@ -127,7 +159,7 @@
                     <Input
                         id="fishing"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.fishing}
+                        bind:value={$populatedStats.skillLevels.fishing}
                         min={1}
                         inputmode="numeric"
                     />
@@ -137,7 +169,7 @@
                     <Input
                         id="fletching"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.fletching}
+                        bind:value={$populatedStats.skillLevels.fletching}
                         min={1}
                         inputmode="numeric"
                     />
@@ -147,7 +179,7 @@
                     <Input
                         id="herblore"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.herblore}
+                        bind:value={$populatedStats.skillLevels.herblore}
                         min={1}
                         inputmode="numeric"
                     />
@@ -157,7 +189,7 @@
                     <Input
                         id="hitpoints"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.hitpoints}
+                        bind:value={$populatedStats.skillLevels.hitpoints}
                         min={10}
                         inputmode="numeric"
                     />
@@ -167,7 +199,7 @@
                     <Input
                         id="hunter"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.hunter}
+                        bind:value={$populatedStats.skillLevels.hunter}
                         min={1}
                         inputmode="numeric"
                     />
@@ -177,7 +209,7 @@
                     <Input
                         id="magic"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.magic}
+                        bind:value={$populatedStats.skillLevels.magic}
                         min={1}
                         inputmode="numeric"
                     />
@@ -187,7 +219,7 @@
                     <Input
                         id="mining"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.mining}
+                        bind:value={$populatedStats.skillLevels.mining}
                         min={1}
                         inputmode="numeric"
                     />
@@ -197,7 +229,7 @@
                     <Input
                         id="prayer"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.prayer}
+                        bind:value={$populatedStats.skillLevels.prayer}
                         min={1}
                         inputmode="numeric"
                     />
@@ -207,7 +239,7 @@
                     <Input
                         id="ranged"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.ranged}
+                        bind:value={$populatedStats.skillLevels.ranged}
                         min={1}
                         inputmode="numeric"
                     />
@@ -217,7 +249,7 @@
                     <Input
                         id="runecrafting"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.runecrafting}
+                        bind:value={$populatedStats.skillLevels.runecrafting}
                         min={1}
                         inputmode="numeric"
                     />
@@ -227,7 +259,7 @@
                     <Input
                         id="slayer"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.slayer}
+                        bind:value={$populatedStats.skillLevels.slayer}
                         min={1}
                         inputmode="numeric"
                     />
@@ -237,7 +269,7 @@
                     <Input
                         id="smithing"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.smithing}
+                        bind:value={$populatedStats.skillLevels.smithing}
                         min={1}
                         inputmode="numeric"
                     />
@@ -247,7 +279,7 @@
                     <Input
                         id="strength"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.strength}
+                        bind:value={$populatedStats.skillLevels.strength}
                         min={1}
                         inputmode="numeric"
                     />
@@ -257,7 +289,7 @@
                     <Input
                         id="thieving"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.thieving}
+                        bind:value={$populatedStats.skillLevels.thieving}
                         min={1}
                         inputmode="numeric"
                     />
@@ -267,7 +299,7 @@
                     <Input
                         id="woodcutting"
                         type="number"
-                        bind:value={$newCharacterStats.skillLevels.woodcutting}
+                        bind:value={$populatedStats.skillLevels.woodcutting}
                         min={1}
                         inputmode="numeric"
                     />
@@ -276,6 +308,6 @@
         </div>
     </div>
     <Footer class="px-4 pb-4 lg:px-0">
-        <Button type="submit" onclick={saveCharacterStats}>Submit</Button>
+        <Button type="submit">Submit</Button>
     </Footer>
 </form>

@@ -41,8 +41,9 @@
         value: 'Do I have to make an account?',
         question: 'Do I have to make an account?',
         answer: [
-          'Creating an account is not yet supported, but it will be eventually. The plan is for an account to be an ' +
-          'optional thing for users who want to take their data on the go rather than just use the site on one device.'
+          'Nope! Creating an account is not yet supported, but it will be eventually. The plan is for creating an ' +
+          'account to be optional. It will enable you to save your character\'s metrics and your favorites so you ' +
+          'can access them from any device, but it won\'t be required to use the site.',
         ],
       }
     ];

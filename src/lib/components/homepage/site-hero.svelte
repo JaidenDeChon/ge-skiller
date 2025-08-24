@@ -45,7 +45,12 @@
         </div>
 
         <div class="flex flex-col gap-3 md:flex-row z-30">
-            <CharacterStatsDialogButton />
+            <CharacterStatsDialogButton triggerClass={buttonVariants({ variant: 'default' })}>
+                {#snippet trigger()}
+                    <img src="/skill-images/skills.png" alt="OSRS skills icon" class="w-6 h-6" />
+                    <span class="rs-font text-xl">Enter your skill levels</span>
+                {/snippet}
+            </CharacterStatsDialogButton>
 
             <a href="items" class={buttonVariants({ variant: 'outline' })}>
                 <img src="/other-images/inventory-backpack.png" alt="Inventory backpack" class="w-6 h-6" />
