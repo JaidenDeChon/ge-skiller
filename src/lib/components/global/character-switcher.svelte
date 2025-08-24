@@ -1,5 +1,6 @@
 <script lang="ts">
     import { writable } from 'svelte/store';
+    import { toast } from 'svelte-sonner';
     import { Anvil, ChevronsUpDown, Plus, X } from 'lucide-svelte';
     import { buttonVariants } from '$lib/components/ui/button';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
@@ -28,17 +29,19 @@
      * @param character
      */
     function removeCharacter(character: CharacterProfile): undefined {
-        // Compute next list and persist it
+        // Compute next list and persist it.
         const next = store.characters.filter((c) => c.id !== character.id);
         store.characters = next;
 
-        // If there are no characters left, clear active and exit
+        toast.info(`Character "${character.name}" has been removed.`);
+
+        // If there are no characters left, clear active and exit.
         if (next.length === 0) {
             store.activeCharacter = undefined;
             return undefined;
         }
 
-        // If the removed character was active, set the first remaining as active
+        // If the removed character was active, set the first remaining as active.
         if (store.activeCharacter === character.id) {
             store.activeCharacter = next[0]?.id;
             return undefined;

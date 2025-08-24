@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { toast } from 'svelte-sonner';
   import { get, writable } from 'svelte/store';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -52,9 +53,9 @@
       characterStore.characters = [...currentCharactersList, buffer];
     }
 
-    // Set this character as active and notify parent of selection.
+    // Set this character as active, show a toast to the user, and notify parent component of selection.
     characterStore.activeCharacter = buffer.id;
-    console.log('character selected, dialog notifying switcher');
+    toast.info(`Character "${buffer.name}" has been created.`);
     onCharacterSelected();
 
     // Close the dialog.
