@@ -1,18 +1,23 @@
 <script lang="ts">
+    import { writable } from 'svelte/store';
     import * as Dialog from '$lib/components/ui/dialog';
     import * as Tabs from '$lib/components/ui/tabs';
     import { buttonVariants } from '$lib/components/ui/button';
     import CharacterStatsDialogContentManual from '$lib/components/dialogs/character-stats/character-stats-dialog-content-manual.svelte';
     import CharacterStatsDialogContentImport from '$lib/components/dialogs/character-stats/character-stats-dialog-content-import.svelte';
 
+    let open = writable(false);
+
     let {
         trigger,
         triggerClass = buttonVariants({ variant: 'default' }),
-        populateCharacter = ''
+        populateCharacter = '',
+        onClose = () => { open.set(false); },
+        onCharacterSelected = () => { console.log(('what im a gonna do'))},
     } = $props();
 </script>
 
-<Dialog.Root>
+<Dialog.Root bind:open={$open}>
     <Dialog.Trigger class="w-full {triggerClass}">
         {@render trigger?.()}
     </Dialog.Trigger>
@@ -34,7 +39,7 @@
             </Tabs.List>
 
             <Tabs.Content value="manual">
-                <CharacterStatsDialogContentManual {populateCharacter} />
+                <CharacterStatsDialogContentManual {populateCharacter} {onClose} {onCharacterSelected} />
             </Tabs.Content>
 
             <Tabs.Content value="import">

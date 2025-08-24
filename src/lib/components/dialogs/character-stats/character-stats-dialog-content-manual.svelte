@@ -16,7 +16,12 @@
     return structuredClone ? structuredClone(v) : JSON.parse(JSON.stringify(v));
   }
 
-  const { populateCharacter = '' }: { populateCharacter?: string } = $props();
+  const {
+    populateCharacter = '',
+    onClose = () => {},
+    onCharacterSelected = () => {},
+} = $props();
+
   const populatedStats = writable(new CharacterProfile(''));
 
   // Submit-to-save buffer flow
@@ -47,8 +52,13 @@
       characterStore.characters = [...currentCharactersList, buffer];
     }
 
-    // Set this character as active.
+    // Set this character as active and notify parent of selection.
     characterStore.activeCharacter = buffer.id;
+    console.log('character selected, dialog notifying switcher');
+    onCharacterSelected();
+
+    // Close the dialog.
+    onClose();
   }
 </script>
 

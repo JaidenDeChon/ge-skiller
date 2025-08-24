@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { writable } from 'svelte/store';
     import { Anvil, ChevronsUpDown, Plus, X } from 'lucide-svelte';
     import { buttonVariants } from '$lib/components/ui/button';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
@@ -9,6 +10,9 @@
     import type { CharacterProfile } from '$lib/models/player-stats';
 
     const sidebar = Sidebar.useSidebar();
+
+    // Controls whether the character switcher dropdown/popover is open.
+    let open = writable(false);
 
     const store = $derived(getStoreRoot());
     const characterList = $derived(store.characters);
@@ -40,9 +44,17 @@
             return undefined;
         }
     }
+
+    /**
+     * Callback when a character is selected from the dropdown.
+     */
+    function onCharacterSelected() {
+        // Close dropdown/popover when a character is selected.
+        open.set(false);
+    }
 </script>
 
-<DropdownMenu.Root>
+<DropdownMenu.Root bind:open={$open}>
     <DropdownMenu.Trigger>
         {#snippet child({ props })}
             <Sidebar.MenuButton
@@ -96,7 +108,10 @@
         <DropdownMenu.Separator />
 
         <!-- "Add character" button -->
-        <CharacterStatsDialogButton triggerClass="{buttonVariants({ variant: 'ghost' })} !justify-start">
+        <CharacterStatsDialogButton
+            {onCharacterSelected}
+            triggerClass="{buttonVariants({ variant: 'ghost' })} !justify-start"
+        >
             {#snippet trigger()}
                 <div class="bg-background flex size-6 items-center justify-center rounded-md border">
                     <Plus class="size-4" />
