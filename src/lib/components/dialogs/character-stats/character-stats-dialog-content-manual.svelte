@@ -1,56 +1,61 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { get, writable } from 'svelte/store';
-    import { Button } from '$lib/components/ui/button';
-    import { Input } from '$lib/components/ui/input';
-    import { Label } from '$lib/components/ui/label';
-    import { Footer } from '$lib/components/ui/dialog';
-    import { CharacterProfile } from '$lib/models/player-stats';
-    import { characterStore } from '$lib/stores/character-store';
+  import { onMount } from 'svelte';
+  import { get, writable } from 'svelte/store';
+  import { Button } from '$lib/components/ui/button';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import { Footer } from '$lib/components/ui/dialog';
+  import { CharacterProfile } from '$lib/models/player-stats';
+  import { getStoreRoot, getCharacters } from '$lib/stores/character-store.svelte';
 
-    const { populateCharacter = '' }: { populateCharacter?: string } = $props();
+  // Local reactive handles (legal: $derived in variable initializers)
+  const characterStore = $derived(getStoreRoot());
+  const characters = $derived(getCharacters());
 
-    const populatedStats = writable(new CharacterProfile(''));
+  function deepClone<T>(v: T): T {
+    return structuredClone ? structuredClone(v) : JSON.parse(JSON.stringify(v));
+  }
 
-    // Populate the newCharacterStats with the currently-selected character if there is one.
-    onMount(() => {
-        if (!populateCharacter) {
-            populatedStats.set(new CharacterProfile(''));
-            return;
-        }
+  const { populateCharacter = '' }: { populateCharacter?: string } = $props();
+  const populatedStats = writable(new CharacterProfile(''));
 
-        const characterStats = get(characterStore).characters.find((c) => c.name === populateCharacter);
-        if (characterStats) populatedStats.set(characterStats);
-    });
-
-    function saveCharacterStats() {
-        const newCharacterData = get(populatedStats);
-        const existingCharacters = get(characterStore).characters;
-
-        const indexOfThisCharacter = existingCharacters.findIndex(
-            (character: CharacterProfile) => character.name === newCharacterData.name,
-        );
-
-        // If the character already exists, update their skill levels.
-        if (indexOfThisCharacter !== -1) {
-            const characterData = { ...existingCharacters[indexOfThisCharacter] };
-            characterData.skillLevels = newCharacterData.skillLevels;
-
-            const charactersCopy = [...existingCharacters];
-            charactersCopy[indexOfThisCharacter] = characterData;
-
-            characterStore.set({ activeCharacter: newCharacterData.id, characters: charactersCopy });
-        } else {
-            // If the character doesn't exist, add them to the store.
-            characterStore.set({
-                activeCharacter: newCharacterData.id,
-                characters: [...existingCharacters, newCharacterData],
-            });
-        }
+  // Submit-to-save buffer flow
+  onMount(() => {
+    if (!populateCharacter) {
+      populatedStats.set(new CharacterProfile(''));
+      return;
     }
+    const found = characters.find((c) => c.name === populateCharacter);
+    if (found) populatedStats.set(deepClone(found));
+  });
+
+  function saveCharacterStats() {
+    const buffer = get(populatedStats);
+    const currentCharactersList = characters;
+
+    // If this character already exists (by name since we won't have an ID to match at this point), update it.
+    // Otherwise, add it as new.
+    // Note: This means character names must be unique, but that's probably a reasonable constraint, considering they
+    // are unique in-game.
+    const indexOfThisCharacter = currentCharactersList.findIndex((c: CharacterProfile) => c.name === buffer.name);
+
+    if (indexOfThisCharacter !== -1) {
+      const next = [...currentCharactersList];
+      next[indexOfThisCharacter] = { ...next[indexOfThisCharacter], skillLevels: buffer.skillLevels };
+      characterStore.characters = next;
+    } else {
+      characterStore.characters = [...currentCharactersList, buffer];
+    }
+
+    // Set this character as active.
+    characterStore.activeCharacter = buffer.id;
+  }
 </script>
 
-<form class="flex flex-col gap-6 xl:p-0">
+<form
+    class="flex flex-col gap-6 xl:p-0"
+    onsubmit={(saveCharacterStats)}
+>
     <div class="max-h-[35vh] overflow-auto px-4 pb-1 flex flex-col gap-6 lg:px-1">
         <div>
             <Label class="capitalize text-xs" for="character-name">Character name</Label>
@@ -292,6 +297,6 @@
         </div>
     </div>
     <Footer class="px-4 pb-4 lg:px-0">
-        <Button type="submit" onclick={saveCharacterStats}>Submit</Button>
+        <Button type="submit">Submit</Button>
     </Footer>
 </form>

@@ -49,16 +49,16 @@ importers:
         specifier: ^1.2.5
         version: 1.2.5(eslint@9.19.0(jiti@1.21.7))
       '@eslint/js':
-        specifier: ^9.18.0
+        specifier: ^9.19.0
         version: 9.19.0
       '@sveltejs/adapter-netlify':
-        specifier: ^4.4.0
+        specifier: ^4.4.1
         version: 4.4.1(@sveltejs/kit@2.16.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.19.3)(vite@6.0.11(@types/node@22.13.4)(jiti@1.21.7)(sass-embedded@1.83.4)(yaml@2.7.0)))(svelte@5.19.3)(vite@6.0.11(@types/node@22.13.4)(jiti@1.21.7)(sass-embedded@1.83.4)(yaml@2.7.0)))
       '@sveltejs/kit':
-        specifier: ^2.16.0
+        specifier: ^2.16.1
         version: 2.16.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.19.3)(vite@6.0.11(@types/node@22.13.4)(jiti@1.21.7)(sass-embedded@1.83.4)(yaml@2.7.0)))(svelte@5.19.3)(vite@6.0.11(@types/node@22.13.4)(jiti@1.21.7)(sass-embedded@1.83.4)(yaml@2.7.0))
       '@sveltejs/vite-plugin-svelte':
-        specifier: ^5.0.0
+        specifier: ^5.0.3
         version: 5.0.3(svelte@5.19.3)(vite@6.0.11(@types/node@22.13.4)(jiti@1.21.7)(sass-embedded@1.83.4)(yaml@2.7.0))
       '@tailwindcss/container-queries':
         specifier: ^0.1.1
@@ -91,7 +91,7 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       eslint:
-        specifier: ^9.18.0
+        specifier: ^9.19.0
         version: 9.19.0(jiti@1.21.7)
       eslint-plugin-svelte:
         specifier: ^2.46.1
@@ -112,10 +112,10 @@ importers:
         specifier: ^1.83.4
         version: 1.83.4
       svelte:
-        specifier: ^5.0.0
+        specifier: ^5.19.3
         version: 5.19.3
       svelte-check:
-        specifier: ^4.0.0
+        specifier: ^4.1.4
         version: 4.1.4(svelte@5.19.3)(typescript@5.7.3)
       svelte-sonner:
         specifier: ^0.3.28
@@ -136,16 +136,16 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
       typescript:
-        specifier: ^5.0.0
+        specifier: ^5.7.3
         version: 5.7.3
       typescript-eslint:
-        specifier: ^8.20.0
+        specifier: ^8.22.0
         version: 8.22.0(eslint@9.19.0(jiti@1.21.7))(typescript@5.7.3)
       vaul-svelte:
         specifier: 1.0.0-next.3
         version: 1.0.0-next.3(svelte@5.19.3)
       vite:
-        specifier: ^6.0.0
+        specifier: ^6.0.11
         version: 6.0.11(@types/node@22.13.4)(jiti@1.21.7)(sass-embedded@1.83.4)(yaml@2.7.0)
       zod:
         specifier: ^3.24.1
@@ -948,8 +948,8 @@ packages:
     resolution: {integrity: sha512-8WB3Jcas3swSvjIeA2yvCJ+Miyz5l1ZmB6HFb9R1317dt9LCQoswg/BGrmAmkWVEszSrrg4RwmO46qIm2OEnSA==}
     engines: {node: '>=16'}
 
-  caniuse-lite@1.0.30001695:
-    resolution: {integrity: sha512-vHyLade6wTgI2u1ec3WQBxv+2BrTERV28UXQu9LO6lZ9pYeMk34vjXFLOxo1A4UBA8XTL4njRQZdno/yYaSmWw==}
+  caniuse-lite@1.0.30001735:
+    resolution: {integrity: sha512-EV/laoX7Wq2J9TQlyIXRxTJqIw4sxfXS4OYgudGxBYRuTv0q7AM6yMEpU/Vo1I94thg9U6EZ2NfZx9GJq83u7w==}
 
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
@@ -3057,7 +3057,7 @@ snapshots:
   autoprefixer@10.4.20(postcss@8.5.1):
     dependencies:
       browserslist: 4.24.4
-      caniuse-lite: 1.0.30001695
+      caniuse-lite: 1.0.30001735
       fraction.js: 4.3.7
       normalize-range: 0.1.2
       picocolors: 1.1.1
@@ -3095,7 +3095,7 @@ snapshots:
 
   browserslist@4.24.4:
     dependencies:
-      caniuse-lite: 1.0.30001695
+      caniuse-lite: 1.0.30001735
       electron-to-chromium: 1.5.88
       node-releases: 2.0.19
       update-browserslist-db: 1.1.2(browserslist@4.24.4)
@@ -3114,7 +3114,7 @@ snapshots:
   camelcase@8.0.0:
     optional: true
 
-  caniuse-lite@1.0.30001695: {}
+  caniuse-lite@1.0.30001735: {}
 
   chalk@4.1.2:
     dependencies:

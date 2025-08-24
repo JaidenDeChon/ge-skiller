@@ -5,7 +5,11 @@
     import CharacterStatsDialogContentManual from '$lib/components/dialogs/character-stats/character-stats-dialog-content-manual.svelte';
     import CharacterStatsDialogContentImport from '$lib/components/dialogs/character-stats/character-stats-dialog-content-import.svelte';
 
-    let { trigger, triggerClass = buttonVariants({ variant: 'default' }), populateCharacter = '' } = $props();
+    let {
+        trigger,
+        triggerClass = buttonVariants({ variant: 'default' }),
+        populateCharacter = ''
+    } = $props();
 </script>
 
 <Dialog.Root>

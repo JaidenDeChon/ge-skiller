@@ -1,36 +1,44 @@
 <script lang="ts">
-    import { get } from 'svelte/store';
     import { Anvil, ChevronsUpDown, Plus, X } from 'lucide-svelte';
     import { buttonVariants } from '$lib/components/ui/button';
-    import { characterStore } from '$lib/stores/character-store';
+    import { getStoreRoot } from '$lib/stores/character-store.svelte';
     import { Button } from '$lib/components/ui/button';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
     import CharacterStatsDialogButton from '$lib/components/dialogs/character-stats/character-stats-dialog.svelte';
+    import type { CharacterProfile } from '$lib/models/player-stats';
 
     const sidebar = Sidebar.useSidebar();
 
-    const characters = $derived(get(characterStore).characters);
+    const store = $derived(getStoreRoot());
+    const characterList = $derived(store.characters);
 
-    const activeCharacter = $derived.by(() => {
-        const character = get(characterStore).activeCharacter;
-        return characters.find((c) => character === c.id)?.name || 'None selected';
+    const activeCharacterName = $derived.by(() => {
+        const activeId = store.activeCharacter;
+        return store.characters.find((c) => activeId === c.id)?.name || 'None selected';
     });
 
-    function removeCharacter(characterName: string): undefined {
-        characterStore.update((store) => {
-            store.characters = store.characters.filter((c) => c.name !== characterName);
-            return store;
-        });
+    /**
+     * Remove a character from the character list. If the removed character is the active character, sets the active
+     * character to the first character in the list.
+     * @param character
+     */
+    function removeCharacter(character: CharacterProfile): undefined {
+        // Compute next list and persist it
+        const next = store.characters.filter((c) => c.id !== character.id);
+        store.characters = next;
 
-        // If the removed character is the active character, or if there are no more characters, remove the active character.
-        if (get(characterStore).activeCharacter === characterName || !characters.length) {
-            characterStore.update((store) => {
-                store.activeCharacter = undefined;
-                return store;
-            });
+        // If there are no characters left, clear active and exit
+        if (next.length === 0) {
+            store.activeCharacter = undefined;
+            return undefined;
         }
-        return undefined;
+
+        // If the removed character was active, set the first remaining as active
+        if (store.activeCharacter === character.id) {
+            store.activeCharacter = next[0]?.id;
+            return undefined;
+        }
     }
 </script>
 
@@ -49,7 +57,7 @@
                 </div>
                 <div class="grid flex-1 text-left text-sm leading-tight">
                     <span class="truncate font-semibold">Select Character</span>
-                    <span class="truncate text-xs text-muted-foreground">{activeCharacter || 'None selected'}</span>
+                    <span class="truncate text-xs text-muted-foreground">{activeCharacterName}</span>
                 </div>
                 <ChevronsUpDown class="ml-auto" />
             </Sidebar.MenuButton>
@@ -65,7 +73,7 @@
         <DropdownMenu.Label class="text-muted-foreground text-xs">Characters</DropdownMenu.Label>
 
         <div class="flex flex-col gap-2">
-            {#each characters as character}
+            {#each characterList as character}
                 <div class="flex gap-1">
                     <!-- "Add character" button -->
                     <CharacterStatsDialogButton
@@ -76,8 +84,9 @@
                             {character.name}
                         {/snippet}
                     </CharacterStatsDialogButton>
+
                     <!-- Remove character from store's `characters` list. -->
-                    <Button variant="ghost" size="icon" onclick={removeCharacter(character.name)}>
+                    <Button variant="ghost" size="icon" onclick={() => removeCharacter(character)}>
                         <X />
                     </Button>
                 </div>
