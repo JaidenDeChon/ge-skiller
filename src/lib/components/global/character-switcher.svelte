@@ -7,7 +7,7 @@
     import { Button } from '$lib/components/ui/button';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-    import CharacterStatsDialogButton from '$lib/components/dialogs/character-stats/character-stats-dialog.svelte';
+    import CharacterStatsDialogButton from '$lib/components/dialogs/character-stats-dialog.svelte';
     import type { CharacterProfile } from '$lib/models/player-stats';
 
     const sidebar = Sidebar.useSidebar();
