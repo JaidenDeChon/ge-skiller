@@ -1,13 +1,13 @@
 <script lang="ts">
     import { writable } from 'svelte/store';
     import { toast } from 'svelte-sonner';
-    import { Anvil, ChevronsUpDown, Plus, X } from 'lucide-svelte';
+    import { User, ChevronsUpDown, Plus, X, Pencil } from 'lucide-svelte';
     import { buttonVariants } from '$lib/components/ui/button';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
     import { Button } from '$lib/components/ui/button';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-    import CharacterStatsDialogButton from '$lib/components/dialogs/character-stats/character-stats-dialog.svelte';
+    import CharacterStatsDialogButton from '$lib/components/dialogs/character-stats-dialog.svelte';
     import type { CharacterProfile } from '$lib/models/player-stats';
 
     const sidebar = Sidebar.useSidebar();
@@ -43,16 +43,35 @@
 
         // If the removed character was active, set the first remaining as active.
         if (store.activeCharacter === character.id) {
-            store.activeCharacter = next[0]?.id;
-            return undefined;
+            const nextCharacter = next[0];
+            if (nextCharacter) {
+                // Wait for just a second so the user can see removal happen first, followed by the selection.
+                setTimeout(() => {
+                    selectCharacter(nextCharacter, false);
+                }, 1000);
+            }
         }
     }
 
     /**
-     * Callback when a character is selected from the dropdown.
+     * Set the selected character as the active character.
+     * @param character {CharacterProfile} The character to set as active.
      */
-    function onCharacterSelected() {
-        // Close dropdown/popover when a character is selected.
+    function selectCharacter(character: CharacterProfile, closeDropdown = true): void {
+        if (store.activeCharacter === character.id) {
+            if (closeDropdown) closeCharacterSelection();
+            return;
+        }
+
+        store.activeCharacter = character.id;
+        toast.info(`Character "${character.name}" is now active.`);
+        if (closeDropdown) closeCharacterSelection();
+    }
+
+    /**
+     * Close the character selection dropdown.
+     */
+    function closeCharacterSelection() {
         open.set(false);
     }
 </script>
@@ -68,7 +87,7 @@
                 <div
                     class="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg"
                 >
-                    <Anvil />
+                    <User />
                 </div>
                 <div class="grid flex-1 text-left text-sm leading-tight">
                     <span class="truncate font-semibold">Select Character</span>
@@ -91,12 +110,18 @@
             {#each characterList as character}
                 <div class="flex gap-1">
                     <!-- "Add character" button -->
+                    <Button variant="ghost" class="flex-1" onclick={() => selectCharacter(character)}>
+                        { character.name }
+                    </Button>
+
+                    <!-- Remove character from store's `characters` list. -->
                     <CharacterStatsDialogButton
+                        onCharacterSelected={closeCharacterSelection}
                         triggerClass="{buttonVariants({ variant: 'ghost' })} !justify-start"
                         populateCharacter={character.name}
                     >
                         {#snippet trigger()}
-                            {character.name}
+                            <Pencil />
                         {/snippet}
                     </CharacterStatsDialogButton>
 
@@ -112,8 +137,8 @@
 
         <!-- "Add character" button -->
         <CharacterStatsDialogButton
-            {onCharacterSelected}
-            triggerClass="{buttonVariants({ variant: 'ghost' })} !justify-start"
+            onCharacterSelected={closeCharacterSelection}
+            triggerClass="{buttonVariants({ variant: 'ghost' })} w-full !justify-start"
         >
             {#snippet trigger()}
                 <div class="bg-background flex size-6 items-center justify-center rounded-md border">

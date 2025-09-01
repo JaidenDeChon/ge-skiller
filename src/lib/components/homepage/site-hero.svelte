@@ -1,6 +1,6 @@
 <script lang="ts">
     import { buttonVariants } from '$lib/components/ui/button';
-    import CharacterStatsDialogButton from '../dialogs/character-stats/character-stats-dialog.svelte';
+    import CharacterStatsDialogButton from '../dialogs/character-stats-dialog.svelte';
     const { bgUrl } = $props();
 </script>
 
