@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
     import { get, writable } from 'svelte/store';
     import { Loader2Icon } from 'lucide-svelte';
     import { Button } from '$lib/components/ui/button';
@@ -13,21 +12,12 @@
     import { getStoreRoot, getCharacters } from '$lib/stores/character-store.svelte';
     import { fetchCharacterDetailsFromWOM } from '$lib/services/wise-old-man-service';
 
-    onMount(() => {
-        if (!populateCharacter) {
-        populatedStats.set(new CharacterProfile(''));
-        return;
-        }
-        const found = characters.find((c) => c.name === populateCharacter);
-        if (found) populatedStats.set(deepClone(found));
-    });
-
     let {
         trigger,
         triggerClass = buttonVariants({ variant: 'default' }),
         populateCharacter = '',
         onClose = () => { open.set(false); },
-        onCharacterSelected = () => { console.log(('what im a gonna do'))},
+        onCharacterSelected = () => { },
     } = $props();
 
     const padding = 'p-2'
@@ -35,13 +25,30 @@
     // Controls whether the dialog is open.
     let open = writable(false);
 
-    // Upon closing dialog, reset populated stats to empty.
     $effect(() => {
+        // If dialog is closed, reset populated stats.
         if (!$open) {
-            populatedStats.set(new CharacterProfile(''));
-            isLoading.set(false);
+            console.log('closed');
+            resetDialog();
+            return;
+        }
+
+        // If we have a character name to populate, try to find it in the store and populate the stats.
+        if (populateCharacter) {
+            const found = characters.find((c) => c.name === populateCharacter);
+            if (!found) {
+                resetDialog();
+                return;
+            };
+
+            populatedStats.set({ ...found });
         }
     });
+
+    function resetDialog() {
+        populatedStats.set(new CharacterProfile(''));
+        isLoading.set(false);
+    }
 
     // Denotes whether we're in the process of loading/importing character data.
     const isLoading = writable(false);
@@ -54,22 +61,26 @@
     // Controls whether the buttons in the footer are disabled.
     const footerDisabled = $derived($isLoading || !$populatedStats.name);
 
+    /**
+     * Save the character stats from the dialog into the store. If a character with the same name already exists,
+     * update it instead of adding a new one.
+     */
     function saveCharacterStats() {
         const buffer = get(populatedStats);
         const currentCharactersList = characters;
 
         // If this character already exists (by name since we won't have an ID to match at this point), update it.
         // Otherwise, add it as new.
-        // Note: This means character names must be unique, but that's probably a reasonable constraint, considering they
-        // are unique in-game.
+        // Note: This means character names must be unique, but that's probably a reasonable constraint, considering
+        // they are unique in-game.
         const indexOfThisCharacter = currentCharactersList.findIndex((c: CharacterProfile) => c.name === buffer.name);
 
         if (indexOfThisCharacter !== -1) {
-        const next = [...currentCharactersList];
-        next[indexOfThisCharacter] = { ...next[indexOfThisCharacter], skillLevels: buffer.skillLevels };
-        characterStore.characters = next;
+            const next = [...currentCharactersList];
+            next[indexOfThisCharacter] = { ...next[indexOfThisCharacter], skillLevels: buffer.skillLevels };
+            characterStore.characters = next;
         } else {
-        characterStore.characters = [...currentCharactersList, buffer];
+            characterStore.characters = [...currentCharactersList, buffer];
         }
 
         // Set this character as active, show a toast to the user, and notify parent component of selection.
@@ -81,16 +92,9 @@
         onClose();
     }
 
-    function deepClone<T>(v: T): T {
-        try {
-            // structuredClone can throw DataCloneError for class instances or uncloneable values
-            return structuredClone(v as unknown as object) as unknown as T;
-        } catch {
-            // Fallback for plain data; note: this will drop methods
-            return JSON.parse(JSON.stringify(v)) as T;
-        }
-    }
-
+    /**
+     * Handle the "Import" button click by fetching character details from WOM and populating the dialog.
+     */
     async function handleImportClick(): Promise<void> {
         isLoading.set(true);
 
@@ -107,7 +111,7 @@
 </script>
 
 <Dialog.Root bind:open={$open}>
-    <Dialog.Trigger class="w-full overflow-x-hidden {triggerClass}">
+    <Dialog.Trigger class="overflow-x-hidden {triggerClass}">
         {@render trigger?.()}
     </Dialog.Trigger>
 
@@ -140,6 +144,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.agility}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -150,6 +155,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.attack}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -160,6 +166,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.construction}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -170,6 +177,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.cooking}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -180,6 +188,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.crafting}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -190,6 +199,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.defence}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -200,6 +210,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.farming}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -210,6 +221,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.firemaking}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -220,6 +232,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.fishing}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -230,6 +243,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.fletching}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -240,6 +254,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.herblore}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -250,6 +265,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.hitpoints}
                                 min={10}
+                            max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -260,6 +276,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.hunter}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -270,6 +287,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.magic}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -280,6 +298,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.mining}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -290,6 +309,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.prayer}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -300,6 +320,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.ranged}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -310,6 +331,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.runecrafting}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -320,6 +342,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.slayer}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -330,6 +353,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.smithing}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -340,6 +364,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.strength}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -350,6 +375,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.thieving}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
@@ -360,6 +386,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.woodcutting}
                                 min={1}
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>
