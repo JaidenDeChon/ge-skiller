@@ -28,7 +28,7 @@
 </script>
 
 <Button
-    variant="ghost"
+    variant="outline"
     size="icon"
     class={[
         'rounded-full transition-colors text-muted-foreground hover:text-muted-foreground',

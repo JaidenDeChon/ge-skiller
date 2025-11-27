@@ -1,15 +1,18 @@
 <script lang="ts">
     import { page } from '$app/state';
     import { toast } from 'svelte-sonner';
-    import { Star, StarOff } from 'lucide-svelte';
+    import { Star, StarOff, TrendingUp, TrendingDown, Package, Check } from 'lucide-svelte';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import * as Avatar from '$lib/components/ui/avatar';
     import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+    import * as Table from '$lib/components/ui/table';
     import IconBadge from '$lib/components/global/icon-badge.svelte';
     import FavoriteButton from '$lib/components/global/favorite-button.svelte';
     import GameItemTreeCard from '$lib/components/game-item-tree/game-item-tree-card.svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
+    import { formatWithCommas } from '$lib/helpers/format-number';
     import type { IGameItem, SkillLevelDesignation } from '$lib/models/game-item';
+    import Button from '$lib/components/ui/button/button.svelte';
 
     type AssociatedSkillsArray = NonNullable<IGameItem['creationSpecs']>['requiredSkills'];
 
@@ -18,6 +21,21 @@
     let gameItem = $state<IGameItem | null>(null);
     let associatedSkills = $state(undefined as undefined | AssociatedSkillsArray);
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
+    const wikiUrl = $derived(() => {
+        const slug = gameItem?.wikiName ?? gameItem?.name;
+        if (!slug) return null;
+        return `https://oldschool.runescape.wiki/w/${encodeURIComponent(slug.replaceAll(' ', '_'))}`;
+    });
+
+    function formatValue(value: number | null | undefined, suffix = ' gp') {
+        if (value === null || value === undefined) return '—';
+        return `${formatWithCommas(Math.round(value))}${suffix}`;
+    }
+
+    function formatBoolean(value: boolean | null | undefined) {
+        if (value === null || value === undefined) return '—';
+        return value ? 'Yes' : 'No';
+    }
 
     // Load the game item data once it's available.
     $effect(() => {
@@ -92,7 +110,7 @@
             </div>
             <Skeleton class="rounded-full w-10 h-10" />
         {:else}
-            <!-- Breadcrumbs and favorite -->
+            <!-- Breadcrumbs and actions -->
             <Breadcrumb.Root>
                 <Breadcrumb.List>
                     <!-- Home -->
@@ -116,10 +134,19 @@
                 </Breadcrumb.List>
             </Breadcrumb.Root>
 
-            <!-- Members indicator -->
-
-            <!-- Favorite button -->
-            <FavoriteButton {gameItem} />
+            <div class="flex items-center gap-3">
+                {#if wikiUrl()}
+                    <Button
+                        href={wikiUrl()}
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="outline"
+                    >
+                        Wiki
+                    </Button>
+                {/if}
+                <FavoriteButton {gameItem} />
+            </div>
         {/if}
     </div>
 
@@ -144,7 +171,7 @@
         {/if}
 
         <!-- Name and description -->
-        <div class="flex flex-col gap-1 justify-center">
+        <div class="flex flex-col gap-2 justify-center">
             {#if loading || !gameItem}
                 <Skeleton class="h-7 w-52 mb-2" />
                 <Skeleton class="h-3 w-36" />
@@ -182,6 +209,100 @@
                 {/snippet}
             </IconBadge>
         {/each}
+    {/if}
+</div>
+
+<!-- Pricing tables -->
+<div class="grid gap-4 md:grid-cols-2 mt-6">
+    {#if loading || !gameItem}
+        <Skeleton class="h-44 w-full" />
+        <Skeleton class="h-44 w-full" />
+    {:else}
+        <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 class="text-lg font-semibold">Grand Exchange</h3>
+            </div>
+            <Table.Root>
+                <Table.Body>
+                    <Table.Row>
+                        <Table.Cell class="font-medium">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm">
+                                    <TrendingUp class="h-4 w-4" />
+                                </span>
+                                <span>High price</span>
+                            </div>
+                        </Table.Cell>
+                        <Table.Cell class="text-end">{formatValue(gameItem?.highPrice)}</Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                        <Table.Cell class="font-medium">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm">
+                                    <TrendingDown class="h-4 w-4" />
+                                </span>
+                                <span>Low price</span>
+                            </div>
+                        </Table.Cell>
+                        <Table.Cell class="text-end">{formatValue(gameItem?.lowPrice)}</Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                        <Table.Cell class="font-medium">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm">
+                                    <Package class="h-4 w-4" />
+                                </span>
+                                <span>Buy limit</span>
+                            </div>
+                        </Table.Cell>
+                        <Table.Cell class="text-end">{formatValue(gameItem?.buy_limit, '')}</Table.Cell>
+                    </Table.Row>
+                </Table.Body>
+            </Table.Root>
+        </section>
+
+        <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 class="text-lg font-semibold">Game Prices</h3>
+            </div>
+            <Table.Root>
+                <Table.Body>
+                    <Table.Row>
+                        <Table.Cell class="font-medium">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm">
+                                    <img src="/spell-images/high-level-alchemy.png" alt="High alchemy" class="h-4 w-4 drop-shadow" />
+                                </span>
+                                <span>High alch</span>
+                            </div>
+                        </Table.Cell>
+                        <Table.Cell class="text-end">{formatValue(gameItem?.highalch)}</Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                        <Table.Cell class="font-medium">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm">
+                                    <img src="/spell-images/low-level-alchemy.png" alt="Low alchemy" class="h-4 w-4 drop-shadow" />
+                                </span>
+                                <span>Low alch</span>
+                            </div>
+                        </Table.Cell>
+                        <Table.Cell class="text-end">{formatValue(gameItem?.lowalch)}</Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                        <Table.Cell class="font-medium">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm">
+                                    <img src="/other-images/pot.png" alt="General store" class="h-4 w-4 drop-shadow" />
+                                </span>
+                                <span>Store price</span>
+                            </div>
+                        </Table.Cell>
+                        <Table.Cell class="text-end">{formatValue(gameItem?.cost)}</Table.Cell>
+                    </Table.Row>
+                </Table.Body>
+            </Table.Root>
+        </section>
     {/if}
 </div>
 
