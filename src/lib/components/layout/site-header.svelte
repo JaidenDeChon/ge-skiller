@@ -30,7 +30,7 @@
 
         searchLoading = true;
         try {
-            const resp = await fetch(`/api/search-items?q=${encodeURIComponent(trimmed)}&limit=50`, {
+            const resp = await fetch(`/api/search-items?q=${encodeURIComponent(trimmed)}&limit=150`, {
                 signal: abortController.signal,
             });
             const data: IGameItem[] = await resp.json();

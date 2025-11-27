@@ -75,22 +75,29 @@ export async function searchGameItems(query: string, limit: number = 10): Promis
     const safeQuery = escapeRegex(sanitizedQuery);
     const startsWithRegex = new RegExp(`^${safeQuery}`, 'i');
     const containsRegex = new RegExp(safeQuery, 'i');
-    const limitCap = Math.min(Math.max(limit, 1), 50);
+    const limitCap = Math.min(Math.max(limit, 1), 150);
     const results: GameItemDoc[] = [];
-    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
 
     async function fetchAndAppend(filter: Record<string, unknown>) {
         if (results.length >= limitCap) return;
         const docs = await OsrsboxItemModel.find(filter)
-            .sort({ highPrice: -1 })
+            .sort({ name: 1 })
             .limit(limitCap * 3)
             .lean<GameItemDoc[]>()
             .exec();
 
-        for (const doc of docs) {
+        const alphabetized = docs.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'en', { sensitivity: 'base' }));
+
+        for (const doc of alphabetized) {
             const key = doc.id?.toString() ?? (doc as unknown as { _id?: Types.ObjectId })._id?.toString();
-            if (!key || seen.has(key)) continue;
-            seen.add(key);
+            const nameKey = (doc.name ?? '').trim().toLowerCase();
+
+            if (!key || seenIds.has(key) || (nameKey && seenNames.has(nameKey))) continue;
+
+            seenIds.add(key);
+            if (nameKey) seenNames.add(nameKey);
             results.push(doc);
             if (results.length >= limitCap) break;
         }
