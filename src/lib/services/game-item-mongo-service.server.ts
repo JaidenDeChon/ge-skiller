@@ -64,3 +64,20 @@ export async function getPaginatedGameItems(params?: { page?: number; perPage?: 
 
     return { items, total, page, perPage };
 }
+
+/**
+ * Performs a simple text search across name and examine fields.
+ */
+export async function searchGameItems(query: string, limit: number = 10): Promise<GameItemDoc[]> {
+    const sanitizedQuery = query.trim();
+    if (!sanitizedQuery) return [];
+
+    const regex = new RegExp(sanitizedQuery, 'i');
+    return OsrsboxItemModel.find({
+        $or: [{ name: regex }, { examine: regex }]
+    })
+        .sort({ highPrice: -1 })
+        .limit(Math.min(Math.max(limit, 1), 50))
+        .lean<GameItemDoc[]>()
+        .exec();
+}
