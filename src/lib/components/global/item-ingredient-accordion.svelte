@@ -24,7 +24,7 @@
                 <div class="flex justify-center items-center size-9 bg-muted rounded-full border">
                     <img
                         class="game-item-shadow transition-fade-in-delayed size-5"
-                        src={iconSrc()}
+                        src={iconSrc}
                         alt={gameItem?.name}
                     />
                 </div>

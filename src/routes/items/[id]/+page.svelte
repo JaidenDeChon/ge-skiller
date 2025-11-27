@@ -133,7 +133,7 @@
             <Avatar.Root class="p-3 bg-muted border item-card__img-background h-16 w-16">
                 {#if gameItem.icon}
                     <Avatar.Image
-                        src={iconSrc()}
+                        src={iconSrc}
                         alt={gameItem.name}
                         class="item-page__item-image object-contain animate-fade-in"
                     />
