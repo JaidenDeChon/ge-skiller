@@ -116,5 +116,23 @@ export const timeseries = async (options: Types.TimeSeriesOptions): Promise<Type
     const url = `https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=${timestep}&id=${id}`;
 
     const response = await fetchData(url);
-    return response.data.data[id] ?? response.data.data;
+
+    const payload = response?.data ?? response;
+    const dataField = payload?.data ?? payload;
+
+    if (Array.isArray(dataField)) return dataField as Types.TimeSeriesDataPoint[];
+
+    if (dataField && typeof dataField === 'object') {
+        const keyed = dataField as Record<string, unknown>;
+        const idKey = id?.toString() ?? '';
+        const series = keyed[idKey];
+
+        if (Array.isArray(series)) return series as Types.TimeSeriesDataPoint[];
+
+        const firstValue = Object.values(keyed)[0];
+        if (Array.isArray(firstValue)) return firstValue as Types.TimeSeriesDataPoint[];
+    }
+
+    console.warn('Timeseries: missing data', { id, timestep, responseSample: payload?.data ?? payload });
+    return [];
 };

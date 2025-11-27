@@ -11,7 +11,8 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "eslint .",
-		"grab-osrsbox-items": "bun run --env-file .env scripts/grab-osrsbox-items.ts"
+		"grab-osrsbox-items": "bun run --env-file .env scripts/grab-osrsbox-items.ts",
+		"update-item-prices": "bun run --env-file .env netlify/functions/update-item-prices.ts"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -34,6 +35,7 @@
 		"eslint-plugin-svelte": "^2.46.1",
 		"formsnap": "^2.0.0",
 		"globals": "^15.14.0",
+		"layerchart": "2.0.0-next.43",
 		"lucide-svelte": "^0.474.0",
 		"mode-watcher": "^0.5.1",
 		"sass-embedded": "^1.83.4",
@@ -60,7 +62,9 @@
 		"bson": "^6.10.2",
 		"consola": "^3.4.2",
 		"d3": "^7.9.0",
+		"d3-array": "^3.2.4",
 		"d3-org-chart": "^3.1.1",
+		"d3-scale": "^4.0.2",
 		"lodash": "^4.17.21",
 		"log-update": "^7.0.2",
 		"mongoose": "^8.9.6",

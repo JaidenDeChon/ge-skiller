@@ -63,6 +63,7 @@ export type IGameItem = {
   highTime?: number;
   lowPrice?: number;
   lowTime?: number;
+  buyLimit?: number;
   wikiName?: string | null;
 };
 

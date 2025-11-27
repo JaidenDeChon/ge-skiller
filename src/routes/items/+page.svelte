@@ -47,11 +47,9 @@
         void loadPage(currentPage, perPageValue);
     });
 
-    function handlePerPageChange(event: CustomEvent<string> | Event) {
-        const detailValue = (event as CustomEvent<string>).detail;
-        const targetValue = (event.target as HTMLInputElement | null)?.value;
-        const value = detailValue ?? targetValue ?? '12';
-        perPageSelected = value;
+    function handlePerPageChange(value: string) {
+        const next = value || '12';
+        perPageSelected = next;
         currentPage = 1;
     }
 </script>
@@ -60,16 +58,18 @@
     <div class="flex items-center justify-between mb-4 gap-4">
         <h1 class="text-3xl font-bold">Browse items</h1>
         <div class="flex items-center gap-2 text-sm">
-            <Select.Root type="single" bind:value={perPageSelected} on:change={handlePerPageChange} class="min-w-[150px]">
-                <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
-                <Select.Content>
-                    <Select.Group>
-                        {#each perPageOptions as option}
-                            <Select.Item value={option.toString()}>{option}</Select.Item>
-                        {/each}
-                    </Select.Group>
-                </Select.Content>
-            </Select.Root>
+            <div class="min-w-[150px]">
+                <Select.Root type="single" bind:value={perPageSelected} onValueChange={handlePerPageChange}>
+                    <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
+                    <Select.Content>
+                        <Select.Group>
+                            {#each perPageOptions as option}
+                                <Select.Item value={option.toString()}>{option}</Select.Item>
+                            {/each}
+                        </Select.Group>
+                    </Select.Content>
+                </Select.Root>
+            </div>
         </div>
     </div>
 

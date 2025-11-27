@@ -41,11 +41,11 @@ export const gameItemSchema = new mongoose.Schema<IGameItem>({
         type: Number,
         required: false,
     },
-    highAlch: {
+    highalch: {
         type: Number,
         required: false
     },
-    lowAlch: {
+    lowalch: {
         type: Number,
         required: false
     },
