@@ -34,37 +34,39 @@
  * @property equipment - Equipment bonuses of equipable armour/weapons. Required; nullable.
  * @property weapon - Weapon bonuses including attack speed, type and stance. Required; nullable.
  */
-export interface IGameItem {
-    id: number;
-    name: string;
-    last_updated: string;
-    incomplete: boolean;
-    members: boolean;
-    tradeable: boolean;
-    tradeable_on_ge: boolean;
-    stackable: boolean;
-    stacked: number | null;
-    noted: boolean;
-    noteable: boolean;
-    linked_id_item: number | null;
-    linked_id_noted: number | null;
-    linked_id_placeholder: number | null;
-    placeholder: boolean;
-    equipable: boolean;
-    equipable_by_player: boolean;
-    equipable_weapon: boolean;
-    cost: number;
-    lowalch: number | null;
-    highalch: number | null;
-    weight: number | null;
-    buy_limit: number | null;
-    quest_item: boolean;
-    release_date: string | null;
-    duplicate: boolean;
-    examine: string | null;
-    icon: string;
-    wiki_name: string | null;
-    wiki_url: string | null;
-    equipment: Record<string, unknown> | null;
-    weapon: Record<string, unknown> | null;
+export interface IOsrsboxItem {
+  id: number;
+  name: string;
+  last_updated: string;
+  incomplete: boolean;
+  members: boolean;
+  tradeable: boolean;
+  tradeable_on_ge: boolean;
+  stackable: boolean;
+  stacked: number | null;
+  noted: boolean;
+  noteable: boolean;
+  linked_id_item: number | null;
+  linked_id_noted: number | null;
+  linked_id_placeholder: number | null;
+  placeholder: boolean;
+  equipable: boolean;
+  equipable_by_player: boolean;
+  equipable_weapon: boolean;
+  cost: number;
+  lowalch: number | null;
+  highalch: number | null;
+  weight: number | null;
+  buy_limit: number | null;
+  quest_item: boolean;
+  release_date: string | null;
+  duplicate: boolean;
+  examine: string | null;
+  icon: string;
+  wiki_name: string | null;
+  wiki_url: string | null;
+  equipment: Record<string, unknown> | null;
+  weapon: Record<string, unknown> | null;
 }
+
+export type RawOsrsboxItem = IOsrsboxItem;

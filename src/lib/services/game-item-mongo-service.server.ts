@@ -1,37 +1,24 @@
-import { Types, type Document } from 'mongoose';
-import { GameItemModel } from '$lib/models/mongo-schemas/game-item-schema';
-import type { IGameItem } from '$lib/models/game-item';
+import { Types } from 'mongoose';
+import { OsrsboxItemModel, type OsrsboxItemDocument } from '$lib/models/mongo-schemas/osrsbox-db-item-schema';
+import type { IOsrsboxItem } from '$lib/models/osrsbox-db-item';
 
-type GameItemDoc = Document<unknown, object, IGameItem> & IGameItem & { _id: Types.ObjectId };
+type GameItemDoc = OsrsboxItemDocument & { _id: Types.ObjectId };
 
-/**
- * Recursively builds the populate options for the ingredients tree.
- * @param depth - The current depth of recursion.
- * @returns The populate options for the ingredients tree.
- */
-function buildMongoosePopulateObject(depth: number): any {
-    if (depth === 0) {
-        return null;
-    }
-    return {
-        path: 'creationSpecs.ingredients.item',
-        populate: buildMongoosePopulateObject(depth - 1)
-    };
-}
+export type PaginatedGameItems = {
+    items: GameItemDoc[];
+    total: number;
+    page: number;
+    perPage: number;
+};
 
 /**
- * Populates the recursive ingredients tree of a GameItem with a given id.
- * @param itemId - The id of the GameItem to populate.
- * @param depth - The depth of recursion for populating ingredients.
- * @returns The populated GameItem document.
+ * Fetch a single GameItem by id from the OSRSBox-backed collection.
+ * Creation trees are not available in this dataset, so this returns the raw item.
  */
-export async function populateIngredientsTree(itemId: string, depth: number = 5): Promise<IGameItem | null> {
-    const populateOptions = buildMongoosePopulateObject(depth);
-    const gameItem = await GameItemModel.findOne({ id: itemId })
-        .populate(populateOptions)
-        .exec();
-
-    return gameItem;
+export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxItem | null> {
+    const numericId = Number(itemId);
+    const id = Number.isNaN(numericId) ? itemId : numericId;
+    return OsrsboxItemModel.findOne({ id }).exec();
 }
 
 /**
@@ -39,7 +26,41 @@ export async function populateIngredientsTree(itemId: string, depth: number = 5)
  * @returns A list of GameItemDoc objects
  */
 export async function getGameItems(ids?: string[]): Promise<GameItemDoc[]> {
-    // If no ids were given, get the data for all items. Otherwise, just the for the ids given.
-    if (!ids || !ids.length) return GameItemModel.find().exec();
-    return GameItemModel.find({ id: { $in: ids } }).exec();
+    if (!ids || !ids.length) {
+        // Only grab first 32 items for performance reasons
+        return OsrsboxItemModel.find({})
+            .limit(32)
+            .lean<GameItemDoc[]>()
+            .exec();
+    }
+
+    const normalizedIds = ids.map((rawId) => {
+        const numericId = Number(rawId);
+        return Number.isNaN(numericId) ? rawId : numericId;
+    });
+
+    return OsrsboxItemModel.find({ id: { $in: normalizedIds } })
+        .lean<GameItemDoc[]>()
+        .exec();
+}
+
+/**
+ * Returns a paginated list of game items sorted by high price (desc).
+ */
+export async function getPaginatedGameItems(params?: { page?: number; perPage?: number }): Promise<PaginatedGameItems> {
+    const page = Math.max(1, params?.page ?? 1);
+    const perPage = Math.max(1, Math.min(200, params?.perPage ?? 12));
+    const skip = (page - 1) * perPage;
+
+    const [items, total] = await Promise.all([
+        OsrsboxItemModel.find({})
+            .sort({ highPrice: -1 })
+            .skip(skip)
+            .limit(perPage)
+            .lean<GameItemDoc[]>()
+            .exec(),
+        OsrsboxItemModel.countDocuments().exec()
+    ]);
+
+    return { items, total, page, perPage };
 }

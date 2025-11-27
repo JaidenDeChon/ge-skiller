@@ -1,9 +1,14 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import type { IGameItem } from '../osrsbox-db-item';
+import type { IOsrsboxItem } from '../osrsbox-db-item';
 
-export interface GameItemDocument extends Omit<Document, 'id'>, IGameItem {}
+export interface OsrsboxItemDocument extends Omit<Document, 'id'>, IOsrsboxItem {
+  highPrice?: number;
+  highTime?: number;
+  lowPrice?: number;
+  lowTime?: number;
+}
 
-export const gameItemSchema: Schema<GameItemDocument> = new Schema(
+export const osrsboxItemSchema: Schema<OsrsboxItemDocument> = new Schema(
   {
     id: { type: Number, required: true, unique: true },
     name: { type: String, required: true },
@@ -37,9 +42,13 @@ export const gameItemSchema: Schema<GameItemDocument> = new Schema(
     wiki_url: { type: String, default: null },
     equipment: { type: Schema.Types.Mixed, default: null },
     weapon: { type: Schema.Types.Mixed, default: null },
+    highPrice: { type: Number, required: false },
+    highTime: { type: Number, required: false },
+    lowPrice: { type: Number, required: false },
+    lowTime: { type: Number, required: false },
   },
   { collection: 'items' },
 );
 
-export const GameItemModel: Model<GameItemDocument> =
-  mongoose.models.GameItem || mongoose.model<GameItemDocument>('GameItem', gameItemSchema);
+export const OsrsboxItemModel: Model<OsrsboxItemDocument> =
+  mongoose.models.OsrsboxItem || mongoose.model<OsrsboxItemDocument>('OsrsboxItem', osrsboxItemSchema);

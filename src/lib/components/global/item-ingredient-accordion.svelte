@@ -1,6 +1,7 @@
 <script lang="ts">
     import Self from './item-ingredient-accordion.svelte';
     import * as Accordion from '$lib/components/ui/accordion';
+    import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IGameItem } from '$lib/models/game-item';
 
     interface ItemIngredientAccordionProps {
@@ -11,6 +12,8 @@
     }
 
     const { gameItem, linkToItem = false, disabled = false, index = 0 }: ItemIngredientAccordionProps = $props();
+
+    const iconSrc = $derived(iconToDataUri(gameItem?.icon));
 </script>
 
 <Accordion.Root type="multiple" value={index === 0 ? ['root'] : []} disabled={disabled || index === 0} class="w-full">
@@ -21,7 +24,7 @@
                 <div class="flex justify-center items-center size-9 bg-muted rounded-full border">
                     <img
                         class="game-item-shadow transition-fade-in-delayed size-5"
-                        src="/item-images/{gameItem?.icon}"
+                        src={iconSrc()}
                         alt={gameItem?.name}
                     />
                 </div>

@@ -5,8 +5,8 @@
 import mongoose from 'mongoose';
 import consola from 'consola';
 import logUpdate from 'log-update';
-import { GameItemModel } from '../src/lib/models/mongo-schemas/osrsbox-db-item-schema';
-import type { IGameItem } from '../src/lib/models/osrsbox-db-item';
+import { OsrsboxItemModel } from '../src/lib/models/mongo-schemas/osrsbox-db-item-schema';
+import type { IOsrsboxItem } from '../src/lib/models/osrsbox-db-item';
 
 /**
  * ====================================================================================================================
@@ -70,14 +70,14 @@ const START_ID = 0;
 const ABSOLUTE_END_ID = 40_000;
 const MAX_CONSECUTIVE_404 = 500;
 const BATCH_SIZE = 12;
-const MONGODB_REQUEST_POLITENESS_DELAY_MS = 200;
+const MONGODB_REQUEST_POLITENESS_DELAY_MS = 0;
 const LOCAL_ITEMS_DIR = new URL('./osrsbox-db/docs/items-json/', import.meta.url);
 
 const user = process.env.VITE_MONGO_USERNAME;
 const pw = process.env.VITE_MONGO_PASSWORD;
 const cluster = process.env.VITE_MONGO_DB_CLUSTER_NAME;
 const host = process.env.VITE_MONGO_DB_HOST;
-const dbName = process.env.VITE_MONGO_DB_DB_NAME;
+const dbName = process.env.VITE_MONGO_DB_DB_NAME || 'osrsbox';
 const prepend = 'mongodb+srv';
 const append = '?retryWrites=true&w=majority';
 const connectionString = `${prepend}://${user}:${pw}@${cluster}.${host}/${dbName}${append}`;
@@ -91,7 +91,7 @@ const connectionString = `${prepend}://${user}:${pw}@${cluster}.${host}/${dbName
 /** Result of fetching an item. */
 interface FetchResult {
   id: number;
-  item: IGameItem | null;
+  item: IOsrsboxItem | null;
   status: number; // HTTP status
   url: string;
 }
@@ -121,7 +121,7 @@ async function fetchItem(baseUrl: URL, id: number, sourceName: string): Promise<
   try {
     const file = Bun.file(fileUrl);
     const json = await file.text();
-    const item = JSON.parse(json) as IGameItem;
+    const item = JSON.parse(json) as IOsrsboxItem;
     return { id, item, status: 200, url: fileUrl.href };
   } catch (error) {
     fetchLog.error(`Failed to read ${fileUrl.href} | error=${error}`);
@@ -136,7 +136,7 @@ async function fetchItem(baseUrl: URL, id: number, sourceName: string): Promise<
  * @returns Object with counts of inserted and modified items.
  */
 async function upsertGameItems(
-  items: IGameItem[],
+  items: IOsrsboxItem[],
   context: { sourceName: string; batchRange: [number, number] },
 ): Promise<{ inserted: number; modified: number }> {
   if (!items.length) return { inserted: 0, modified: 0 };
@@ -151,7 +151,7 @@ async function upsertGameItems(
     },
   }));
 
-  const result = await GameItemModel.bulkWrite(ops, { ordered: false });
+  const result = await OsrsboxItemModel.bulkWrite(ops, { ordered: false });
 
   upsertLog.success(
     `Batch ${formatRange(context.batchRange[0], context.batchRange[1])} | inserted=${result.upsertedCount} modified=${result.modifiedCount} size=${items.length}`,
@@ -209,7 +209,7 @@ async function importItemsFrom(params: {
 
     const results = await Promise.all(batchIds.map((id) => fetchItem(baseUrl, id, sourceName)));
 
-    const itemsToUpsert: IGameItem[] = [];
+    const itemsToUpsert: IOsrsboxItem[] = [];
 
     for (const result of results) {
       const { id, item, status, url } = result;
@@ -218,7 +218,8 @@ async function importItemsFrom(params: {
         fetchedCount += 1;
         consecutive404 = 0;
 
-        if (!item.tradeable && !item.tradeable_on_ge) {
+        // Skip untradeable and noted items.
+        if (!item.tradeable || item.noted) {
           skippedTotal += 1;
           continue;
         }
@@ -286,9 +287,7 @@ async function importItemsFrom(params: {
 
     mainLog.info('Connecting to MongoDB...');
 
-    await mongoose.connect(connectionString, {
-      dbName: 'osrsbox', // recommended so you're not on "test"
-    });
+    await mongoose.connect(connectionString, { dbName });
 
     mainLog.success('Connection established.');
 

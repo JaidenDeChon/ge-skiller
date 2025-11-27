@@ -2,6 +2,7 @@
     import Self from './item-card-compact.svelte';
     import Button from '../ui/button/button.svelte';
     import { ChevronDown } from 'lucide-svelte';
+    import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IGameItem } from '$lib/models/game-item';
 
     interface ItemCardCompactProps {
@@ -13,6 +14,8 @@
     const { gameItem, linkToItem = false, rootClassname = '' }: ItemCardCompactProps = $props();
 
     let expanded = $state(false);
+
+    const iconSrc = $derived(iconToDataUri(gameItem?.icon));
 </script>
 
 <div class="flex flex-col">
@@ -24,7 +27,7 @@
             <div class="flex justify-center items-center size-9 bg-muted rounded-full border group-hover:bg-background">
                 <img
                     class="game-item-shadow transition-fade-in-delayed size-5"
-                    src="/item-images/{gameItem.icon}"
+                    src={iconSrc()}
                     alt={gameItem.name}
                 />
             </div>

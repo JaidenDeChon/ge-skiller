@@ -1,7 +1,7 @@
 import { startMongo } from '../../src/db/mongo';
 import { updateAllGameItemPricesInMongo } from '../../src/lib/services/game-item-price-service';
 
-export default async (req: Request) => {
+(async function doThing () {
     console.info('Attempting item prices update');
 
     try {
@@ -13,7 +13,7 @@ export default async (req: Request) => {
         console.error('Error updating item prices:', error);
         throw error;
     } finally {
-        const { next_run } = await req.json();
-        console.info('Next run:', next_run);
+        // const { next_run } = await req.json();
+        // console.info('Next run:', next_run);
     }
-}
+})();
