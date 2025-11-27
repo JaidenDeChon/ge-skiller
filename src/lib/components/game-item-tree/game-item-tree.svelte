@@ -3,6 +3,7 @@
     import * as d3 from 'd3';
     import { OrgChart } from 'd3-org-chart';
     import ItemNode from '$lib/components/game-item-tree/item-node.svelte';
+    import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IGameItem, GameItemCreationIngredient } from '$lib/models/game-item';
 
     const { gameItem }: { gameItem: IGameItem | null } = $props();
@@ -59,7 +60,7 @@
                 id: item.id,
                 parentId,
                 name: item.name,
-                icon: item.icon ? `/item-images/${item.icon}` : undefined,
+                icon: iconToDataUri(item.icon),
                 examine: item.examine,
             });
 

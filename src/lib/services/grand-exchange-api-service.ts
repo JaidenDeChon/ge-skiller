@@ -1,4 +1,4 @@
-import type * as Types from '$lib/models/grand-exchange-protocols';
+import type * as Types from '../models/grand-exchange-protocols';
 
 const headers = {
     'User-Agent': 'npm runelite | ge-skiller | Helps OSRS players turn their skilling processes into more valuable ' +

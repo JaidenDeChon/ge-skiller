@@ -5,8 +5,52 @@
     import { MediaQuery } from 'svelte/reactivity';
     import { buttonVariants } from '$lib/components/ui/button';
     import { Search } from 'lucide-svelte';
+    import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
+    import type { IGameItem } from '$lib/models/game-item';
 
     const isDesktopMode = $state(new MediaQuery('(min-width: 1024px)'));
+
+    let searchQuery = $state('');
+    let searchResults = $state([] as IGameItem[]);
+    let searchLoading = $state(false);
+
+    let debounceId: ReturnType<typeof setTimeout> | null = null;
+    let abortController: AbortController | null = null;
+
+    async function fetchSearch(query: string) {
+        const trimmed = query.trim();
+        if (!trimmed) {
+            searchResults = [];
+            searchLoading = false;
+            if (abortController) abortController.abort();
+            return;
+        }
+
+        if (abortController) abortController.abort();
+        abortController = new AbortController();
+
+        searchLoading = true;
+        try {
+            const resp = await fetch(`/api/search-items?q=${encodeURIComponent(trimmed)}&limit=8`, {
+                signal: abortController.signal,
+            });
+            const data: IGameItem[] = await resp.json();
+            searchResults = data;
+        } catch (error) {
+            if ((error as Error).name !== 'AbortError') {
+                console.error('Search failed', error);
+            }
+        } finally {
+            searchLoading = false;
+        }
+    }
+
+    // Debounce search as query changes.
+    $effect(() => {
+        const value = searchQuery;
+        if (debounceId) clearTimeout(debounceId);
+        debounceId = setTimeout(() => fetchSearch(value), 200);
+    });
 </script>
 
 <header class="flex w-full h-16 sticky top-0 border-border border-b custom-bg-blur z-30">
@@ -32,14 +76,42 @@
 
             <Dialog.Content class="p-0">
                 <Command.Root class="w-full rounded-lg border">
-                    <Command.Input placeholder="Search..." />
+                    <Command.Input
+                        placeholder="Search..."
+                        bind:value={searchQuery}
+                    />
+
                     <Command.List>
-                        <Command.Empty>No results found.</Command.Empty>
+                        {#if searchLoading}
+                            <Command.Empty>Searching...</Command.Empty>
+                        {:else if !searchQuery.trim()}
+                            <Command.Empty>Start typing to search items.</Command.Empty>
+                        {:else if searchResults.length === 0}
+                            <Command.Empty>No results found.</Command.Empty>
+                        {:else}
+                            <Command.Group heading="Items">
+                                {#each searchResults as item (item.id)}
+                                    <Command.Item>
+                                        <div class="flex items-center gap-3">
+                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border">
+                                                {#if item.icon}
+                                                    <img src={iconToDataUri(item.icon)} alt={item.name} class="h-6 w-6 object-contain" />
+                                                {:else}
+                                                    <span class="text-xs text-muted-foreground">{item.name.slice(0, 2)}</span>
+                                                {/if}
+                                            </span>
+                                            <div class="flex flex-col text-left">
+                                                <span class="text-sm font-medium">{item.name}</span>
+                                                {#if item.examine}
+                                                    <span class="text-xs text-muted-foreground line-clamp-1">{item.examine}</span>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                    </Command.Item>
+                                {/each}
+                            </Command.Group>
+                        {/if}
                     </Command.List>
-                    <Command.Group heading="Recent items">
-                        <Command.Item>Leather cowl</Command.Item>
-                        <Command.Item>Iron Platebody</Command.Item>
-                    </Command.Group>
                 </Command.Root>
             </Dialog.Content>
         </Dialog.Root>

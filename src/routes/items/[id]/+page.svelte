@@ -8,6 +8,7 @@
     import IconBadge from '$lib/components/global/icon-badge.svelte';
     import FavoriteButton from '$lib/components/global/favorite-button.svelte';
     import GameItemTreeCard from '$lib/components/game-item-tree/game-item-tree-card.svelte';
+    import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IGameItem, SkillLevelDesignation } from '$lib/models/game-item';
 
     type AssociatedSkillsArray = NonNullable<IGameItem['creationSpecs']>['requiredSkills'];
@@ -16,6 +17,7 @@
     let loading = $state(true);
     let gameItem = $state<IGameItem | null>(null);
     let associatedSkills = $state(undefined as undefined | AssociatedSkillsArray);
+    const iconSrc = $derived(iconToDataUri(gameItem?.icon));
 
     // Load the game item data once it's available.
     $effect(() => {
@@ -131,7 +133,7 @@
             <Avatar.Root class="p-3 bg-muted border item-card__img-background h-16 w-16">
                 {#if gameItem.icon}
                     <Avatar.Image
-                        src="/item-images/{gameItem.icon}"
+                        src={iconSrc()}
                         alt={gameItem.name}
                         class="item-page__item-image object-contain animate-fade-in"
                     />

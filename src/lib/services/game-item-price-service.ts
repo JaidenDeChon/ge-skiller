@@ -1,18 +1,14 @@
-import _ from 'lodash';
-import { GameItemModel } from '$lib/models/mongo-schemas/game-item-schema';
-import { CollectionMetadataModel } from '$lib/models/mongo-schemas/collection-metadata-schema';
-import { geDataCombined } from '$lib/services/grand-exchange-api-service';
+import { OsrsboxItemModel } from '../models/mongo-schemas/osrsbox-db-item-schema';
+import { CollectionMetadataModel } from '../models/mongo-schemas/collection-metadata-schema';
+import { geDataCombined } from './grand-exchange-api-service';
 import type { AnyBulkWriteOperation } from 'mongoose';
-import type { IGameItem } from '$lib/models/game-item';
-
-const gameItemsUsingGifs: string[] = ['Magic logs'];
 
 /**
  * Updates the prices of all GameItems in the database.
  */
 export async function updateAllGameItemPricesInMongo(): Promise<void> {
     const updatedGameItems = await geDataCombined();
-    const gameItemsInMongo = await GameItemModel.find();
+    const gameItemsInMongo = await OsrsboxItemModel.find();
 
     const bulkOperations: AnyBulkWriteOperation[] = [];
     
@@ -21,22 +17,26 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
         const fullItemData = updatedGameItems[item.id];
         if (!fullItemData) continue;
 
-        const iconFileExtension = gameItemsUsingGifs.includes(fullItemData.name) ? 'gif' : 'png';
-        fullItemData.icon = `${_.kebabCase(fullItemData.name)}.${iconFileExtension}`;
+        const priceUpdate = {
+            highPrice: fullItemData.highPrice,
+            highTime: fullItemData.highTime,
+            lowPrice: fullItemData.lowPrice,
+            lowTime: fullItemData.lowTime,
+        };
 
         bulkOperations.push({
             updateOne: {
                 filter: { _id: item._id },
-                update: fullItemData,
+                update: { $set: priceUpdate },
                 upsert: true,
             },
         });
     }
 
     // Update the data to the database.
-    await GameItemModel.bulkWrite(bulkOperations);
+    await OsrsboxItemModel.bulkWrite(bulkOperations);
 
-    const collectionName = 'game-item';
+    const collectionName = 'items';
     const lastUpdated = Date.now();
 
     // Update the collection metadata.

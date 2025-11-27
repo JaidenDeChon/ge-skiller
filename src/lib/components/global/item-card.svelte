@@ -5,7 +5,9 @@
     import * as Avatar from '$lib/components/ui/avatar';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import { timeSince } from '$lib/helpers/time-since';
+    import { formatWithCommas } from '$lib/helpers/format-number';
     import type { IGameItem } from '$lib/models/game-item';
+    import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
 
     const headerTextDivClasses = 'flex-1 flex flex-col mb-2 text-sm';
 
@@ -40,6 +42,8 @@
 
     let isTouch = $state(true);
     let timeSinceHighTime = $state('Calculating...');
+    const iconSrc = $derived(iconToDataUri(item.icon));
+    const formattedHighPrice = $derived(formatWithCommas(item.highPrice));
 
     onMount(() => {
         isTouch = Device.isMobile || Device.isTablet;
@@ -73,7 +77,7 @@
             <Skeleton class="rounded-full size-12" />
         {:else}
             <Avatar.Root class="p-2 bg-muted border item-card__img-background h-12 w-12">
-                <Avatar.Image src="/item-images/{item.icon}" class="item-card__image object-contain animate-fade-in" />
+                <Avatar.Image src={iconSrc} class="item-card__image object-contain animate-fade-in" />
                 <Avatar.Fallback class="animate-fade-in">{item.name}</Avatar.Fallback>
             </Avatar.Root>
         {/if}
@@ -87,7 +91,7 @@
                 <Skeleton class="h-2 w-12" />
             {:else}
                 <p class="text-2xl font-bold animate-fade-in">
-                    <span class="text-primary">{item.highPrice}</span>gp
+                    <span class="text-primary">{formattedHighPrice}</span>gp
                 </p>
                 {#if item.highTime}
                     <p class="text-muted-foreground text-xs animate-fade-in">

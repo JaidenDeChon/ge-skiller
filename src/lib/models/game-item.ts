@@ -1,4 +1,4 @@
-import type { MapData } from './grand-exchange-protocols';
+import type { IOsrsboxItem } from './osrsbox-db-item';
 
 /**
  * Represents the amount of experience in a given skill awarded for creating an item.
@@ -52,14 +52,19 @@ export type GameItemCreationSpecs = {
  * @property lowPrice       - The most recent low price at which the item was sold.
  * @property lowTime        - The time at which the item sold at the most recent low price.
  */
-export interface IGameItem extends MapData {
-    [key: string]: undefined | string | number | boolean | GameItemCreationSpecs;
-    creationSpecs?: GameItemCreationSpecs;
-    highPrice?: number;
-    highTime?: number;
-    lowPrice?: number;
-    lowTime?: number;
-}
+export type IGameItem = {
+  id: IOsrsboxItem['id'];
+  name: IOsrsboxItem['name'];
+  icon: IOsrsboxItem['icon'];
+  examine: IOsrsboxItem['examine'];
+} & Partial<IOsrsboxItem> & {
+  creationSpecs?: GameItemCreationSpecs;
+  highPrice?: number;
+  highTime?: number;
+  lowPrice?: number;
+  lowTime?: number;
+  wikiName?: string | null;
+};
 
 /**
  * Pairs multiple GameItems together under a single category represented by a string.
