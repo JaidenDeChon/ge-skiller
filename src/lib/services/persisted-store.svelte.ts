@@ -27,11 +27,11 @@ export class LocalStorage<T> {
         if (event.storageArea !== localStorage) return;
         if (event.key !== this.#key) return;
         this.#version += 1;
-    }
+    };
 
     get current() {
         // Access #version to trigger reactivity.
-        this.#version;
+        this.#version.toString();
 
         const root = typeof localStorage !== 'undefined'
             ? JSON.parse(localStorage.getItem(this.#key) || 'null')
@@ -48,7 +48,7 @@ export class LocalStorage<T> {
                 p = new Proxy(value, {
                     // Proxy getter.
                     get: (target, property) => {
-                        this.#version;
+                        this.#version.toString();
                         return proxy(Reflect.get(target, property));
                     },
                     // Proxy setter.

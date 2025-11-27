@@ -1,12 +1,11 @@
 <script lang="ts">
     import { SiGithub } from '@icons-pack/svelte-simple-icons';
     import * as Sidebar from '$lib/components/ui/sidebar';
-    import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
     import * as Tooltip from '$lib/components/ui/tooltip';
     import NavUser from '$lib/components/layout/nav-menu/nav-user.svelte';
     import { Button, buttonVariants } from '$lib/components/ui/button';
     import { toggleMode } from 'mode-watcher';
-    import { Moon, Sun, Info, Ellipsis } from 'lucide-svelte';
+    import { Moon, Sun, Info } from 'lucide-svelte';
 
     const sidebar = Sidebar.useSidebar();
 </script>

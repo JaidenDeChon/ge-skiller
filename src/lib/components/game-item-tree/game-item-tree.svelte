@@ -35,7 +35,7 @@
 
                 return target.innerHTML;
             })
-            .linkUpdate(function (this: SVGPathElement, d, i, arr) {
+            .linkUpdate(function (this: SVGPathElement) {
                 d3.select(this).attr('stroke', 'hsl(var(--muted-foreground))');
             })
             .svgHeight(300)

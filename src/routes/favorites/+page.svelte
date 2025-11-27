@@ -23,7 +23,7 @@
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {#if loading}
-        {#each { length: 5 }}
+        {#each Array.from({ length: 5 }, (_, i) => i) as index (index)}
             <ItemCard {loading} />
         {/each}
     {:else}

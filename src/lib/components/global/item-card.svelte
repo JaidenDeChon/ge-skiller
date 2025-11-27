@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import Device from 'svelte-device-info';
     import FavoriteButton from './favorite-button.svelte';
     import * as Avatar from '$lib/components/ui/avatar';
     import { Skeleton } from '$lib/components/ui/skeleton';
@@ -40,13 +39,11 @@
         linkToItemPage?: boolean;
     }>();
 
-    let isTouch = $state(true);
     let timeSinceHighTime = $state('Calculating...');
     const iconSrc = $derived(iconToDataUri(item.icon));
     const formattedHighPrice = $derived(formatWithCommas(item.highPrice));
 
     onMount(() => {
-        isTouch = Device.isMobile || Device.isTablet;
         if (item.highTime) timeSinceHighTime = timeSince(item.highTime);
         else timeSinceHighTime = '';
     });

@@ -1,5 +1,4 @@
 <script lang="ts">
-    import * as ToggleGroup from '$lib/components/ui/toggle-group';
     import * as Select from '$lib/components/ui/select';
     import { Label } from '$lib/components/ui/label';
     import { Switch } from '$lib/components/ui/switch';

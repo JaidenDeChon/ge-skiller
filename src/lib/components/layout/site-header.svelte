@@ -2,13 +2,10 @@
     import * as Command from '$lib/components/ui/command';
     import * as Dialog from '$lib/components/ui/dialog';
     import * as Sidebar from '$lib/components/ui/sidebar';
-    import { MediaQuery } from 'svelte/reactivity';
     import { buttonVariants } from '$lib/components/ui/button';
     import { Search } from 'lucide-svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IGameItem } from '$lib/models/game-item';
-
-    const isDesktopMode = $state(new MediaQuery('(min-width: 1024px)'));
 
     let searchQuery = $state('');
     let searchResults = $state([] as IGameItem[]);

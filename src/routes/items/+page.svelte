@@ -77,7 +77,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {#if loading}
-            {#each { length: perPageValue }}
+            {#each Array.from({ length: perPageValue }, (_, i) => i) as index (index)}
                 <ItemCard {loading} />
             {/each}
         {:else}
