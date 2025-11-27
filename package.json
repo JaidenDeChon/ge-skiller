@@ -35,7 +35,6 @@
 		"eslint-plugin-svelte": "^2.46.1",
 		"formsnap": "^2.0.0",
 		"globals": "^15.14.0",
-		"layerchart": "2.0.0-next.43",
 		"lucide-svelte": "^0.474.0",
 		"mode-watcher": "^0.5.1",
 		"sass-embedded": "^1.83.4",

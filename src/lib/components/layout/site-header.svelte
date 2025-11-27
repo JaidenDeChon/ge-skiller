@@ -5,9 +5,11 @@
     import { buttonVariants } from '$lib/components/ui/button';
     import { Search } from 'lucide-svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
+    import { afterNavigate } from '$app/navigation';
     import type { IGameItem } from '$lib/models/game-item';
 
     let searchQuery = $state('');
+    let searchDialogOpen = $state(false);
     let searchResults = $state([] as IGameItem[]);
     let searchLoading = $state(false);
 
@@ -28,7 +30,7 @@
 
         searchLoading = true;
         try {
-            const resp = await fetch(`/api/search-items?q=${encodeURIComponent(trimmed)}&limit=8`, {
+            const resp = await fetch(`/api/search-items?q=${encodeURIComponent(trimmed)}&limit=50`, {
                 signal: abortController.signal,
             });
             const data: IGameItem[] = await resp.json();
@@ -48,6 +50,10 @@
         if (debounceId) clearTimeout(debounceId);
         debounceId = setTimeout(() => fetchSearch(value), 200);
     });
+
+    afterNavigate(() => {
+        searchDialogOpen = false;
+    });
 </script>
 
 <header class="flex w-full h-16 sticky top-0 border-border border-b custom-bg-blur z-30">
@@ -63,7 +69,7 @@
         </a>
 
         <!-- Button that looks like search bar; opens command modal. -->
-        <Dialog.Root>
+        <Dialog.Root bind:open={searchDialogOpen}>
             <Dialog.Trigger
                 class="h-10 w-10 ml-auto flex items-center justify-start text-xs text-muted-foreground p-3 border border-input rounded-md bg-background/70 hover:text-foreground hover:bg-muted/55 transition-colors lg:w-full lg:ml-0 lg:absolute lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:max-w-72"
             >
@@ -88,7 +94,13 @@
                         {:else}
                             <Command.Group heading="Items">
                                 {#each searchResults as item (item.id)}
-                                    <Command.Item>
+                                    <Command.LinkItem
+                                        href={`/items/${item.id}`}
+                                        class="cursor-pointer"
+                                        on:click={() => {
+                                            searchDialogOpen = false;
+                                        }}
+                                    >
                                         <div class="flex items-center gap-3">
                                             <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border">
                                                 {#if item.icon}
@@ -104,7 +116,7 @@
                                                 {/if}
                                             </div>
                                         </div>
-                                    </Command.Item>
+                                    </Command.LinkItem>
                                 {/each}
                             </Command.Group>
                         {/if}

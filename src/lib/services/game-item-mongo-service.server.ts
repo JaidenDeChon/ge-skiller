@@ -72,12 +72,38 @@ export async function searchGameItems(query: string, limit: number = 10): Promis
     const sanitizedQuery = query.trim();
     if (!sanitizedQuery) return [];
 
-    const regex = new RegExp(sanitizedQuery, 'i');
-    return OsrsboxItemModel.find({
-        $or: [{ name: regex }, { examine: regex }]
-    })
-        .sort({ highPrice: -1 })
-        .limit(Math.min(Math.max(limit, 1), 50))
-        .lean<GameItemDoc[]>()
-        .exec();
+    const safeQuery = escapeRegex(sanitizedQuery);
+    const startsWithRegex = new RegExp(`^${safeQuery}`, 'i');
+    const containsRegex = new RegExp(safeQuery, 'i');
+    const limitCap = Math.min(Math.max(limit, 1), 50);
+    const results: GameItemDoc[] = [];
+    const seen = new Set<string>();
+
+    async function fetchAndAppend(filter: Record<string, unknown>) {
+        if (results.length >= limitCap) return;
+        const docs = await OsrsboxItemModel.find(filter)
+            .sort({ highPrice: -1 })
+            .limit(limitCap * 3)
+            .lean<GameItemDoc[]>()
+            .exec();
+
+        for (const doc of docs) {
+            const key = doc.id?.toString() ?? (doc as unknown as { _id?: Types.ObjectId })._id?.toString();
+            if (!key || seen.has(key)) continue;
+            seen.add(key);
+            results.push(doc);
+            if (results.length >= limitCap) break;
+        }
+    }
+
+    // Priority: name starts with query > name contains query > description contains query
+    await fetchAndAppend({ name: startsWithRegex });
+    await fetchAndAppend({ name: containsRegex });
+    await fetchAndAppend({ examine: containsRegex });
+
+    return results;
+}
+
+function escapeRegex(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

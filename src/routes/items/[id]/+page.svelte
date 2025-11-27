@@ -32,7 +32,6 @@
     let priceHistory = $state([] as TimeSeriesDataPoint[]);
     let priceHistoryLoading = $state(false);
     let priceHistoryError = $state<string | null>(null);
-    const MAX_CHART_POINTS = 30;
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
     const wikiUrl = $derived(() => {
         const slug = gameItem?.wikiName ?? gameItem?.name;
@@ -56,19 +55,6 @@
         const price = gameItem?.lowPrice;
         if (alch === null || alch === undefined || price === null || price === undefined) return null;
         return alch - price;
-    });
-    const chartPoints = $derived(() => {
-        const filtered = (priceHistory ?? []).filter(
-            (point) => point.avgHighPrice !== null || point.avgLowPrice !== null,
-        );
-        const sorted = filtered.sort((a, b) => a.timestamp - b.timestamp);
-        const trimmed = sorted.slice(-MAX_CHART_POINTS);
-
-        return trimmed.map((point) => ({
-            timestamp: point.timestamp,
-            high: point.avgHighPrice ?? 0,
-            low: point.avgLowPrice ?? 0,
-        }));
     });
 
     function formatValue(value: number | null | undefined, suffix = ' gp') {
@@ -274,8 +260,11 @@
     {/if}
 </div>
 
+<!-- Item tree card -->
+<GameItemTreeCard rootClass="mt-4 pb-5" {gameItem} {loading} {renderChart} />
+
 <!-- Pricing tables -->
-<div class="grid gap-4 md:grid-cols-2 mt-6">
+<div class="grid gap-4 lg:grid-cols-2 mt-6">
     {#if loading || !gameItem}
         <Skeleton class="h-44 w-full" />
         <Skeleton class="h-44 w-full" />
@@ -369,7 +358,7 @@
 </div>
 
 <!-- Insights & requirements -->
-<div class="grid gap-4 md:grid-cols-2 mt-4">
+<div class="grid gap-4 lg:grid-cols-2 mt-4">
     <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
         <div class="flex items-center justify-between p-4 border-b">
             <h3 class="text-lg font-semibold">Value insights</h3>
@@ -418,21 +407,10 @@
             <h3 class="text-lg font-semibold">Price history (6h)</h3>
         </div>
         <div class="p-4">
-            {#if priceHistoryLoading}
-                <Skeleton class="h-48 w-full" />
-            {:else if priceHistoryError}
-                <p class="text-sm text-destructive">{priceHistoryError}</p>
-            {:else if chartPoints().length === 0}
-                <p class="text-sm text-muted-foreground">No price history available yet.</p>
-            {:else}
-                <p class="text-sm text-muted-foreground">LayerChart goes here</p>
-            {/if}
+            <p class="text-sm text-muted-foreground">Chart will go here.</p>
         </div>
     </section>
 </div>
-
-<!-- Item tree card -->
-<GameItemTreeCard rootClass="mt-4 pb-5" {gameItem} {loading} {renderChart} />
 
 <style>
     :global(.item-page__item-image) {
