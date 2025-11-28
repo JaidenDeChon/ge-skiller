@@ -4,6 +4,9 @@ import type { IOsrsboxItem } from '$lib/models/osrsbox-db-item';
 
 type GameItemDoc = OsrsboxItemDocument & { _id: Types.ObjectId };
 
+export type GameItemFilter = 'all' | 'members' | 'f2p' | 'tradeable' | 'equipable' | 'stackable' | 'quest';
+export type GameItemSortOrder = 'asc' | 'desc';
+
 export type PaginatedGameItems = {
     items: GameItemDoc[];
     total: number;
@@ -45,21 +48,26 @@ export async function getGameItems(ids?: string[]): Promise<GameItemDoc[]> {
 }
 
 /**
- * Returns a paginated list of game items sorted by high price (desc).
+ * Returns a paginated list of game items with optional filtering and sort order (defaults high price desc).
  */
-export async function getPaginatedGameItems(params?: { page?: number; perPage?: number }): Promise<PaginatedGameItems> {
+export async function getPaginatedGameItems(
+    params?: { page?: number; perPage?: number; filter?: GameItemFilter; sortOrder?: GameItemSortOrder },
+): Promise<PaginatedGameItems> {
     const page = Math.max(1, params?.page ?? 1);
     const perPage = Math.max(1, Math.min(200, params?.perPage ?? 12));
     const skip = (page - 1) * perPage;
+    const filter = normalizeFilter(params?.filter);
+    const sortDirection = params?.sortOrder === 'asc' ? 1 : -1;
+    const filterQuery = getFilterQuery(filter);
 
     const [items, total] = await Promise.all([
-        OsrsboxItemModel.find({})
-            .sort({ highPrice: -1 })
+        OsrsboxItemModel.find(filterQuery)
+            .sort({ highPrice: sortDirection, cost: sortDirection, name: 1 })
             .skip(skip)
             .limit(perPage)
             .lean<GameItemDoc[]>()
             .exec(),
-        OsrsboxItemModel.countDocuments().exec()
+        OsrsboxItemModel.countDocuments(filterQuery).exec()
     ]);
 
     return { items, total, page, perPage };
@@ -113,4 +121,29 @@ export async function searchGameItems(query: string, limit: number = 10): Promis
 
 function escapeRegex(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeFilter(filter?: GameItemFilter): GameItemFilter {
+    const allowed: GameItemFilter[] = ['all', 'members', 'f2p', 'tradeable', 'equipable', 'stackable', 'quest'];
+    if (!filter) return 'all';
+    return allowed.includes(filter) ? filter : 'all';
+}
+
+function getFilterQuery(filter: GameItemFilter): Record<string, unknown> {
+    switch (filter) {
+        case 'members':
+            return { members: true };
+        case 'f2p':
+            return { members: false };
+        case 'tradeable':
+            return { tradeable: true };
+        case 'equipable':
+            return { equipable_by_player: true };
+        case 'stackable':
+            return { stackable: true };
+        case 'quest':
+            return { quest_item: true };
+        default:
+            return {};
+    }
 }

@@ -17,19 +17,45 @@
     });
 
     const perPageOptions = [12, 24, 48, 96, 192];
+    const filterOptions = [
+        { value: 'all', label: 'All items' },
+        { value: 'members', label: 'Members only' },
+        { value: 'f2p', label: 'Free to play' },
+        { value: 'tradeable', label: 'Tradeable' },
+        { value: 'equipable', label: 'Equipable' },
+        { value: 'stackable', label: 'Stackable' },
+        { value: 'quest', label: 'Quest items' },
+    ];
+    const sortOrderOptions = [
+        { value: 'desc', label: 'Price: high to low' },
+        { value: 'asc', label: 'Price: low to high' },
+    ];
 
     let loading = $state(true);
     let gameItems = $state([] as IGameItem[]);
     let totalItems = $state(0);
     let currentPage = $state(1);
     let perPageSelected = $state('12');
+    let filterSelected = $state('all');
+    let sortOrderSelected = $state('desc');
     const perPageValue = $derived(Number(perPageSelected) || 12);
     const perPageLabel = $derived(`${perPageValue}`);
+    const filterLabel = $derived(filterOptions.find((option) => option.value === filterSelected)?.label ?? 'Filter items');
+    const sortOrderLabel = $derived(
+        sortOrderOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Price order',
+    );
 
-    async function loadPage(page: number, perPageValue: number) {
+    async function loadPage(page: number, perPageValue: number, filter: string, sortOrder: string) {
         loading = true;
         try {
-            const response = await fetch(`/api/game-items?page=${page}&perPage=${perPageValue}`);
+            const searchParams = new URLSearchParams({
+                page: page.toString(),
+                perPage: perPageValue.toString(),
+                filter,
+                order: sortOrder,
+            });
+
+            const response = await fetch(`/api/game-items?${searchParams.toString()}`);
             const data: { items: IGameItem[]; total: number; page: number; perPage: number } = await response.json();
             gameItems = data.items;
             totalItems = data.total;
@@ -44,12 +70,22 @@
 
     // Fetch whenever pagination inputs change.
     $effect(() => {
-        void loadPage(currentPage, perPageValue);
+        void loadPage(currentPage, perPageValue, filterSelected, sortOrderSelected);
     });
 
     function handlePerPageChange(value: string) {
         const next = value || '12';
         perPageSelected = next;
+        currentPage = 1;
+    }
+
+    function handleFilterChange(value: string) {
+        filterSelected = value || 'all';
+        currentPage = 1;
+    }
+
+    function handleSortOrderChange(value: string) {
+        sortOrderSelected = value || 'desc';
         currentPage = 1;
     }
 </script>
@@ -64,8 +100,36 @@
     </div>
 
     <div class="border-b border-border mb-4">
-        <div class="flex justify-end sm:justify-between items-center gap-4 text-sm px-4 sm:px-6 lg:px-8 py-2">
-            <div class="min-w-[150px]">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm px-4 sm:px-6 lg:px-8 py-2">
+            <div class="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                <div class="min-w-[180px] sm:w-[210px]">
+                    <Select.Root type="single" bind:value={filterSelected} onValueChange={handleFilterChange}>
+                        <Select.Trigger>{filterLabel}</Select.Trigger>
+                        <Select.Content>
+                            <Select.Group>
+                                {#each filterOptions as option}
+                                    <Select.Item value={option.value}>{option.label}</Select.Item>
+                                {/each}
+                            </Select.Group>
+                        </Select.Content>
+                    </Select.Root>
+                </div>
+
+                <div class="min-w-[180px] sm:w-[210px]">
+                    <Select.Root type="single" bind:value={sortOrderSelected} onValueChange={handleSortOrderChange}>
+                        <Select.Trigger>{sortOrderLabel}</Select.Trigger>
+                        <Select.Content>
+                            <Select.Group>
+                                {#each sortOrderOptions as option}
+                                    <Select.Item value={option.value}>{option.label}</Select.Item>
+                                {/each}
+                            </Select.Group>
+                        </Select.Content>
+                    </Select.Root>
+                </div>
+            </div>
+
+            <div class="min-w-[170px] sm:w-[190px] sm:text-right">
                 <Select.Root type="single" bind:value={perPageSelected} onValueChange={handlePerPageChange}>
                     <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
                     <Select.Content>
