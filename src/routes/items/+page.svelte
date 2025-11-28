@@ -21,7 +21,6 @@
         { value: 'all', label: 'All items' },
         { value: 'members', label: 'Members only' },
         { value: 'f2p', label: 'Free to play' },
-        { value: 'tradeable', label: 'Tradeable' },
         { value: 'equipable', label: 'Equipable' },
         { value: 'stackable', label: 'Stackable' },
         { value: 'quest', label: 'Quest items' },
@@ -95,8 +94,6 @@
         <div class="flex items-center mb-4 gap-4">
             <h1 class="text-3xl font-bold">Browse items</h1>
         </div>
-
-        <h2 class="text-2xl font-bold mb-4">All items</h2>
     </div>
 
     <div class="border-b border-border mb-4">

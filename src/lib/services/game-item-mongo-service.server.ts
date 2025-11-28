@@ -4,7 +4,7 @@ import type { IOsrsboxItem } from '$lib/models/osrsbox-db-item';
 
 type GameItemDoc = OsrsboxItemDocument & { _id: Types.ObjectId };
 
-export type GameItemFilter = 'all' | 'members' | 'f2p' | 'tradeable' | 'equipable' | 'stackable' | 'quest';
+export type GameItemFilter = 'all' | 'members' | 'f2p' | 'equipable' | 'stackable' | 'quest';
 export type GameItemSortOrder = 'asc' | 'desc';
 
 export type PaginatedGameItems = {
@@ -124,7 +124,7 @@ function escapeRegex(value: string) {
 }
 
 function normalizeFilter(filter?: GameItemFilter): GameItemFilter {
-    const allowed: GameItemFilter[] = ['all', 'members', 'f2p', 'tradeable', 'equipable', 'stackable', 'quest'];
+    const allowed: GameItemFilter[] = ['all', 'members', 'f2p', 'equipable', 'stackable', 'quest'];
     if (!filter) return 'all';
     return allowed.includes(filter) ? filter : 'all';
 }
@@ -135,8 +135,6 @@ function getFilterQuery(filter: GameItemFilter): Record<string, unknown> {
             return { members: true };
         case 'f2p':
             return { members: false };
-        case 'tradeable':
-            return { tradeable: true };
         case 'equipable':
             return { equipable_by_player: true };
         case 'stackable':
