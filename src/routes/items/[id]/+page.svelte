@@ -147,6 +147,7 @@
     }
 </script>
 
+<div class="px-4 sm:px-6 lg:px-8 pt-4">
 <!-- Header -->
 <header>
     <div class="flex justify-between items-center w-full">
@@ -410,6 +411,7 @@
             <p class="text-sm text-muted-foreground">Chart will go here.</p>
         </div>
     </section>
+</div>
 </div>
 
 <style>
