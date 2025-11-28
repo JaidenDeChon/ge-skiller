@@ -2,6 +2,6 @@
     let { children } = $props();
 </script>
 
-<div class="p-6 content-sizing">
+<div class="w-full">
     {@render children()}
 </div>
