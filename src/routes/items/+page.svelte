@@ -43,8 +43,12 @@
     const sortOrderLabel = $derived(
         sortOrderOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Price order',
     );
+    let listAbort: AbortController | null = null;
 
     async function loadPage(page: number, perPageValue: number, filter: string, sortOrder: string) {
+        if (listAbort) listAbort.abort();
+        const controller = new AbortController();
+        listAbort = controller;
         loading = true;
         try {
             const searchParams = new URLSearchParams({
@@ -54,15 +58,19 @@
                 order: sortOrder,
             });
 
-            const response = await fetch(`/api/game-items?${searchParams.toString()}`);
+            const response = await fetch(`/api/game-items?${searchParams.toString()}`, {
+                signal: controller.signal,
+            });
             const data: { items: IGameItem[]; total: number; page: number; perPage: number } = await response.json();
+            if (controller.signal.aborted) return;
             gameItems = data.items;
             totalItems = data.total;
-            currentPage = data.page;
-            perPageSelected = data.perPage?.toString() ?? perPageSelected;
         } catch (error) {
-            console.error('Failed to fetch game items', error);
+            if ((error as Error).name !== 'AbortError') {
+                console.error('Failed to fetch game items', error);
+            }
         } finally {
+            if (listAbort === controller) listAbort = null;
             loading = false;
         }
     }

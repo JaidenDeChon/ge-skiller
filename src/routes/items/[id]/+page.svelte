@@ -93,13 +93,20 @@
     }
 
     let priceHistoryInitialized = $state(false);
+    let lastDataItemId: string | number | null = null;
 
     $effect(() => {
         // When routed data arrives, hydrate local state and kick off dependent fetches.
-        gameItem = data.gameItem ?? null;
-        loading = false;
+        const incoming = data.gameItem ?? null;
+        const incomingId = incoming?.id ?? null;
+        if (incomingId === lastDataItemId) return;
 
-        if (gameItem) getAssociatedSkills(gameItem);
+        lastDataItemId = incomingId;
+        gameItem = incoming;
+        loading = false;
+        associatedSkills = undefined;
+
+        if (incoming) getAssociatedSkills(incoming);
     });
 
     onMount(() => {
