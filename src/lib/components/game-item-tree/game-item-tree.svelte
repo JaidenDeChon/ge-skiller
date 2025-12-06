@@ -1,8 +1,7 @@
 <script lang="ts">
-    import OrganizationChart from '$lib/components/organization-chart/oranization-chart.svelte';
     import ItemNode from '$lib/components/game-item-tree/item-node.svelte';
+    import type { IngredientTreeNode } from '$lib/components/game-item-tree/types';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
-    import type { OrgNode, TemplateMap } from '$lib/components/organization-chart/models';
     import type {
         GameItemCreationIngredient,
         GameItemCreationSpecs,
@@ -11,35 +10,10 @@
 
     const { gameItem }: { gameItem: IOsrsboxItemWithMeta | null } = $props();
 
-    type IngredientNodeData = {
-        item: IOsrsboxItemWithMeta;
-        amount?: number;
-        consumedDuringCreation?: boolean;
-        depth: number;
-    };
-
     const MAX_TREE_DEPTH = 12;
-    const templates: TemplateMap = { default: ItemNode };
+    const rootNode = $derived(buildRootNode(gameItem));
 
-    // Runes state
-    let collapsedKeys = $state<Record<string | number, boolean>>({});
-    let rootNode = $state<OrgNode | null>(null);
-    let lastGameItemId = $state<string | number | null>(null);
-
-    // Rebuild the tree and reset collapse ONLY when the item id actually changes
-    $effect(() => {
-        const currentId = gameItem?.id ?? null;
-
-        // If nothing changed, do nothing
-        if (currentId === lastGameItemId) return;
-
-        // Record the new id and rebuild state
-        lastGameItemId = currentId;
-        collapsedKeys = {};
-        rootNode = buildRootNode(gameItem);
-    });
-
-    function buildRootNode(item: IOsrsboxItemWithMeta | null): OrgNode | null {
+    function buildRootNode(item: IOsrsboxItemWithMeta | null): IngredientTreeNode | null {
         if (!item) return null;
 
         const visited = new Set<string | number>([item.id ?? 'root']);
@@ -48,9 +22,8 @@
 
         return {
             key: item.id ?? 'root',
-            data: { item, depth: 0 } satisfies IngredientNodeData,
+            data: { item, depth: 0 },
             children,
-            collapsible: !!children.length,
             leaf: !children.length,
         };
     }
@@ -60,7 +33,7 @@
         parentKey: string | number,
         depth: number,
         visited: Set<string | number>,
-    ): OrgNode[] {
+    ): IngredientTreeNode[] {
         if (!ingredients || depth > MAX_TREE_DEPTH) return [];
 
         return ingredients.map((ingredient, index) =>
@@ -74,7 +47,7 @@
         depth: number,
         index: number,
         visited: Set<string | number>,
-    ): OrgNode {
+    ): IngredientTreeNode {
         const ingredientId = ingredient.item?.id ?? `unknown-${index}`;
         const key = `${parentKey}-${ingredientId}-${index}`;
 
@@ -97,28 +70,24 @@
         return {
             key,
             data: {
-                item: ingredient.item as IOsrsboxItemWithMeta,
+                item: ingredient.item as IOsrsboxItemWithMeta | undefined,
                 amount: ingredient.amount,
                 consumedDuringCreation: ingredient.consumedDuringCreation,
                 depth,
-            } satisfies IngredientNodeData,
+            },
             children,
             leaf: !children.length,
-            collapsible: !!children.length,
         };
-    }
-
-    function handleUpdateCollapsedKeys(value: Record<string | number, boolean>) {
-        collapsedKeys = value;
     }
 </script>
 
 {#if rootNode}
-    <OrganizationChart
-        value={rootNode}
-        {templates}
-        collapsible={true}
-        collapsedKeys={collapsedKeys}
-        onUpdateCollapsedKeys={handleUpdateCollapsedKeys}
-    />
+    <div class="space-y-3">
+        <p class="text-sm text-muted-foreground">
+            Visual ingredient tree coming soon. The computed data is ready for the new chart.
+        </p>
+        <ItemNode node={rootNode} />
+    </div>
+{:else}
+    <p class="text-sm text-muted-foreground">No ingredient data available for this item.</p>
 {/if}

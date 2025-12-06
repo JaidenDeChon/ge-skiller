@@ -1,16 +1,8 @@
 <script lang="ts">
-    import type { OrgNode } from '$lib/components/organization-chart/models';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
-    import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+    import type { IngredientNodeData, IngredientTreeNode } from './types';
 
-    type IngredientNodeData = {
-        item?: IOsrsboxItemWithMeta;
-        amount?: number;
-        consumedDuringCreation?: boolean;
-        depth?: number;
-    };
-
-    const { node }: { node: OrgNode } = $props();
+    const { node }: { node: IngredientTreeNode } = $props();
     const data = node?.data as IngredientNodeData | undefined;
     const item = data?.item;
 
@@ -55,7 +47,7 @@
         padding: 0.6rem 0.75rem;
         min-width: 14rem;
         max-width: 16rem;
-        transition: box-shadow 150ms ease, transform 150ms ease;
+        transition: box-shadow 150ms ease;
     }
 
     .ingredient-node--root {
@@ -63,7 +55,6 @@
     }
 
     .ingredient-node:hover {
-        transform: translateY(-1px);
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
     }
 

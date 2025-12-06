@@ -102,28 +102,6 @@
     }
 }
 
-@layer components {
-    /* Organization chart overrides */
-    .p-organizationchart-node {
-        background: hsl(var(--card));
-        border-color: hsl(var(--border));
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .p-organizationchart-connector-down {
-        background-color: hsl(var(--border));
-    }
-
-    .p-organizationchart-connector-left,
-    .p-organizationchart-connector-right {
-        border-top-color: hsl(var(--border));
-    }
-
-    .p-organizationchart-node-toggle-button {
-        color: hsl(var(--muted-foreground));
-    }
-}
-
 @layer utilities {
     /*
      * Helps size content appropriately. Handles content width and padding. Use on outer parents.
