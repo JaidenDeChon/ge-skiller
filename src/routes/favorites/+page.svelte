@@ -11,6 +11,12 @@
 
     onMount(async () => {
         loading = true;
+        if (!favorites.length) {
+            completeFavorites = [];
+            loading = false;
+            return;
+        }
+
         const params = favorites.join('&id=');
         const response = await fetch(`/api/game-items?id=${params}`);
         const result: IGameItem[] = await response.json();
@@ -21,14 +27,20 @@
 
 <h1 class="text-3xl font-bold mb-4">Favorites</h1>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    {#if loading}
+{#if loading}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {#each Array.from({ length: 5 }, (_, i) => i) as index (index)}
             <ItemCard {loading} />
         {/each}
-    {:else}
+    </div>
+{:else if completeFavorites.length === 0}
+    <div class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+        No favorites yet. Add items to your favorites to see them here.
+    </div>
+{:else}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {#each completeFavorites as item}
             <ItemCard {item} linkToItemPage />
         {/each}
-    {/if}
-</div>
+    </div>
+{/if}
