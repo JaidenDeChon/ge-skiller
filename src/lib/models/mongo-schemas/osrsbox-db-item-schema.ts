@@ -1,12 +1,82 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import type { GameItemCreationSpecs } from '../osrsbox-db-item';
 import type { IOsrsboxItem } from '../osrsbox-db-item';
 
-export interface OsrsboxItemDocument extends Omit<Document, 'id'>, IOsrsboxItem {
+import type { Types } from 'mongoose';
+
+export interface ItemCreationRequirement {
+  skillName?: string;         // "Smithing", "Herblore"
+  skillLevel?: number;        // 63, 99, ...
+  experienceAmount?: number;  // XP granted for this action
+  description: string;        // full row text, for safety/debug
+}
+
+export interface ItemCreationIngredient {
+  consumedDuringCreation: boolean;  // true for mats, false for tools
+  amount: number;                   // quantity required
+  item: Types.ObjectId;             // ref to OsrsboxItem
+}
+
+export interface ItemCreationProduct {
+  amount: number;        // quantity produced
+  item: Types.ObjectId;  // ref to OsrsboxItem (usually “this” item, but not always)
+}
+
+export interface ItemCreationMethod {
+  methodName?: string;                           // e.g. "Needle", "Costume needle", "Spin Flax"
+  requiredSkills: ItemCreationRequirement[];     // inferred from wiki requirements
+  experienceGranted: ItemCreationRequirement[];  // if you want to separate “gated by” vs “xp in”
+  ingredients: ItemCreationIngredient[];         // mats + tools (tools: consumedDuringCreation=false)
+  products: ItemCreationProduct[];               // outputs
+}
+
+export interface OsrsboxItemDocument
+  extends Omit<Document, 'id'>,
+    IOsrsboxItem {
   highPrice?: number;
   highTime?: number;
   lowPrice?: number;
   lowTime?: number;
+  creationSpecs?: GameItemCreationSpecs[];
 }
+
+const creationIngredientSchema = new Schema<ItemCreationIngredient>(
+  {
+    consumedDuringCreation: { type: Boolean, required: true },
+    amount: { type: Number, required: true },
+    item: {
+      type: Schema.Types.ObjectId,
+      ref: 'OsrsboxItem',
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
+const creationExperienceSchema = new Schema(
+  {
+    skillName: { type: String, required: true },
+    experienceAmount: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
+const creationRequiredSkillSchema = new Schema(
+  {
+    skillName: { type: String, required: true },
+    skillLevel: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
+const creationSpecsSchema = new Schema<GameItemCreationSpecs>(
+  {
+    experienceGranted: { type: [creationExperienceSchema], default: [] },
+    requiredSkills: { type: [creationRequiredSkillSchema], default: [] },
+    ingredients: { type: [creationIngredientSchema], default: [] },
+  },
+  { _id: false },
+);
 
 export const osrsboxItemSchema: Schema<OsrsboxItemDocument> = new Schema(
   {
@@ -46,9 +116,11 @@ export const osrsboxItemSchema: Schema<OsrsboxItemDocument> = new Schema(
     highTime: { type: Number, required: false },
     lowPrice: { type: Number, required: false },
     lowTime: { type: Number, required: false },
+    creationSpecs: { type: [creationSpecsSchema], default: [] },
   },
   { collection: 'items' },
 );
 
 export const OsrsboxItemModel: Model<OsrsboxItemDocument> =
-  mongoose.models.OsrsboxItem || mongoose.model<OsrsboxItemDocument>('OsrsboxItem', osrsboxItemSchema);
+  mongoose.models.OsrsboxItem ||
+  mongoose.model<OsrsboxItemDocument>('OsrsboxItem', osrsboxItemSchema);

@@ -1,4 +1,48 @@
 /**
+ * Represents the amount of experience in a given skill awarded for creating an item.
+ * @property skillName - The name of the skill in which experience is awarded.
+ * @property experienceAmount - The amount of experience awarded.
+ */
+export type GameItemCreationExperienceGranted = {
+    skillName: string;
+    experienceAmount: number;
+}
+
+/**
+ * Represents a skill level requirement for creating an item.
+ * @property skillName - The name of the required skill.
+ * @property skillLevel - The level of the required skill.
+ */
+export type SkillLevelDesignation = {
+    skillName: string;
+    skillLevel: number;
+}
+
+/**
+ * Represents an item required as an ingredient for creating another item.
+ * @property consumedDuringCreation - Indicates whether this ingredient is consumed/loss upon use.
+ * @property amount - The amount of this ingredient that is required.
+ * @property item - The full item object representing this item.
+ */
+export type GameItemCreationIngredient = {
+    consumedDuringCreation: boolean;
+    amount: number;
+    item: IOsrsboxItem;
+}
+
+/**
+ * Represents the character requirements for creating a given item.
+ * @property experienceGranted - The amount of experience granted and in which skills.
+ * @property requiredSkills - The names and levels of the skills required to create the item.
+ * @property ingredients - The list of items required to create this item.
+ */
+export type GameItemCreationSpecs = {
+    experienceGranted: GameItemCreationExperienceGranted[];
+    requiredSkills: SkillLevelDesignation[];
+    ingredients: GameItemCreationIngredient[];
+}
+
+/**
  * Raw OSRS item record sourced from the OSRSBox database dump.
  * All properties are required; fields marked nullable may legitimately contain null when data is missing.
  * @property id - Unique OSRS item ID number. Required; not nullable.
@@ -67,6 +111,7 @@ export interface IOsrsboxItem {
   wiki_url: string | null;
   equipment: Record<string, unknown> | null;
   weapon: Record<string, unknown> | null;
+  creationSpecs?: GameItemCreationSpecs[];
 }
 
 export type RawOsrsboxItem = IOsrsboxItem;
