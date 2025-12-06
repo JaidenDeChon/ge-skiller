@@ -30,8 +30,9 @@
 
     let themeColors = $state<ThemeColors>(DEFAULT_THEME_COLORS);
     let renderTools = $state(true);
+    let isMobile = $state(false);
     const rootNode = $derived(buildRootNode(gameItem, renderTools));
-    const chartOption = $derived(buildChartOption(rootNode, themeColors));
+    const chartOption = $derived(buildChartOption(rootNode, themeColors, isMobile));
 
     let chartContainer = $state<HTMLDivElement | null>(null);
     let chartInstance = $state<EChartsType | null>(null);
@@ -138,8 +139,17 @@
         };
     }
 
-    function buildChartOption(node: IngredientTreeNode | null, colors: ThemeColors): ECOption | null {
+    function buildChartOption(
+        node: IngredientTreeNode | null,
+        colors: ThemeColors,
+        mobile: boolean,
+    ): ECOption | null {
         if (!node) return null;
+
+        const orient = mobile ? 'TB' : 'LR';
+        const position = mobile
+            ? { top: '4%', bottom: '10%', left: '8%', right: '8%' }
+            : { top: '6%', bottom: '6%', left: '6%', right: '12%' };
 
         return {
             tooltip: {
@@ -149,17 +159,19 @@
             series: [
                 {
                     type: 'tree',
-                    layout: 'radial',
+                    layout: 'orthogonal',
+                    orient,
                     data: [toEChartsNode(node)],
-                    top: '4%',
-                    bottom: '4%',
-                    left: '4%',
-                    right: '4%',
+                    ...position,
                     roam: true,
                     symbol: undefined,
                     symbolSize: NODE_SYMBOL_SIZE,
                     initialTreeDepth: 3,
                     animationDurationUpdate: 400,
+                    lineStyle: {
+                        color: withAlpha(colors.border || DEFAULT_THEME_COLORS.border, 0.92),
+                        width: 1.6,
+                    },
                     emphasis: { focus: 'descendant' },
                     label: { show: false },
                     leaves: { label: { show: false } },
@@ -193,7 +205,7 @@
                         <circle cx="36" cy="36" r="29" />
                     </clipPath>
                 </defs>
-                <circle cx="36" cy="36" r="30" fill="${transparentMuted}" stroke="${borderStroke}" stroke-width="1" />
+                <circle cx="36" cy="36" r="30" fill="${transparentMuted}" stroke="${borderStroke}" stroke-width="1.4" stroke-opacity="0.95" />
                 <image href="${dataUri}" x="12" y="12" width="48" height="48" preserveAspectRatio="xMidYMid meet" clip-path="url(#clip)" filter="url(#iconShadow)" />
             </svg>
         `;
@@ -216,6 +228,12 @@
 
     onMount(() => {
         themeColors = resolveThemeColors();
+        const mq = window.matchMedia('(max-width: 768px)');
+        const handleMq = (event: MediaQueryListEvent | MediaQueryList) => {
+            isMobile = event.matches;
+        };
+        handleMq(mq);
+        mq.addEventListener('change', handleMq);
 
         if (!chartContainer) return;
 
@@ -240,6 +258,7 @@
         return () => {
             resizeObserver.disconnect();
             themeObserver.disconnect();
+            mq.removeEventListener('change', handleMq);
             chartInstance?.dispose();
             chartInstance = null;
         };
