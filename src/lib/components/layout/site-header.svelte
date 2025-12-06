@@ -7,11 +7,19 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { afterNavigate } from '$app/navigation';
     import type { IGameItem } from '$lib/models/game-item';
+    import {
+        addRecentSearch,
+        recentSearchesStore,
+        type RecentSearchEntry,
+    } from '$lib/stores/recent-searches-store';
 
     let searchQuery = $state('');
     let searchDialogOpen = $state(false);
     let searchResults = $state([] as IGameItem[]);
     let searchLoading = $state(false);
+    const recentSearches = $derived(
+        ($recentSearchesStore.recentSearches ?? []).filter((entry) => entry?.item?.id !== undefined),
+    );
 
     let debounceId: ReturnType<typeof setTimeout> | null = null;
     let abortController: AbortController | null = null;
@@ -54,6 +62,17 @@
     afterNavigate(() => {
         searchDialogOpen = false;
     });
+
+    function handleRecentSearchSelect(entry: RecentSearchEntry) {
+        searchQuery = entry.query || entry.item.name || '';
+        addRecentSearch(searchQuery, entry.item);
+        searchDialogOpen = false;
+    }
+
+    function handleSearchResultSelect(item: IGameItem) {
+        addRecentSearch(searchQuery, item);
+        searchDialogOpen = false;
+    }
 </script>
 
 <header class="flex w-full h-16 sticky top-0 border-border border-b custom-bg-blur z-30">
@@ -87,27 +106,21 @@
                     <Command.List>
                         {#if searchLoading}
                             <Command.Empty>Searching...</Command.Empty>
-                        {:else if !searchQuery.trim()}
-                            <Command.Empty>Start typing to search items.</Command.Empty>
-                        {:else if searchResults.length === 0}
-                            <Command.Empty>No results found.</Command.Empty>
-                        {:else}
+                        {:else if searchResults.length > 0}
                             <Command.Group heading="Items">
                                 {#each searchResults as item (item.id)}
                                     <Command.LinkItem
                                         href={`/items/${item.id}`}
                                         class="cursor-pointer"
+                                        onclick={() => handleSearchResultSelect(item)}
                                     >
                                         <div
                                             class="flex items-center gap-3"
                                             role="button"
                                             tabindex="0"
-                                            onclick={() => {
-                                                searchDialogOpen = false;
-                                            }}
                                             onkeydown={(event) => {
                                                 if (event.key === 'Enter' || event.key === ' ') {
-                                                    searchDialogOpen = false;
+                                                    handleSearchResultSelect(item);
                                                 }
                                             }}
                                         >
@@ -128,6 +141,45 @@
                                     </Command.LinkItem>
                                 {/each}
                             </Command.Group>
+                        {:else if recentSearches.length > 0}
+                            <Command.Group heading="Recent searches">
+                                {#each recentSearches as entry (entry.item.id)}
+                                    <Command.LinkItem
+                                        href={`/items/${entry.item.id}`}
+                                        class="cursor-pointer"
+                                        onclick={() => handleRecentSearchSelect(entry)}
+                                    >
+                                        <div
+                                            class="flex items-center gap-3"
+                                            role="button"
+                                            tabindex="0"
+                                            onkeydown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    handleRecentSearchSelect(entry);
+                                                }
+                                            }}
+                                        >
+                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border">
+                                                {#if entry.item.icon}
+                                                    <img src={iconToDataUri(entry.item.icon)} alt={entry.item.name} class="h-6 w-6 object-contain" />
+                                                {:else}
+                                                    <span class="text-xs text-muted-foreground">{entry.item.name.slice(0, 2)}</span>
+                                                {/if}
+                                            </span>
+                                            <div class="flex flex-col text-left">
+                                                <span class="text-sm font-medium">{entry.item.name}</span>
+                                                {#if entry.item.examine}
+                                                    <span class="text-xs text-muted-foreground line-clamp-1">{entry.item.examine}</span>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                    </Command.LinkItem>
+                                {/each}
+                            </Command.Group>
+                        {:else if !searchQuery.trim()}
+                            <Command.Empty>Start typing to search items.</Command.Empty>
+                        {:else}
+                            <Command.Empty>No results found.</Command.Empty>
                         {/if}
                     </Command.List>
                 </Command.Root>
