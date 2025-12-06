@@ -7,7 +7,7 @@
     import { goto } from '$app/navigation';
     import type { ComposeOption, EChartsType } from 'echarts/core';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
-    import type { IngredientTreeNode } from '$lib/components/game-item-tree/types';
+    import type { IngredientTreeNode } from '$lib/components/game-item-creation-card/types';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type {
         GameItemCreationIngredient,

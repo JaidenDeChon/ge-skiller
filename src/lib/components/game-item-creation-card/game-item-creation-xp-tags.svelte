@@ -1,14 +1,13 @@
 <script lang="ts">
-    import * as Table from '$lib/components/ui/table';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
-    interface GameItemTreeTableProps {
+    interface GameItemCreationXpTagsProps {
         gameItem: IOsrsboxItemWithMeta | null;
         creationSpec?: GameItemCreationSpecs | null;
     }
 
-    const { gameItem, creationSpec = null }: GameItemTreeTableProps = $props();
+    const { gameItem, creationSpec = null }: GameItemCreationXpTagsProps = $props();
 
     type SkillXpRow = { skillName: string; stepXp: number; totalXp: number };
 
@@ -16,6 +15,7 @@
         creationSpec ? [creationSpec] : ((gameItem?.creationSpecs ?? []) as GameItemCreationSpecs[]),
     );
     const xpSummaries = $derived(buildXpSummaries(creationSpecs));
+    const rows = $derived(xpSummaries[0]?.rows ?? []);
 
     function formatXp(value: number | null | undefined) {
         if (value === null || value === undefined) return '—';
@@ -90,29 +90,16 @@
     }
 </script>
 
-{#if !xpSummaries.length}
+{#if !rows.length}
     <p class="text-sm text-muted-foreground p-3">No experience data available.</p>
 {:else}
-    {#if xpSummaries[0].rows.length}
-        <Table.Root>
-            <Table.Header>
-                <Table.Row>
-                    <Table.Head>Skill</Table.Head>
-                    <Table.Head class="text-end">XP (this step)</Table.Head>
-                    <Table.Head class="text-end">XP from scratch</Table.Head>
-                </Table.Row>
-            </Table.Header>
-            <Table.Body>
-                {#each xpSummaries[0].rows as row}
-                    <Table.Row>
-                        <Table.Cell class="font-medium">{row.skillName}</Table.Cell>
-                        <Table.Cell class="text-end">{formatXp(row.stepXp)}</Table.Cell>
-                        <Table.Cell class="text-end">{formatXp(row.totalXp)}</Table.Cell>
-                    </Table.Row>
-                {/each}
-            </Table.Body>
-        </Table.Root>
-    {:else}
-        <p class="text-sm text-muted-foreground p-3">No experience data available.</p>
-    {/if}
+    <div class="flex flex-wrap gap-2 p-3">
+        {#each rows as row}
+            <span class="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-xs font-semibold">
+                <span class="text-foreground">{row.skillName}</span>
+                <span class="text-muted-foreground">Step: {formatXp(row.stepXp)}</span>
+                <span class="text-primary font-bold">Total: {formatXp(row.totalXp)}</span>
+            </span>
+        {/each}
+    </div>
 {/if}

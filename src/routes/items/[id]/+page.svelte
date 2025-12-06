@@ -14,7 +14,7 @@
     import * as Table from '$lib/components/ui/table';
     import IconBadge from '$lib/components/global/icon-badge.svelte';
     import FavoriteButton from '$lib/components/global/favorite-button.svelte';
-    import GameItemTreeCard from '$lib/components/game-item-tree/game-item-tree-card.svelte';
+    import GameItemTreeCard from '$lib/components/game-item-creation-card/game-item-creation-card.svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { formatWithCommas } from '$lib/helpers/format-number';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';

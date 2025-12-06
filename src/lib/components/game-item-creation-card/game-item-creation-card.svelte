@@ -1,9 +1,9 @@
 <script lang="ts">
     import * as Card from '$lib/components/ui/card';
     import { Skeleton } from '$lib/components/ui/skeleton';
-    import GameItemTree from '$lib/components/game-item-tree/game-item-tree.svelte';
-    import GameItemTreeTable from '$lib/components/game-item-tree/game-item-tree-table.svelte';
-    import ItemIngredientAccordion from '$lib/components/global/item-ingredient-accordion.svelte';
+    import GameItemTree from '$lib/components/game-item-creation-card/game-item-tree.svelte';
+    import GameItemCreationXpTags from '$lib/components/game-item-creation-card/game-item-creation-xp-tags.svelte';
+    import GameItemCreationCostTable from '$lib/components/game-item-creation-card/game-item-creation-cost-table.svelte';
     import * as Tabs from '$lib/components/ui/tabs';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
@@ -47,9 +47,9 @@
     {:else}
         <!-- Header -->
         <Card.Header>
-            <Card.Title class="text-xl">Item ingredients tree</Card.Title>
+            <Card.Title class="text-xl">Item creation stats</Card.Title>
             <Card.Description>
-                {hasIngredients ? 'Explore the ingredients that make up this item' : 'This item has no ingredients.'}
+                {hasIngredients ? 'XP and GP you stand to gain when creating this item' : 'This item has no ingredients.'}
             </Card.Description>
         </Card.Header>
 
@@ -74,7 +74,8 @@
                             </div>
                             <div class="border rounded-lg bg-card shadow-sm overflow-hidden">
                                 <div class="space-y-4 max-h-[28rem] overflow-auto">
-                                    <GameItemTreeTable gameItem={gameItem} creationSpec={option.spec} />
+                                    <GameItemCreationXpTags gameItem={gameItem} creationSpec={option.spec} />
+                                    <GameItemCreationCostTable gameItem={gameItem} creationSpec={option.spec} />
                                 </div>
                             </div>
                         </div>
