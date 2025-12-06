@@ -3,10 +3,11 @@
     import Button from '../ui/button/button.svelte';
     import { ChevronDown } from 'lucide-svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
-    import type { IGameItem } from '$lib/models/game-item';
+    import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
+    import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
     interface ItemCardCompactProps {
-        gameItem: IGameItem | null;
+        gameItem: IOsrsboxItemWithMeta | null;
         linkToItem?: boolean;
         rootClassname?: string;
     }
@@ -16,6 +17,7 @@
     let expanded = $state(false);
 
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
+    const creationSpec = $derived(getPrimaryCreationSpec(gameItem));
 </script>
 
 <div class="flex flex-col">
@@ -39,7 +41,7 @@
                 <p>{gameItem.name}</p>
             {/if}
 
-            {#if gameItem.creationSpecs?.ingredients.length}
+            {#if creationSpec?.ingredients?.length}
                 <Button
                     class="size-7 p-0 rounded-full ml-auto text-muted-foreground border bg-muted group-hover:bg-background hover:text-foreground"
                     onclick={() => (expanded = !expanded)}
@@ -50,10 +52,10 @@
         </div>
     {/if}
 
-    {#if expanded && gameItem?.creationSpecs?.ingredients.length}
+    {#if expanded && creationSpec?.ingredients?.length}
         <div class="border-l ml-auto w-11/12 scale-95">
-            {#each gameItem.creationSpecs.ingredients as ingredient}
-                <Self rootClassname="mb-2 ml-2" gameItem={ingredient.item} linkToItem />
+            {#each creationSpec.ingredients as ingredient}
+                <Self rootClassname="mb-2 ml-2" gameItem={ingredient.item as IOsrsboxItemWithMeta} linkToItem />
             {/each}
         </div>
     {/if}

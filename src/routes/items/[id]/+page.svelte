@@ -1,6 +1,6 @@
 <script lang="ts">
     import { page } from '$app/state';
-    import { toast } from 'svelte-sonner';
+    import { onMount } from 'svelte';
     import {
         Star,
         StarOff,
@@ -19,22 +19,25 @@
     import GameItemTreeCard from '$lib/components/game-item-tree/game-item-tree-card.svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { formatWithCommas } from '$lib/helpers/format-number';
-    import type { IGameItem, SkillLevelDesignation } from '$lib/models/game-item';
+    import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
+    import type { IOsrsboxItemWithMeta, SkillLevelDesignation } from '$lib/models/osrsbox-db-item';
     import type { TimeSeriesDataPoint } from '$lib/models/grand-exchange-protocols';
     import Button from '$lib/components/ui/button/button.svelte';
 
-    type AssociatedSkillsArray = NonNullable<IGameItem['creationSpecs']>['requiredSkills'];
+    const { data }: { data: { gameItem: IOsrsboxItemWithMeta | null } } = $props();
+
+    type AssociatedSkillsArray = SkillLevelDesignation[];
 
     const slug = $derived(page.params.id);
-    let loading = $state(true);
-    let gameItem = $state<IGameItem | null>(null);
+    let loading = $state(false);
+    let gameItem = $state<IOsrsboxItemWithMeta | null>(data.gameItem ?? null);
     let associatedSkills = $state(undefined as undefined | AssociatedSkillsArray);
     let priceHistory = $state([] as TimeSeriesDataPoint[]);
     let priceHistoryLoading = $state(false);
     let priceHistoryError = $state<string | null>(null);
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
     const wikiUrl = $derived(() => {
-        const slug = gameItem?.wikiName ?? gameItem?.name;
+        const slug = gameItem?.wiki_name ?? gameItem?.name ?? gameItem?.wikiName;
         if (!slug) return null;
         return `https://oldschool.runescape.wiki/w/${encodeURIComponent(slug.replaceAll(' ', '_'))}`;
     });
@@ -68,6 +71,11 @@
         return `${sign}${formatWithCommas(Math.round(value))} gp`;
     }
 
+    function skillImagePath(skillName?: string) {
+        if (!skillName) return '';
+        return `/skill-images/${skillName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+    }
+
     async function loadPriceHistory(id: number) {
         priceHistoryLoading = true;
         priceHistoryError = null;
@@ -84,61 +92,48 @@
         }
     }
 
-    // Load the game item data once it's available.
+    let priceHistoryInitialized = $state(false);
+
     $effect(() => {
-        if (!slug) return;
+        // When routed data arrives, hydrate local state and kick off dependent fetches.
+        gameItem = data.gameItem ?? null;
+        loading = false;
 
-        fetch(`/api/game-item-full-tree/?id=${slug}`)
-            .then(async (response) => {
-                gameItem = await response.json();
-
-                if (!gameItem) throw new Error('');
-
-                getAssociatedSkills(gameItem);
-                void loadPriceHistory(gameItem.id);
-                loading = false;
-            })
-            .catch((error) => {
-                console.error(error);
-                toast.error('Failed to fetch all item data.', {
-                    description: 'There may be issues on the page.',
-                    action: {
-                        label: 'Go back',
-                        onClick: () => window.history.back(),
-                    },
-                });
-            });
+        if (gameItem) getAssociatedSkills(gameItem);
     });
 
-    const renderChart = $derived(!!gameItem?.creationSpecs?.ingredients?.length);
+    onMount(() => {
+        if (gameItem && !priceHistoryInitialized) {
+            priceHistoryInitialized = true;
+            void loadPriceHistory(gameItem.id);
+        }
+    });
+
+    const primaryCreationSpec = $derived(getPrimaryCreationSpec(gameItem));
+    const renderChart = $derived(!!primaryCreationSpec?.ingredients?.length);
 
     /**
-     * Recursively searches through the IGameItem object's `creationSpecs` property to gather a list of all associated
-     * skills.
-     * @param item {IGameItem} The IGameItem object to search.
+     * Recursively searches through the item's `creationSpecs` to gather a list of all associated skills.
+     * @param item {IOsrsboxItemWithMeta} The item object to search.
      */
-    function getAssociatedSkills(item: IGameItem): void {
+    function getAssociatedSkills(item: IOsrsboxItemWithMeta): void {
         const foundSkills: AssociatedSkillsArray = [];
 
-        function extractSkills(gameItem: IGameItem) {
-            if (gameItem.creationSpecs?.requiredSkills) {
-                gameItem.creationSpecs.requiredSkills.forEach((requiredSkill: SkillLevelDesignation) => {
-                    if (
-                        !foundSkills.some(
-                            (foundSkill: SkillLevelDesignation) => foundSkill.skillName === requiredSkill.skillName,
-                        )
-                    ) {
-                        foundSkills.push(requiredSkill);
-                    }
+        function extractSkills(target?: IOsrsboxItemWithMeta | null) {
+            if (!target) return;
+
+            const creationSpec = getPrimaryCreationSpec(target);
+            if (creationSpec?.requiredSkills?.length) {
+                creationSpec.requiredSkills.forEach((requiredSkill: SkillLevelDesignation) => {
+                    const alreadyAdded = foundSkills.some(
+                        (foundSkill: SkillLevelDesignation) => foundSkill.skillName === requiredSkill.skillName,
+                    );
+                    if (!alreadyAdded) foundSkills.push(requiredSkill);
                 });
             }
 
-            if (gameItem.creationSpecs?.ingredients) {
-                gameItem.creationSpecs.ingredients.forEach((ingredient) => {
-                    if (ingredient.item) {
-                        extractSkills(ingredient.item);
-                    }
-                });
+            if (creationSpec?.ingredients?.length) {
+                creationSpec.ingredients.forEach((ingredient) => extractSkills(ingredient.item));
             }
         }
 
@@ -253,7 +248,7 @@
             <IconBadge text={associatedSkill.skillName} secondaryText={associatedSkill.skillLevel.toString()}>
                 {#snippet icon()}
                     <Avatar.Root class="size-5 p-0.5">
-                        <Avatar.Image src="/skill-images/{associatedSkill.skillName}.png"></Avatar.Image>
+                        <Avatar.Image src={skillImagePath(associatedSkill.skillName)}></Avatar.Image>
                     </Avatar.Root>
                 {/snippet}
             </IconBadge>

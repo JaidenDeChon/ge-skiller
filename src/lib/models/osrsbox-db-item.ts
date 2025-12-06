@@ -27,7 +27,7 @@ export type SkillLevelDesignation = {
 export type GameItemCreationIngredient = {
     consumedDuringCreation: boolean;
     amount: number;
-    item: IOsrsboxItem;
+    item: IOsrsboxItem | IOsrsboxItemWithMeta;
 }
 
 /**
@@ -113,5 +113,20 @@ export interface IOsrsboxItem {
   weapon: Record<string, unknown> | null;
   creationSpecs?: GameItemCreationSpecs[];
 }
+
+/**
+ * Frontend-friendly shape for Osrsbox items that may include app-specific metadata.
+ * Requires only the basic identifiers while allowing the rest of the fields to be optionally present.
+ */
+export type IOsrsboxItemWithMeta = Pick<IOsrsboxItem, 'id' | 'name' | 'icon' | 'examine'> &
+    Partial<IOsrsboxItem> & {
+        creationSpecs?: GameItemCreationSpecs[];
+        highPrice?: number | null;
+        highTime?: number | null;
+        lowPrice?: number | null;
+        lowTime?: number | null;
+        buyLimit?: number | null;
+        wikiName?: string | null;
+    };
 
 export type RawOsrsboxItem = IOsrsboxItem;

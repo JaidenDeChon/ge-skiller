@@ -1,70 +1,34 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { TriangleAlert } from 'lucide-svelte';
-    import platformDetect from 'platform-detect';
     import * as Card from '$lib/components/ui/card';
-    import * as Alert from '$lib/components/ui/alert';
     import * as Tabs from '$lib/components/ui/tabs';
     import ScrollArea from '../ui/scroll-area/scroll-area.svelte';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import GameItemTree from '$lib/components/game-item-tree/game-item-tree.svelte';
     import GameItemTreeTable from '$lib/components/game-item-tree/game-item-tree-table.svelte';
-    import type { IGameItem } from '$lib/models/game-item';
-
-    const { ios, macos, safari } = platformDetect;
-
-    let isIos = $state(false);
-    let isSafariOnMac = $state(false);
-
-    onMount(() => {
-        isIos = ios;
-        isSafariOnMac = macos && safari;
-    });
-
-    const showWebKitWarning = $derived(isIos || isSafariOnMac);
+    import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
+    import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
     interface GameItemTreeCardProps {
-        gameItem: IGameItem | null;
+        gameItem: IOsrsboxItemWithMeta | null;
         loading: boolean;
         renderChart: boolean;
         rootClass?: string;
     }
 
     const { gameItem, loading, renderChart, rootClass = '' }: GameItemTreeCardProps = $props();
+    const creationSpec = $derived(getPrimaryCreationSpec(gameItem));
 
     const gameItemTreeTabs = {
         VISUAL: 'Visual',
         TABLE: 'Table',
     } as const;
 
-    const defaultTab = $derived(showWebKitWarning ? gameItemTreeTabs.TABLE : gameItemTreeTabs.VISUAL);
+    const hasIngredients = $derived(renderChart && !!creationSpec?.ingredients?.length);
+    const defaultTab = gameItemTreeTabs.VISUAL;
 </script>
 
 {#snippet visualView()}
-    <!-- Warning for WebKit users -->
-    {#if showWebKitWarning}
-        <Alert.Root variant="destructive" class="mb-4">
-            <TriangleAlert class="size-4" />
-            <Alert.Title>Heads up!</Alert.Title>
-            <Alert.Description>
-                <div class="mt-2 flex flex-col gap-2">
-                    <p>
-                        <span class="font-bold">You appear to be using a WebKit browser.</span>
-                        Webkit browsers cannot render the below chart correctly.
-                    </p>
-                    <p>
-                        🇪🇺 <span class="font-bold">EU users:</span> Please try another browser, such as FireFox or Chrome.
-                    </p>
-                    <p>
-                        🇺🇸 <span class="font-bold">US users:</span> Please use the table view to the right instead.
-                    </p>
-                </div>
-            </Alert.Description>
-        </Alert.Root>
-    {/if}
-
-    <!-- GameItemTree -->
-    <div class="border rounded-md">
+    <div class="border rounded-md bg-muted/40 p-3">
         <GameItemTree {gameItem} />
     </div>
 {/snippet}
@@ -85,14 +49,12 @@
         <Card.Header>
             <Card.Title class="text-xl">Item ingredients tree</Card.Title>
             <Card.Description>
-                {gameItem?.creationSpecs?.ingredients.length
-                    ? 'Explore the ingredients that make up this item'
-                    : 'This item has no ingredients.'}
+                {hasIngredients ? 'Explore the ingredients that make up this item' : 'This item has no ingredients.'}
             </Card.Description>
         </Card.Header>
 
         <!-- Body -->
-        {#if renderChart}
+        {#if hasIngredients}
             <Tabs.Root value={defaultTab} class="w-full my-5 px-5 xl:hidden">
                 <!-- Tabs -->
                 <Tabs.List class="w-full grid grid-cols-2">
@@ -121,6 +83,10 @@
                 <div>
                     {@render tableView()}
                 </div>
+            </Card.Content>
+        {:else}
+            <Card.Content class="px-5 pb-6 text-sm text-muted-foreground">
+                <p>We don't have ingredient data for this item yet.</p>
             </Card.Content>
         {/if}
     {/if}

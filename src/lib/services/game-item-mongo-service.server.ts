@@ -1,8 +1,9 @@
 import { Types } from 'mongoose';
 import { OsrsboxItemModel, type OsrsboxItemDocument } from '$lib/models/mongo-schemas/osrsbox-db-item-schema';
-import type { IOsrsboxItem } from '$lib/models/osrsbox-db-item';
+import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
 type GameItemDoc = OsrsboxItemDocument & { _id: Types.ObjectId };
+const MAX_INGREDIENT_DEPTH = 5;
 
 export type GameItemFilter = 'all' | 'members' | 'f2p' | 'equipable' | 'stackable' | 'quest';
 export type GameItemSortOrder = 'asc' | 'desc';
@@ -16,12 +17,20 @@ export type PaginatedGameItems = {
 
 /**
  * Fetch a single GameItem by id from the OSRSBox-backed collection.
- * Creation trees are not available in this dataset, so this returns the raw item.
+ * Populates nested ingredient trees so the frontend can render a full org chart.
  */
-export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxItem | null> {
+export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxItemWithMeta | null> {
     const numericId = Number(itemId);
     const id = Number.isNaN(numericId) ? itemId : numericId;
-    return OsrsboxItemModel.findOne({ id }).exec();
+
+    const root = await OsrsboxItemModel.findOne({ id }).lean<IOsrsboxItemWithMeta & { _id: Types.ObjectId }>().exec();
+    if (!root) return null;
+
+    // Cache results so we don't refetch the same ingredient multiple times
+    const cache = new Map<string, IOsrsboxItemWithMeta>();
+    await populateIngredientsRecursive(root, cache, 0);
+
+    return root;
 }
 
 /**
@@ -144,4 +153,41 @@ function getFilterQuery(filter: GameItemFilter): Record<string, unknown> {
         default:
             return {};
     }
+}
+
+async function populateIngredientsRecursive(
+    item: IOsrsboxItemWithMeta & { _id?: Types.ObjectId },
+    cache: Map<string, IOsrsboxItemWithMeta>,
+    depth: number,
+): Promise<void> {
+    if (depth >= MAX_INGREDIENT_DEPTH) return;
+    const specs = Array.isArray(item.creationSpecs) ? item.creationSpecs : [];
+    if (!specs.length) return;
+
+    await Promise.all(
+        specs.map(async (spec) => {
+            if (!spec.ingredients?.length) return;
+
+            await Promise.all(
+                spec.ingredients.map(async (ingredient) => {
+                    const ingredientId = ingredient.item as unknown as Types.ObjectId | undefined;
+                    if (!ingredientId) return;
+
+                    const key = ingredientId.toString();
+                    if (!cache.has(key)) {
+                        const populated = await OsrsboxItemModel.findById(ingredientId)
+                            .lean<IOsrsboxItemWithMeta & { _id: Types.ObjectId }>()
+                            .exec();
+                        if (!populated) return;
+
+                        cache.set(key, populated);
+                        await populateIngredientsRecursive(populated, cache, depth + 1);
+                    }
+
+                    const cached = cache.get(key);
+                    if (cached) ingredient.item = cached;
+                }),
+            );
+        }),
+    );
 }

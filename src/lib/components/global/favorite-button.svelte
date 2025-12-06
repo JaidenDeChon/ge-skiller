@@ -4,9 +4,11 @@
     import { Heart } from 'lucide-svelte';
     import { Button } from '../ui/button';
     import { favoritesStore } from '$lib/stores/favorites-store';
-    import type { IGameItem } from '$lib/models/game-item';
+    import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
-    const { gameItem }: { gameItem: IGameItem } = $props();
+    type FavoritableItem = Pick<IOsrsboxItemWithMeta, 'id' | 'name'>;
+
+    const { gameItem }: { gameItem: FavoritableItem } = $props();
 
     const isFavorited = $derived.by(() => {
         if (!gameItem || !gameItem.id) return false;

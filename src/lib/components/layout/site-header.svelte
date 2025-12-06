@@ -97,11 +97,20 @@
                                     <Command.LinkItem
                                         href={`/items/${item.id}`}
                                         class="cursor-pointer"
-                                        on:click={() => {
-                                            searchDialogOpen = false;
-                                        }}
                                     >
-                                        <div class="flex items-center gap-3">
+                                        <div
+                                            class="flex items-center gap-3"
+                                            role="button"
+                                            tabindex="0"
+                                            onclick={() => {
+                                                searchDialogOpen = false;
+                                            }}
+                                            onkeydown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    searchDialogOpen = false;
+                                                }
+                                            }}
+                                        >
                                             <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border">
                                                 {#if item.icon}
                                                     <img src={iconToDataUri(item.icon)} alt={item.name} class="h-6 w-6 object-contain" />

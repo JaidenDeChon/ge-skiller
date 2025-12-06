@@ -2,10 +2,11 @@
     import Self from './item-ingredient-accordion.svelte';
     import * as Accordion from '$lib/components/ui/accordion';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
-    import type { IGameItem } from '$lib/models/game-item';
+    import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
+    import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
     interface ItemIngredientAccordionProps {
-        gameItem: IGameItem | null;
+        gameItem: IOsrsboxItemWithMeta | null;
         linkToItem?: boolean;
         disabled?: boolean;
         index?: number;
@@ -14,6 +15,7 @@
     const { gameItem, linkToItem = false, disabled = false, index = 0 }: ItemIngredientAccordionProps = $props();
 
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
+    const creationSpec = $derived(getPrimaryCreationSpec(gameItem));
 </script>
 
 <Accordion.Root type="multiple" value={index === 0 ? ['root'] : []} disabled={disabled || index === 0} class="w-full">
@@ -38,12 +40,12 @@
             </div>
         </Accordion.Trigger>
         <Accordion.Content class="pl-6 origin-right">
-            {#if gameItem?.creationSpecs?.ingredients.length}
-                {#each gameItem.creationSpecs.ingredients as ingredient}
+            {#if creationSpec?.ingredients?.length}
+                {#each creationSpec.ingredients as ingredient}
                     <Self
-                        gameItem={ingredient.item}
+                        gameItem={ingredient.item as IOsrsboxItemWithMeta}
                         linkToItem
-                        disabled={!ingredient.item.creationSpecs?.ingredients.length}
+                        disabled={!getPrimaryCreationSpec(ingredient.item)?.ingredients?.length}
                         index={index + 1}
                     />
                 {/each}

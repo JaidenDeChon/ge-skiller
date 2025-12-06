@@ -1,97 +1,124 @@
 <script lang="ts">
-    import { onMount, mount, unmount } from 'svelte';
-    import * as d3 from 'd3';
-    import { OrgChart } from 'd3-org-chart';
+    import OrganizationChart from '$lib/components/organization-chart/oranization-chart.svelte';
     import ItemNode from '$lib/components/game-item-tree/item-node.svelte';
-    import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
-    import type { IGameItem, GameItemCreationIngredient } from '$lib/models/game-item';
+    import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
+    import type { OrgNode, TemplateMap } from '$lib/components/organization-chart/models';
+    import type {
+        GameItemCreationIngredient,
+        GameItemCreationSpecs,
+        IOsrsboxItemWithMeta,
+    } from '$lib/models/osrsbox-db-item';
 
-    const { gameItem }: { gameItem: IGameItem | null } = $props();
+    const { gameItem }: { gameItem: IOsrsboxItemWithMeta | null } = $props();
 
-    let gameItemTreeElement = $state();
-    const renderChart = $derived(!!gameItem?.creationSpecs?.ingredients?.length);
-
-    onMount(() => renderGameItemTree());
-
-    async function renderGameItemTree() {
-        // Bail out if there's no item, or if the item has no ingredients.
-        if (!renderChart) return;
-
-        const chartData = transformGameItemsForOrgChart([gameItem!]);
-
-        new OrgChart()
-            .container(gameItemTreeElement as string)
-            .data(chartData)
-            .nodeWidth(() => 72)
-            .nodeHeight(() => 72)
-            .expandAll()
-            .nodeContent((d) => {
-                const gameItem = d.data as IGameItem;
-                const target = document.createElement('div');
-                const props = { gameItem };
-
-                const componentInstance = mount(ItemNode, { target, props });
-                setTimeout(() => unmount(componentInstance), 1000);
-
-                return target.innerHTML;
-            })
-            .linkUpdate(function (this: SVGPathElement) {
-                d3.select(this).attr('stroke', 'hsl(var(--muted-foreground))');
-            })
-            .svgHeight(300)
-            .fit()
-            .render();
-    }
-
-    type OrgChartNode = {
-        id: IGameItem['id'];
-        parentId: IGameItem['id'] | null;
-        name: IGameItem['name'];
-        icon?: IGameItem['icon'];
-        examine?: IGameItem['examine'];
+    type IngredientNodeData = {
+        item: IOsrsboxItemWithMeta;
+        amount?: number;
+        consumedDuringCreation?: boolean;
+        depth: number;
     };
 
-    function transformGameItemsForOrgChart(items: IGameItem[]): OrgChartNode[] {
-        const result: OrgChartNode[] = [];
+    const MAX_TREE_DEPTH = 12;
+    const templates: TemplateMap = { default: ItemNode };
 
-        function processItem(item: IGameItem, parentId: OrgChartNode['parentId'] | null = null) {
-            // Add the current item as a node
-            result.push({
-                id: item.id,
-                parentId,
-                name: item.name,
-                icon: iconToDataUri(item.icon),
-                examine: item.examine,
-            });
+    // Runes state
+    let collapsedKeys = $state<Record<string | number, boolean>>({});
+    let rootNode = $state<OrgNode | null>(null);
+    let lastGameItemId = $state<string | number | null>(null);
 
-            // If the item has ingredients, process them as children
-            if (item.creationSpecs?.ingredients) {
-                item.creationSpecs.ingredients.forEach((ingredient: GameItemCreationIngredient) => {
-                    processItem(ingredient.item, item.id);
-                });
-            }
-        }
+    // Rebuild the tree and reset collapse ONLY when the item id actually changes
+    $effect(() => {
+        const currentId = gameItem?.id ?? null;
 
-        // Process all root-level items (items that are not explicitly ingredients of another item)
-        items.forEach((item) => processItem(item));
+        // If nothing changed, do nothing
+        if (currentId === lastGameItemId) return;
 
-        return result;
+        // Record the new id and rebuild state
+        lastGameItemId = currentId;
+        collapsedKeys = {};
+        rootNode = buildRootNode(gameItem);
+    });
+
+    function buildRootNode(item: IOsrsboxItemWithMeta | null): OrgNode | null {
+        if (!item) return null;
+
+        const visited = new Set<string | number>([item.id ?? 'root']);
+        const creationSpec = getPrimaryCreationSpec(item);
+        const children = buildChildren(creationSpec?.ingredients ?? [], `${item.id}`, 1, visited);
+
+        return {
+            key: item.id ?? 'root',
+            data: { item, depth: 0 } satisfies IngredientNodeData,
+            children,
+            collapsible: !!children.length,
+            leaf: !children.length,
+        };
+    }
+
+    function buildChildren(
+        ingredients: GameItemCreationSpecs['ingredients'],
+        parentKey: string | number,
+        depth: number,
+        visited: Set<string | number>,
+    ): OrgNode[] {
+        if (!ingredients || depth > MAX_TREE_DEPTH) return [];
+
+        return ingredients.map((ingredient, index) =>
+            buildNodeFromIngredient(ingredient, parentKey, depth, index, visited),
+        );
+    }
+
+    function buildNodeFromIngredient(
+        ingredient: GameItemCreationIngredient,
+        parentKey: string | number,
+        depth: number,
+        index: number,
+        visited: Set<string | number>,
+    ): OrgNode {
+        const ingredientId = ingredient.item?.id ?? `unknown-${index}`;
+        const key = `${parentKey}-${ingredientId}-${index}`;
+
+        const nextVisited = new Set<string | number>(visited);
+
+        // Stop cycles: if we've seen this id in the current path, don't recurse further.
+        const alreadyVisited = nextVisited.has(ingredientId);
+        if (!alreadyVisited) nextVisited.add(ingredientId);
+
+        const creationSpec =
+            !alreadyVisited && depth < MAX_TREE_DEPTH && ingredient.item
+                ? getPrimaryCreationSpec(ingredient.item)
+                : undefined;
+
+        const children =
+            alreadyVisited || !creationSpec
+                ? []
+                : buildChildren(creationSpec.ingredients ?? [], key, depth + 1, nextVisited);
+
+        return {
+            key,
+            data: {
+                item: ingredient.item as IOsrsboxItemWithMeta,
+                amount: ingredient.amount,
+                consumedDuringCreation: ingredient.consumedDuringCreation,
+                depth,
+            } satisfies IngredientNodeData,
+            children,
+            leaf: !children.length,
+            collapsible: !!children.length,
+        };
+    }
+
+    function handleUpdateCollapsedKeys(value: Record<string | number, boolean>) {
+        collapsedKeys = value;
     }
 </script>
 
-<div bind:this={gameItemTreeElement}></div>
-
-<style>
-    :global(.node-button-div > div) {
-        @apply bg-background text-primary border-primary !important;
-
-        & span {
-            @apply text-primary !important;
-        }
-
-        & path {
-            stroke: hsl(var(--primary));
-            fill: hsl(var(--primary));
-        }
-    }
-</style>
+{#if rootNode}
+    <OrganizationChart
+        value={rootNode}
+        {templates}
+        collapsible={true}
+        collapsedKeys={collapsedKeys}
+        onUpdateCollapsedKeys={handleUpdateCollapsedKeys}
+    />
+{/if}

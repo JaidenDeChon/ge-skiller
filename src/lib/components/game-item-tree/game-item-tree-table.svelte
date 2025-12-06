@@ -1,9 +1,9 @@
 <script lang="ts">
     import ItemIngredientAccordion from '$lib/components/global/item-ingredient-accordion.svelte';
-    import type { IGameItem } from '$lib/models/game-item';
+    import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
     interface GameItemTreeTableProps {
-        gameItem: IGameItem | null;
+        gameItem: IOsrsboxItemWithMeta | null;
     }
 
     const { gameItem }: GameItemTreeTableProps = $props();
