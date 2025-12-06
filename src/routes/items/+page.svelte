@@ -97,7 +97,7 @@
     }
 </script>
 
-<div class="items-page pt-6">
+<div class="items-page pt-6 pb-8">
     <div class="px-4 sm:px-6 lg:px-8">
         <div class="flex items-center mb-4 gap-4">
             <h1 class="text-3xl font-bold">Browse items</h1>

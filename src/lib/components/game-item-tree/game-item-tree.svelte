@@ -4,6 +4,7 @@
     import { TooltipComponent, type TooltipComponentOption } from 'echarts/components';
     import { CanvasRenderer } from 'echarts/renderers';
     import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
     import type { ComposeOption, EChartsType } from 'echarts/core';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IngredientTreeNode } from '$lib/components/game-item-tree/types';
@@ -20,6 +21,14 @@
 
     type ECOption = ComposeOption<TreeSeriesOption | TooltipComponentOption>;
     type ThemeColors = { muted: string; border: string };
+    type TreeDatum = NonNullable<TreeSeriesOption['data']>[number] & {
+        tooltipData?: {
+            name: string;
+            examine?: string;
+            icon?: string;
+        };
+        itemId?: string | number | null;
+    };
 
     const MAX_TREE_DEPTH = 12;
     const NODE_SYMBOL_SIZE = 54;
@@ -155,6 +164,14 @@
             tooltip: {
                 trigger: 'item',
                 triggerOn: 'mousemove',
+                backgroundColor: 'transparent',
+                borderWidth: 0,
+                padding: 0,
+                extraCssText: 'box-shadow:none;',
+                formatter: (params) => {
+                    const data = (params?.data as TreeDatum | undefined)?.tooltipData;
+                    return buildTooltipContent(data, colors);
+                },
             },
             series: [
                 {
@@ -213,17 +230,86 @@
         return `image://data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     }
 
-    function toEChartsNode(node: IngredientTreeNode): NonNullable<TreeSeriesOption['data']>[number] {
+    function toEChartsNode(node: IngredientTreeNode): TreeDatum {
         const name = node.data.item?.name ?? 'Unknown item';
         const iconSymbol = buildIconSymbol(node.data.item?.icon, themeColors);
+        const tooltipData = {
+            name,
+            examine: node.data.item?.examine ?? '',
+            icon: iconToDataUri(node.data.item?.icon),
+        };
 
         return {
             name,
             value: node.data.amount,
             symbol: iconSymbol,
             symbolSize: NODE_SYMBOL_SIZE,
+            tooltipData,
+            itemId: node.data.item?.id ?? null,
             children: node.children?.map(toEChartsNode) ?? [],
         };
+    }
+
+    function escapeHtml(value: string): string {
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function buildTooltipContent(data: TreeDatum['tooltipData'] | undefined, colors: ThemeColors): string {
+        if (!data) return '';
+        const name = escapeHtml(data.name);
+        const examine = data.examine ? escapeHtml(data.examine) : '';
+        const icon = data.icon ?? '';
+        const bg = 'hsl(var(--card))';
+        const border = colors.border || DEFAULT_THEME_COLORS.border;
+
+        return `
+            <div style="
+                display:flex;
+                align-items:flex-start;
+                gap:0.75rem;
+                padding:0.6rem 0.75rem;
+                border-radius:0.75rem;
+                background:${bg};
+                border:1px solid ${border};
+                box-shadow:0 10px 25px rgba(0,0,0,0.12);
+                max-width:16rem;
+                min-width:14rem;
+                word-break:break-word;
+                white-space:normal;
+            ">
+                <div style="
+                    flex-shrink:0;
+                    height:48px;
+                    width:48px;
+                    border-radius:9999px;
+                    background:${withAlpha(colors.muted || DEFAULT_THEME_COLORS.muted, 0.9)};
+                    border:1px solid ${border};
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    overflow:hidden;
+                ">
+                    ${
+                        icon
+                            ? `<img src="${icon}" alt="${name}" style="height:80%;width:80%;object-fit:contain;filter:drop-shadow(1px 2px 3px rgba(0,0,0,0.35));" />`
+                            : `<span style="font-weight:700;color:hsl(var(--muted-foreground));font-size:0.8rem;">${name.slice(0, 2)}</span>`
+                    }
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.35rem;min-width:0;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">
+                    <div style="font-weight:600;font-size:0.875rem;line-height:1.45;color:hsl(var(--foreground));">${name}</div>
+                    ${
+                        examine
+                            ? `<div style="font-size:0.6875rem;line-height:1.35;color:hsl(var(--muted-foreground));word-break:break-word;overflow-wrap:anywhere;white-space:normal;">${examine}</div>`
+                            : ''
+                    }
+                </div>
+            </div>
+        `;
     }
 
     onMount(() => {
@@ -241,6 +327,8 @@
         if (chartOption) {
             chartInstance.setOption(chartOption);
         }
+        chartInstance.on('click', handleNodeClick);
+        chartInstance.getZr().setCursorStyle('pointer');
 
         const themeObserver = new MutationObserver(() => {
             themeColors = resolveThemeColors();
@@ -259,6 +347,7 @@
             resizeObserver.disconnect();
             themeObserver.disconnect();
             mq.removeEventListener('change', handleMq);
+            chartInstance?.off('click', handleNodeClick);
             chartInstance?.dispose();
             chartInstance = null;
         };
@@ -274,6 +363,12 @@
 
         chartInstance.setOption(chartOption, true);
     });
+
+    function handleNodeClick(params: { data?: TreeDatum }) {
+        const itemId = params?.data?.itemId;
+        if (!itemId) return;
+        goto(`/items/${itemId}`);
+    }
 </script>
 
 {#if rootNode}
