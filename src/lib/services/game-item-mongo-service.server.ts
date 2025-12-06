@@ -139,19 +139,21 @@ function normalizeFilter(filter?: GameItemFilter): GameItemFilter {
 }
 
 function getFilterQuery(filter: GameItemFilter): Record<string, unknown> {
+    const base = { 'creationSpecs.0': { $exists: true } }; // Only items that have creation specs
+
     switch (filter) {
         case 'members':
-            return { members: true };
+            return { ...base, members: true };
         case 'f2p':
-            return { members: false };
+            return { ...base, members: false };
         case 'equipable':
-            return { equipable_by_player: true };
+            return { ...base, equipable_by_player: true };
         case 'stackable':
-            return { stackable: true };
+            return { ...base, stackable: true };
         case 'quest':
-            return { quest_item: true };
+            return { ...base, quest_item: true };
         default:
-            return {};
+            return base;
     }
 }
 

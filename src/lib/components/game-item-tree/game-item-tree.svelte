@@ -15,7 +15,8 @@
         IOsrsboxItemWithMeta,
     } from '$lib/models/osrsbox-db-item';
 
-    const { gameItem }: { gameItem: IOsrsboxItemWithMeta | null } = $props();
+    const { gameItem, creationSpec: creationSpecOverride = null }: { gameItem: IOsrsboxItemWithMeta | null; creationSpec?: GameItemCreationSpecs | null } =
+        $props();
 
     echarts.use([TreeChart, TooltipComponent, CanvasRenderer]);
 
@@ -40,7 +41,7 @@
     let themeColors = $state<ThemeColors>(DEFAULT_THEME_COLORS);
     let renderTools = $state(true);
     let isMobile = $state(false);
-    const rootNode = $derived(buildRootNode(gameItem, renderTools));
+    const rootNode = $derived(buildRootNode(gameItem, creationSpecOverride, renderTools));
     const chartOption = $derived(buildChartOption(rootNode, themeColors, isMobile));
 
     let chartContainer = $state<HTMLDivElement | null>(null);
@@ -48,12 +49,13 @@
 
     function buildRootNode(
         item: IOsrsboxItemWithMeta | null,
+        overrideSpec: GameItemCreationSpecs | null,
         includeTools: boolean,
     ): IngredientTreeNode | null {
         if (!item) return null;
 
         const visited = new Set<string | number>([item.id ?? 'root']);
-        const creationSpec = getPrimaryCreationSpec(item);
+        const creationSpec = overrideSpec ?? getPrimaryCreationSpec(item);
         const children = buildChildren(
             creationSpec?.ingredients ?? [],
             `${item.id}`,
@@ -185,6 +187,7 @@
                     symbolSize: NODE_SYMBOL_SIZE,
                     initialTreeDepth: 3,
                     animationDurationUpdate: 400,
+                    expandAndCollapse: false,
                     lineStyle: {
                         color: withAlpha(colors.border || DEFAULT_THEME_COLORS.border, 0.92),
                         width: 1.6,
@@ -207,11 +210,25 @@
         return color;
     }
 
-    function buildIconSymbol(icon: string | null | undefined, colors: ThemeColors): string {
+    function buildIconSymbol(
+        icon: string | null | undefined,
+        colors: ThemeColors,
+        amount?: number | null,
+    ): string {
         const dataUri = iconToDataUri(icon);
         const mutedFill = colors.muted || DEFAULT_THEME_COLORS.muted;
         const transparentMuted = withAlpha(mutedFill, 0.83);
         const borderStroke = colors.border || DEFAULT_THEME_COLORS.border;
+        const amountDisplay =
+            amount && amount > 1 ? (amount > 999 ? '999+' : `${Math.round(amount)}`) : null;
+        const badge = amountDisplay
+            ? `
+                <g>
+                    <circle cx="54" cy="16" r="11" fill="#facc15" stroke="d97706" stroke-width="1.25" />
+                    <text x="54" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#3b2f1a" font-family="inherit">${amountDisplay}</text>
+                </g>
+            `
+            : '';
         const svg = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
                 <defs>
@@ -224,6 +241,7 @@
                 </defs>
                 <circle cx="36" cy="36" r="30" fill="${transparentMuted}" stroke="${borderStroke}" stroke-width="1.4" stroke-opacity="0.95" />
                 <image href="${dataUri}" x="12" y="12" width="48" height="48" preserveAspectRatio="xMidYMid meet" clip-path="url(#clip)" filter="url(#iconShadow)" />
+                ${badge}
             </svg>
         `;
 
@@ -232,7 +250,7 @@
 
     function toEChartsNode(node: IngredientTreeNode): TreeDatum {
         const name = node.data.item?.name ?? 'Unknown item';
-        const iconSymbol = buildIconSymbol(node.data.item?.icon, themeColors);
+        const iconSymbol = buildIconSymbol(node.data.item?.icon, themeColors, node.data.amount);
         const tooltipData = {
             name,
             examine: node.data.item?.examine ?? '',

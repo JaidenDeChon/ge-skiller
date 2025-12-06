@@ -1,12 +1,12 @@
 <script lang="ts">
     import * as Card from '$lib/components/ui/card';
-    import * as Tabs from '$lib/components/ui/tabs';
-    import ScrollArea from '../ui/scroll-area/scroll-area.svelte';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import GameItemTree from '$lib/components/game-item-tree/game-item-tree.svelte';
     import GameItemTreeTable from '$lib/components/game-item-tree/game-item-tree-table.svelte';
+    import ItemIngredientAccordion from '$lib/components/global/item-ingredient-accordion.svelte';
+    import * as Tabs from '$lib/components/ui/tabs';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
-    import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+    import type { GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
     interface GameItemTreeCardProps {
         gameItem: IOsrsboxItemWithMeta | null;
@@ -17,27 +17,27 @@
 
     const { gameItem, loading, renderChart, rootClass = '' }: GameItemTreeCardProps = $props();
     const creationSpec = $derived(getPrimaryCreationSpec(gameItem));
+    const creationSpecs = $derived((gameItem?.creationSpecs ?? []) as GameItemCreationSpecs[]);
+    const specOptions = $derived(
+        creationSpecs.map((spec, index) => ({
+            id: `spec-${index}`,
+            label: creationSpecs.length === 1 ? 'Spec' : `Spec ${index + 1}`,
+            spec,
+        })),
+    );
+    let selectedSpecId = $state(specOptions[0]?.id ?? '');
+    const selectedSpec = $derived(
+        specOptions.find((opt) => opt.id === selectedSpecId)?.spec ?? creationSpec ?? null,
+    );
 
-    const gameItemTreeTabs = {
-        VISUAL: 'Visual',
-        TABLE: 'Table',
-    } as const;
+    $effect(() => {
+        if (!specOptions.find((opt) => opt.id === selectedSpecId)) {
+            selectedSpecId = specOptions[0]?.id ?? '';
+        }
+    });
 
-    const hasIngredients = $derived(renderChart && !!creationSpec?.ingredients?.length);
-    const defaultTab = gameItemTreeTabs.VISUAL;
+    const hasIngredients = $derived(renderChart && !!selectedSpec?.ingredients?.length);
 </script>
-
-{#snippet visualView()}
-    <div class="border rounded-md bg-muted/40 p-3">
-        <GameItemTree {gameItem} />
-    </div>
-{/snippet}
-
-{#snippet tableView()}
-    <ScrollArea class="h-[18.75rem] px-3 border rounded-md">
-        <GameItemTreeTable {gameItem} />
-    </ScrollArea>
-{/snippet}
 
 <Card.Root class={rootClass}>
     {#if loading}
@@ -55,35 +55,32 @@
 
         <!-- Body -->
         {#if hasIngredients}
-            <Tabs.Root value={defaultTab} class="w-full my-5 px-5 xl:hidden">
-                <!-- Tabs -->
-                <Tabs.List class="w-full grid grid-cols-2">
-                    <Tabs.Trigger value={gameItemTreeTabs.VISUAL}>Visual</Tabs.Trigger>
-                    <Tabs.Trigger value={gameItemTreeTabs.TABLE}>Table</Tabs.Trigger>
-                </Tabs.List>
+            <Tabs.Root value={selectedSpecId} onValueChange={(val) => (selectedSpecId = val)}>
+                {#if specOptions.length > 1}
+                    <div class="px-5 mt-4">
+                        <Tabs.List class="flex gap-2 flex-wrap w-fit">
+                            {#each specOptions as option}
+                                <Tabs.Trigger value={option.id}>{option.label}</Tabs.Trigger>
+                            {/each}
+                        </Tabs.List>
+                    </div>
+                {/if}
 
-                <!-- Body content -->
-                <Card.Content class="p-0 mt-5">
-                    <!-- "Visual" view -->
-                    <Tabs.Content value={gameItemTreeTabs.VISUAL}>
-                        {@render visualView()}
+                {#each specOptions as option}
+                    <Tabs.Content value={option.id} class="px-5">
+                        <div class="grid gap-4 xl:grid-cols-2">
+                            <div class="border rounded-md bg-muted/40 p-3">
+                                <GameItemTree gameItem={gameItem} creationSpec={option.spec} />
+                            </div>
+                            <div class="border rounded-lg bg-card shadow-sm overflow-hidden">
+                                <div class="space-y-4 max-h-[28rem] overflow-auto">
+                                    <GameItemTreeTable gameItem={gameItem} creationSpec={option.spec} />
+                                </div>
+                            </div>
+                        </div>
                     </Tabs.Content>
-
-                    <!-- "Table" view -->
-                    <Tabs.Content class="h-[18.75rem]" value={gameItemTreeTabs.TABLE}>
-                        {@render tableView()}
-                    </Tabs.Content>
-                </Card.Content>
+                {/each}
             </Tabs.Root>
-
-            <Card.Content class="hidden px-5 mt-5 gap-4 grid-cols-2 xl:grid">
-                <div>
-                    {@render visualView()}
-                </div>
-                <div>
-                    {@render tableView()}
-                </div>
-            </Card.Content>
         {:else}
             <Card.Content class="px-5 pb-6 text-sm text-muted-foreground">
                 <p>We don't have ingredient data for this item yet.</p>

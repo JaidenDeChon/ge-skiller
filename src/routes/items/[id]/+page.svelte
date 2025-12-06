@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { page } from '$app/state';
-    import { onMount } from 'svelte';
     import {
         Star,
         StarOff,
@@ -21,20 +19,14 @@
     import { formatWithCommas } from '$lib/helpers/format-number';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { IOsrsboxItemWithMeta, SkillLevelDesignation } from '$lib/models/osrsbox-db-item';
-    import type { TimeSeriesDataPoint } from '$lib/models/grand-exchange-protocols';
     import Button from '$lib/components/ui/button/button.svelte';
 
     const { data }: { data: { gameItem: IOsrsboxItemWithMeta | null } } = $props();
 
     type AssociatedSkillsArray = SkillLevelDesignation[];
-
-    const slug = $derived(page.params.id);
     let loading = $state(false);
     let gameItem = $state<IOsrsboxItemWithMeta | null>(data.gameItem ?? null);
     let associatedSkills = $state(undefined as undefined | AssociatedSkillsArray);
-    let priceHistory = $state([] as TimeSeriesDataPoint[]);
-    let priceHistoryLoading = $state(false);
-    let priceHistoryError = $state<string | null>(null);
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
     const wikiUrl = $derived(() => {
         const slug = gameItem?.wiki_name ?? gameItem?.name ?? gameItem?.wikiName;
@@ -76,23 +68,6 @@
         return `/skill-images/${skillName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
     }
 
-    async function loadPriceHistory(id: number) {
-        priceHistoryLoading = true;
-        priceHistoryError = null;
-        try {
-            const response = await fetch(`/api/game-item-timeseries?id=${id}&timestep=6h`);
-            if (!response.ok) throw new Error('Failed to fetch price history');
-            const data: TimeSeriesDataPoint[] = await response.json();
-            priceHistory = data;
-        } catch (error) {
-            console.error(error);
-            priceHistoryError = 'Could not load price history right now.';
-        } finally {
-            priceHistoryLoading = false;
-        }
-    }
-
-    let priceHistoryInitialized = $state(false);
     let lastDataItemId: string | number | null = null;
 
     $effect(() => {
@@ -109,16 +84,8 @@
         if (incoming) getAssociatedSkills(incoming);
     });
 
-    onMount(() => {
-        if (gameItem && !priceHistoryInitialized) {
-            priceHistoryInitialized = true;
-            void loadPriceHistory(gameItem.id);
-        }
-    });
-
     const primaryCreationSpec = $derived(getPrimaryCreationSpec(gameItem));
     const renderChart = $derived(!!primaryCreationSpec?.ingredients?.length);
-
     /**
      * Recursively searches through the item's `creationSpecs` to gather a list of all associated skills.
      * @param item {IOsrsboxItemWithMeta} The item object to search.
@@ -403,15 +370,6 @@
                 </Table.Row>
             </Table.Body>
         </Table.Root>
-    </section>
-
-    <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
-        <div class="flex items-center justify-between p-4 border-b">
-            <h3 class="text-lg font-semibold">Price history (6h)</h3>
-        </div>
-        <div class="p-4">
-            <p class="text-sm text-muted-foreground">Chart will go here.</p>
-        </div>
     </section>
 </div>
 </div>
