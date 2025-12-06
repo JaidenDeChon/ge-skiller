@@ -9,6 +9,8 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IngredientTreeNode } from '$lib/components/game-item-creation-card/types';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
+    import { Label } from '$lib/components/ui/label';
+    import { Switch } from '$lib/components/ui/switch';
     import type {
         GameItemCreationIngredient,
         GameItemCreationSpecs,
@@ -392,11 +394,11 @@
 {#if rootNode}
     <div class="game-item-tree-shell">
         <div class="chart-controls">
-            <div class="control-row">
-                <label class="control-label">
-                    <input type="checkbox" bind:checked={renderTools} />
+            <div class="flex items-center gap-2">
+                <Switch id="show-tools-switch" bind:checked={renderTools} aria-label="Toggle showing creation tools" class="scale-75" />
+                <Label for="show-tools-switch" class="cursor-pointer select-none text-xs font-medium">
                     Show tools (Hammer, Needle, etc)
-                </label>
+                </Label>
             </div>
         </div>
         <div class="game-item-tree-chart" bind:this={chartContainer}></div>
@@ -421,26 +423,6 @@
         border: 1px solid hsl(var(--border));
         backdrop-filter: blur(10px);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-    }
-
-    .control-row {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        color: hsl(var(--foreground));
-        font-size: 0.85rem;
-    }
-
-    .control-label {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        cursor: pointer;
-        user-select: none;
-    }
-
-    .control-label input {
-        accent-color: hsl(var(--primary));
     }
 
     .game-item-tree-chart {

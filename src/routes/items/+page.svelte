@@ -3,18 +3,14 @@
     import ItemCard from '$lib/components/global/item-card.svelte';
     import * as Pagination from '$lib/components/ui/pagination';
     import * as Select from '$lib/components/ui/select';
+    import { Label } from '$lib/components/ui/label';
+    import { Switch } from '$lib/components/ui/switch';
+    import { filterItemsStore } from '$lib/stores/filter-items-by-player-levels';
+    import { getStoreRoot } from '$lib/stores/character-store.svelte';
+    import { itemsPagePreferences } from '$lib/stores/items-page-preferences';
     import type { IGameItem } from '$lib/models/game-item';
-
-    // Hacky way to remove the default pagination button at index 3 since the pagination component does not
-    // intelligently scale.
-    onMount(() => {
-        setTimeout(() => {
-            const paginator = document.querySelector('.item-page-pagination');
-            const buttons = paginator?.querySelectorAll('button[data-pagination-page]');
-            const buttonsArray = buttons ? Array.from(buttons) : [];
-            buttonsArray[3].remove();
-        }, 2000);
-    });
+    import type { CharacterProfile } from '$lib/models/player-stats';
+    import { defaultSkillLevels } from '$lib/constants/default-skill-levels';
 
     const perPageOptions = [12, 24, 48, 96, 192];
     const filterOptions = [
@@ -24,19 +20,54 @@
         { value: 'equipable', label: 'Equipable' },
         { value: 'stackable', label: 'Stackable' },
         { value: 'quest', label: 'Quest items' },
+        { value: 'nonquest', label: 'Non-quest items' },
     ];
     const sortOrderOptions = [
         { value: 'desc', label: 'Price: high to low' },
         { value: 'asc', label: 'Price: low to high' },
     ];
 
+    function normalizeSkillLevels(skillLevels?: CharacterProfile['skillLevels'], hasCharacter = true) {
+        if (!hasCharacter) return undefined;
+
+        const levels = skillLevels ?? defaultSkillLevels;
+
+        const normalized: Record<string, number> = {};
+        Object.entries(levels).forEach(([skill, level]) => {
+            const numericLevel = Math.max(0, Math.floor(Number(level)));
+            if (!Number.isFinite(numericLevel)) return;
+            normalized[skill.toLowerCase()] = numericLevel;
+        });
+
+        if (!Object.keys(normalized).length) return undefined;
+        return normalized;
+    }
+
+    const characterStore = $derived(getStoreRoot());
+    const characters = $derived(characterStore?.characters ?? []);
+    const activeCharacter = $derived.by(() => {
+        if (!characters.length) return undefined;
+
+        const targetId = characterStore?.activeCharacter;
+        if (targetId === undefined || targetId === null) return undefined;
+
+        return characters.find((c) => String(c.id) === String(targetId));
+    });
+    const activeSkillLevels = $derived(normalizeSkillLevels(activeCharacter?.skillLevels, Boolean(activeCharacter)));
+    let skillFilterChecked = $state($filterItemsStore.filterItemsByPlayerLevels);
+    const skillFilterEnabled = $derived(Boolean(skillFilterChecked && activeSkillLevels));
+    const skillLevelsForQuery = $derived(skillFilterEnabled ? activeSkillLevels : undefined);
+    const skillToggleLabel = $derived(
+        activeCharacter ? `Filter by my skill levels (${activeCharacter.name})` : 'Filter by my skill levels',
+    );
+
     let loading = $state(true);
     let gameItems = $state([] as IGameItem[]);
     let totalItems = $state(0);
-    let currentPage = $state(1);
-    let perPageSelected = $state('12');
-    let filterSelected = $state('all');
-    let sortOrderSelected = $state('desc');
+    let currentPage = $state(Number($itemsPagePreferences.page) || 1);
+    let perPageSelected = $state($itemsPagePreferences.perPage || '12');
+    let filterSelected = $state($itemsPagePreferences.filter || 'all');
+    let sortOrderSelected = $state($itemsPagePreferences.sortOrder || 'desc');
     const perPageValue = $derived(Number(perPageSelected) || 12);
     const perPageLabel = $derived(`${perPageValue}`);
     const filterLabel = $derived(filterOptions.find((option) => option.value === filterSelected)?.label ?? 'Filter items');
@@ -45,7 +76,32 @@
     );
     let listAbort: AbortController | null = null;
 
-    async function loadPage(page: number, perPageValue: number, filter: string, sortOrder: string) {
+    $effect(() => {
+        if ($filterItemsStore.filterItemsByPlayerLevels !== skillFilterChecked) {
+            skillFilterChecked = $filterItemsStore.filterItemsByPlayerLevels;
+        }
+    });
+
+    // Keep local selection state in sync with persisted preferences (e.g., when storage events fire).
+    $effect(() => {
+        if ($itemsPagePreferences.filter !== filterSelected) {
+            filterSelected = $itemsPagePreferences.filter || 'all';
+        }
+        if ($itemsPagePreferences.sortOrder !== sortOrderSelected) {
+            sortOrderSelected = $itemsPagePreferences.sortOrder || 'desc';
+        }
+        if ($itemsPagePreferences.perPage !== perPageSelected) {
+            perPageSelected = $itemsPagePreferences.perPage || '12';
+        }
+    });
+
+    async function loadPage(
+        page: number,
+        perPageValue: number,
+        filter: string,
+        sortOrder: string,
+        skillLevels?: Record<string, number>,
+    ) {
         if (listAbort) listAbort.abort();
         const controller = new AbortController();
         listAbort = controller;
@@ -57,6 +113,10 @@
                 filter,
                 order: sortOrder,
             });
+
+            if (skillLevels && Object.keys(skillLevels).length) {
+                searchParams.set('skillLevels', JSON.stringify(skillLevels));
+            }
 
             const response = await fetch(`/api/game-items?${searchParams.toString()}`, {
                 signal: controller.signal,
@@ -77,23 +137,42 @@
 
     // Fetch whenever pagination inputs change.
     $effect(() => {
-        void loadPage(currentPage, perPageValue, filterSelected, sortOrderSelected);
+        void loadPage(currentPage, perPageValue, filterSelected, sortOrderSelected, skillLevelsForQuery);
+    });
+
+    // Persist current page when it changes without creating feedback loops.
+    $effect(() => {
+        const page = currentPage; // track
+        itemsPagePreferences.update((prefs) => ({ ...prefs, page }));
     });
 
     function handlePerPageChange(value: string) {
         const next = value || '12';
         perPageSelected = next;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, perPage: next });
         currentPage = 1;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
     }
 
     function handleFilterChange(value: string) {
         filterSelected = value || 'all';
+        itemsPagePreferences.set({ ...$itemsPagePreferences, filter: filterSelected });
         currentPage = 1;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
     }
 
     function handleSortOrderChange(value: string) {
         sortOrderSelected = value || 'desc';
+        itemsPagePreferences.set({ ...$itemsPagePreferences, sortOrder: sortOrderSelected });
         currentPage = 1;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
+    }
+
+    function handleSkillFilterToggle(value: boolean) {
+        filterItemsStore.set({ ...$filterItemsStore, filterItemsByPlayerLevels: value });
+        // Reset pagination to trigger the reload.
+        currentPage = 1;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
     }
 </script>
 
@@ -134,17 +213,31 @@
                 </div>
             </div>
 
-            <div class="min-w-[170px] sm:w-[190px] sm:text-right">
-                <Select.Root type="single" bind:value={perPageSelected} onValueChange={handlePerPageChange}>
-                    <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
-                    <Select.Content>
-                        <Select.Group>
-                            {#each perPageOptions as option}
-                                <Select.Item value={option.toString()}>{option}</Select.Item>
-                            {/each}
-                        </Select.Group>
-                    </Select.Content>
-                </Select.Root>
+            <div class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:text-right">
+                <div class="flex items-center gap-2 sm:justify-end">
+                    <Switch
+                        id="skill-filter-switch"
+                        bind:checked={skillFilterChecked}
+                        onCheckedChange={handleSkillFilterToggle}
+                        aria-label={skillToggleLabel}
+                    />
+                    <Label for="skill-filter-switch" class="cursor-pointer select-none text-sm">
+                        {skillToggleLabel}
+                    </Label>
+                </div>
+
+                <div class="min-w-[170px] sm:w-[190px]">
+                    <Select.Root type="single" bind:value={perPageSelected} onValueChange={handlePerPageChange}>
+                        <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
+                        <Select.Content>
+                            <Select.Group>
+                                {#each perPageOptions as option}
+                                    <Select.Item value={option.toString()}>{option}</Select.Item>
+                                {/each}
+                            </Select.Group>
+                        </Select.Content>
+                    </Select.Root>
+                </div>
             </div>
         </div>
     </div>

@@ -9,39 +9,52 @@
 
     const { gameItem, creationSpec = null }: GameItemCreationXpTagsProps = $props();
 
-    type SkillXpRow = { skillName: string; stepXp: number; totalXp: number };
+    type SkillXpRow = { skillName: string; stepXp: number; totalXp: number; level?: number };
 
     const creationSpecs = $derived(
         creationSpec ? [creationSpec] : ((gameItem?.creationSpecs ?? []) as GameItemCreationSpecs[]),
     );
     const xpSummaries = $derived(buildXpSummaries(creationSpecs));
     const rows = $derived(xpSummaries[0]?.rows ?? []);
+    const requiredLevels = $derived(xpSummaries[0]?.requiredLevels ?? {});
 
     function formatXp(value: number | null | undefined) {
         if (value === null || value === undefined) return '—';
         return Math.round(value).toLocaleString();
     }
 
-    function buildXpSummaries(specs: GameItemCreationSpecs[]): { id: string; label: string; rows: SkillXpRow[] }[] {
+    function buildXpSummaries(
+        specs: GameItemCreationSpecs[],
+    ): { id: string; label: string; rows: SkillXpRow[]; requiredLevels: Record<string, number> }[] {
         if (!specs?.length) return [];
 
         return specs.map((spec, index) => {
-            const rows = buildXpRows(spec);
+            const requiredLevels = buildRequiredLevels(spec);
+            const rows = buildXpRows(spec, requiredLevels);
             const label = specs.length === 1 ? 'XP' : `Spec ${index + 1}`;
-            return { id: `xp-spec-${index}`, label, rows };
+            return { id: `xp-spec-${index}`, label, rows, requiredLevels };
         });
     }
 
-    function buildXpRows(spec: GameItemCreationSpecs): SkillXpRow[] {
+    function buildRequiredLevels(spec: GameItemCreationSpecs): Record<string, number> {
+        return Object.fromEntries(
+            (spec.requiredSkills ?? [])
+                .filter((req) => req?.skillName && typeof req.skillLevel === 'number')
+                .map((req) => [req.skillName.toLowerCase(), req.skillLevel ?? 0]),
+        );
+    }
+
+    function buildXpRows(spec: GameItemCreationSpecs, requiredLevels: Record<string, number>): SkillXpRow[] {
         const stepMap = accumulateExperience(spec, 1, false, new Set());
         const totalMap = accumulateExperience(spec, 1, true, new Set());
 
-        const skills = new Set([...stepMap.keys(), ...totalMap.keys()]);
+        const skills = new Set([...stepMap.keys(), ...totalMap.keys(), ...Object.keys(requiredLevels)]);
         return Array.from(skills)
             .map((skillName) => ({
                 skillName,
                 stepXp: stepMap.get(skillName) ?? 0,
                 totalXp: totalMap.get(skillName) ?? 0,
+                level: requiredLevels[skillName.toLowerCase()],
             }))
             .sort((a, b) => b.totalXp - a.totalXp);
     }
@@ -96,7 +109,9 @@
     <div class="flex flex-wrap gap-2 p-3">
         {#each rows as row}
             <span class="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-xs font-semibold">
-                <span class="text-foreground">{row.skillName}</span>
+                <span class="text-foreground">
+                    {#if row.level}{row.level} {/if}{row.skillName}
+                </span>
                 <span class="text-muted-foreground">Step: {formatXp(row.stepXp)}</span>
                 <span class="text-primary font-bold">Total: {formatXp(row.totalXp)}</span>
             </span>

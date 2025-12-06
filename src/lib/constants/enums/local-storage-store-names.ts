@@ -3,4 +3,5 @@ export enum LocalStorageStoreNames {
     FAVORITES_STORE = 'ge-skiller-favorites',
     CHARACTER_STORE = 'ge-skiller-characters',
     RECENT_SEARCHES_STORE = 'ge-skiller-recent-searches',
+    ITEMS_PAGE_PREFERENCES = 'ge-skiller-items-page-preferences',
 }

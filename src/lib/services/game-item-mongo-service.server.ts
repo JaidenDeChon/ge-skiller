@@ -5,8 +5,9 @@ import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 type GameItemDoc = OsrsboxItemDocument & { _id: Types.ObjectId };
 const MAX_INGREDIENT_DEPTH = 5;
 
-export type GameItemFilter = 'all' | 'members' | 'f2p' | 'equipable' | 'stackable' | 'quest';
+export type GameItemFilter = 'all' | 'members' | 'f2p' | 'equipable' | 'stackable' | 'quest' | 'nonquest';
 export type GameItemSortOrder = 'asc' | 'desc';
+export type PlayerSkillLevels = Record<string, number>;
 
 export type PaginatedGameItems = {
     items: GameItemDoc[];
@@ -60,7 +61,13 @@ export async function getGameItems(ids?: string[]): Promise<GameItemDoc[]> {
  * Returns a paginated list of game items with optional filtering and sort order (defaults high price desc).
  */
 export async function getPaginatedGameItems(
-    params?: { page?: number; perPage?: number; filter?: GameItemFilter; sortOrder?: GameItemSortOrder },
+    params?: {
+        page?: number;
+        perPage?: number;
+        filter?: GameItemFilter;
+        sortOrder?: GameItemSortOrder;
+        skillLevels?: PlayerSkillLevels | null;
+    },
 ): Promise<PaginatedGameItems> {
     const page = Math.max(1, params?.page ?? 1);
     const perPage = Math.max(1, Math.min(200, params?.perPage ?? 12));
@@ -68,16 +75,42 @@ export async function getPaginatedGameItems(
     const filter = normalizeFilter(params?.filter);
     const sortDirection = params?.sortOrder === 'asc' ? 1 : -1;
     const filterQuery = getFilterQuery(filter);
+    const skillLevels = normalizeSkillLevels(params?.skillLevels);
 
-    const [items, total] = await Promise.all([
-        OsrsboxItemModel.find(filterQuery)
-            .sort({ highPrice: sortDirection, cost: sortDirection, name: 1 })
-            .skip(skip)
-            .limit(perPage)
-            .lean<GameItemDoc[]>()
-            .exec(),
-        OsrsboxItemModel.countDocuments(filterQuery).exec()
-    ]);
+    if (!skillLevels) {
+        const [items, total] = await Promise.all([
+            OsrsboxItemModel.find(filterQuery)
+                .sort({ highPrice: sortDirection, cost: sortDirection, name: 1 })
+                .skip(skip)
+                .limit(perPage)
+                .lean<GameItemDoc[]>()
+                .exec(),
+            OsrsboxItemModel.countDocuments(filterQuery).exec()
+        ]);
+
+        return { items, total, page, perPage };
+    }
+
+    const [{ items, total = 0 } = { items: [], total: 0 }] = await OsrsboxItemModel.aggregate<{
+        items: GameItemDoc[];
+        total: number;
+    }>([
+        { $match: filterQuery },
+        { $match: { $expr: buildPlayerSkillMatchExpression(skillLevels) } },
+        { $sort: { highPrice: sortDirection, cost: sortDirection, name: 1 } },
+        {
+            $facet: {
+                items: [{ $skip: skip }, { $limit: perPage }],
+                totalDocs: [{ $count: 'count' }],
+            },
+        },
+        {
+            $project: {
+                items: 1,
+                total: { $ifNull: [{ $first: '$totalDocs.count' }, 0] },
+            },
+        },
+    ]).allowDiskUse(true);
 
     return { items, total, page, perPage };
 }
@@ -133,7 +166,7 @@ function escapeRegex(value: string) {
 }
 
 function normalizeFilter(filter?: GameItemFilter): GameItemFilter {
-    const allowed: GameItemFilter[] = ['all', 'members', 'f2p', 'equipable', 'stackable', 'quest'];
+    const allowed: GameItemFilter[] = ['all', 'members', 'f2p', 'equipable', 'stackable', 'quest', 'nonquest'];
     if (!filter) return 'all';
     return allowed.includes(filter) ? filter : 'all';
 }
@@ -152,9 +185,98 @@ function getFilterQuery(filter: GameItemFilter): Record<string, unknown> {
             return { ...base, stackable: true };
         case 'quest':
             return { ...base, quest_item: true };
+        case 'nonquest':
+            return { ...base, quest_item: false };
         default:
             return base;
     }
+}
+
+/**
+ * Normalizes incoming skill level data to a lowercase map of finite numbers.
+ */
+function normalizeSkillLevels(skillLevels?: PlayerSkillLevels | null): PlayerSkillLevels | null {
+    if (!skillLevels || typeof skillLevels !== 'object') return null;
+
+    const normalizedEntries = Object.entries(skillLevels).reduce<[string, number][]>((acc, [skill, level]) => {
+        const numericLevel = Math.max(0, Math.floor(Number(level)));
+        if (!Number.isFinite(numericLevel)) return acc;
+        acc.push([skill.toLowerCase(), numericLevel]);
+        return acc;
+    }, []);
+
+    if (!normalizedEntries.length) return null;
+    return Object.fromEntries(normalizedEntries);
+}
+
+/**
+ * Builds an expression that matches items where at least one creation spec's required skills are satisfied by the
+ * provided player skill levels.
+ */
+function buildPlayerSkillMatchExpression(skillLevels: PlayerSkillLevels) {
+    return {
+        $gt: [
+            {
+                $size: {
+                    $filter: {
+                        input: { $ifNull: ['$creationSpecs', []] },
+                        as: 'spec',
+                        cond: {
+                            $and: [
+                                {
+                                    // Require that the spec has either skill requirements or XP information.
+                                    $gt: [
+                                        {
+                                            $add: [
+                                                { $size: { $ifNull: ['$$spec.requiredSkills', []] } },
+                                                { $size: { $ifNull: ['$$spec.experienceGranted', []] } },
+                                            ],
+                                        },
+                                        0,
+                                    ],
+                                },
+                                {
+                                    // Ensure no required skills exceed the player's levels.
+                                    $eq: [
+                                        {
+                                            $size: {
+                                                $filter: {
+                                                    input: { $ifNull: ['$$spec.requiredSkills', []] },
+                                                    as: 'req',
+                                                    cond: {
+                                                        $gt: [
+                                                            { $ifNull: ['$$req.skillLevel', 0] },
+                                                            {
+                                                                $ifNull: [
+                                                                    {
+                                                                        $getField: {
+                                                                            field: {
+                                                                                $toLower: {
+                                                                                    $ifNull: ['$$req.skillName', ''],
+                                                                                },
+                                                                            },
+                                                                            input: { $literal: skillLevels },
+                                                                        },
+                                                                    },
+                                                                    0,
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        0,
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+            0,
+        ],
+    };
 }
 
 async function populateIngredientsRecursive(

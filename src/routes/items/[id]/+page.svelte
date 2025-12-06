@@ -63,11 +63,6 @@
         return `${sign}${formatWithCommas(Math.round(value))} gp`;
     }
 
-    function skillImagePath(skillName?: string) {
-        if (!skillName) return '';
-        return `/skill-images/${skillName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
-    }
-
     let lastDataItemId: string | number | null = null;
 
     $effect(() => {
@@ -203,8 +198,6 @@
     </div>
 </header>
 
-<!-- Skill tags -->
-
 <div class="flex gap-3 flex-wrap">
     <IconBadge text={gameItem?.members ? 'Members' : 'Free to play'}>
         {#snippet icon()}
@@ -216,18 +209,6 @@
             {/if}
         {/snippet}
     </IconBadge>
-
-    {#if associatedSkills?.length}
-        {#each associatedSkills as associatedSkill}
-            <IconBadge text={associatedSkill.skillName} secondaryText={associatedSkill.skillLevel.toString()}>
-                {#snippet icon()}
-                    <Avatar.Root class="size-5 p-0.5">
-                        <Avatar.Image src={skillImagePath(associatedSkill.skillName)}></Avatar.Image>
-                    </Avatar.Root>
-                {/snippet}
-            </IconBadge>
-        {/each}
-    {/if}
 </div>
 
 <!-- Item tree card -->

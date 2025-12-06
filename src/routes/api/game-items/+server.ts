@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getGameItems, getPaginatedGameItems, type GameItemFilter, type GameItemSortOrder } from '$lib/services/game-item-mongo-service.server';
+import { getGameItems, getPaginatedGameItems, type GameItemFilter, type GameItemSortOrder, type PlayerSkillLevels } from '$lib/services/game-item-mongo-service.server';
 
 export const GET: RequestHandler = async ({ url }) => {
     // Get all "id" parameters from the query string (supports multiple IDs).
@@ -16,7 +16,24 @@ export const GET: RequestHandler = async ({ url }) => {
     const filter = (url.searchParams.get('filter') ?? undefined) as GameItemFilter | undefined;
     const orderParam = url.searchParams.get('order');
     const sortOrder: GameItemSortOrder = orderParam === 'asc' ? 'asc' : 'desc';
+    const skillLevelsParam = url.searchParams.get('skillLevels');
+    let skillLevels: PlayerSkillLevels | undefined;
 
-    const paginated = await getPaginatedGameItems({ page, perPage, filter, sortOrder });
+    if (skillLevelsParam) {
+        try {
+            const parsed = JSON.parse(skillLevelsParam) as PlayerSkillLevels;
+            if (parsed && typeof parsed === 'object') {
+                skillLevels = Object.fromEntries(
+                    Object.entries(parsed)
+                        .map(([skill, level]) => [skill, Number(level)])
+                        .filter(([, level]) => Number.isFinite(level)),
+                );
+            }
+        } catch (error) {
+            console.warn('Failed to parse skillLevels query param', error);
+        }
+    }
+
+    const paginated = await getPaginatedGameItems({ page, perPage, filter, sortOrder, skillLevels });
     return new Response(JSON.stringify(paginated));
 };

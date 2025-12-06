@@ -25,14 +25,15 @@
             spec,
         })),
     );
-    let selectedSpecId = $state(specOptions[0]?.id ?? '');
+    let selectedSpecId = $state('');
     const selectedSpec = $derived(
         specOptions.find((opt) => opt.id === selectedSpecId)?.spec ?? creationSpec ?? null,
     );
 
     $effect(() => {
+        const firstOptionId = specOptions[0]?.id ?? '';
         if (!specOptions.find((opt) => opt.id === selectedSpecId)) {
-            selectedSpecId = specOptions[0]?.id ?? '';
+            selectedSpecId = firstOptionId;
         }
     });
 
