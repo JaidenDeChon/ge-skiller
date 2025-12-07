@@ -1,31 +1,31 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { favoritesStore } from '$lib/stores/favorites-store';
+    import { hiddenStore } from '$lib/stores/hidden-store';
     import ItemCard from '$lib/components/global/item-card.svelte';
     import type { IGameItem } from '$lib/models/game-item';
 
     let loading = $state(true);
 
-    let favorites = $derived($favoritesStore.favorites);
-    let completeFavorites = $state([] as IGameItem[]);
+    let hidden = $derived($hiddenStore.hidden);
+    let completeHidden = $state([] as IGameItem[]);
 
     onMount(async () => {
         loading = true;
-        if (!favorites.length) {
-            completeFavorites = [];
+        if (!hidden.length) {
+            completeHidden = [];
             loading = false;
             return;
         }
 
-        const params = favorites.join('&id=');
+        const params = hidden.join('&id=');
         const response = await fetch(`/api/game-items?id=${params}`);
         const result: IGameItem[] = await response.json();
-        completeFavorites = result;
+        completeHidden = result;
         loading = false;
     });
 </script>
 
-<h1 class="text-3xl font-bold mb-4">Favorites</h1>
+<h1 class="text-3xl font-bold mb-4">Hidden items</h1>
 
 {#if loading}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -33,14 +33,14 @@
             <ItemCard {loading} />
         {/each}
     </div>
-{:else if completeFavorites.length === 0}
+{:else if completeHidden.length === 0}
     <div class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-        No favorites yet. Add items to your favorites to see them here.
+        No hidden items yet.
     </div>
 {:else}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {#each completeFavorites as item}
-            <ItemCard {item} linkToItemPage allowHide={false} allowFavorite={true} />
+        {#each completeHidden as item}
+            <ItemCard {item} linkToItemPage allowHide={true} allowFavorite={false} />
         {/each}
     </div>
 {/if}

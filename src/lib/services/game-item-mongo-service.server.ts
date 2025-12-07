@@ -18,7 +18,6 @@ export type PaginatedGameItems = {
 };
 
 /**
- * Fetch a single GameItem by id from the OSRSBox-backed collection.
  * Populates nested ingredient trees so the frontend can render a full org chart.
  */
 export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxItemWithMeta | null> {

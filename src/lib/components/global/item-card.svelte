@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import FavoriteButton from './favorite-button.svelte';
+    import HideButton from './hide-button.svelte';
     import * as Avatar from '$lib/components/ui/avatar';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import { timeSince } from '$lib/helpers/time-since';
@@ -33,10 +34,14 @@
         item = emptyGameItem,
         loading = false,
         linkToItemPage = false,
+        allowFavorite = true,
+        allowHide = true,
     } = $props<{
         item?: IGameItem;
         loading?: boolean;
         linkToItemPage?: boolean;
+        allowFavorite?: boolean;
+        allowHide?: boolean;
     }>();
 
     let timeSinceHighTime = $state('Calculating...');
@@ -62,17 +67,21 @@
                 <Skeleton class="h-4 w-1/3 mb-1" />
                 <Skeleton class="h-4 w-3/5" />
             </div>
+            <Skeleton class="rounded-full size-12" />
         {:else if linkToItemPage}
-            <a href={`/items/${item.id}`} class="group-hover/header:underline {headerTextDivClasses}">
-                {@render itemCardHeaderContent()}
+            <a href={`/items/${item.id}`} class="flex justify-between gap-6 w-full items-start">
+                <div class="group-hover/header:underline {headerTextDivClasses}">
+                    {@render itemCardHeaderContent()}
+                </div>
+                <Avatar.Root class="p-2 bg-muted border item-card__img-background h-12 w-12">
+                    <Avatar.Image src={iconSrc} class="item-card__image object-contain animate-fade-in" />
+                    <Avatar.Fallback class="animate-fade-in">{item.name}</Avatar.Fallback>
+                </Avatar.Root>
             </a>
         {:else}
-            {@render itemCardHeaderContent()}
-        {/if}
-
-        {#if loading}
-            <Skeleton class="rounded-full size-12" />
-        {:else}
+            <div class={headerTextDivClasses}>
+                {@render itemCardHeaderContent()}
+            </div>
             <Avatar.Root class="p-2 bg-muted border item-card__img-background h-12 w-12">
                 <Avatar.Image src={iconSrc} class="item-card__image object-contain animate-fade-in" />
                 <Avatar.Fallback class="animate-fade-in">{item.name}</Avatar.Fallback>
@@ -81,7 +90,7 @@
     </header>
 
     <!-- Body -->
-    <div class="flex justify-between items-end gap-6 mt-6">
+    <div class="flex justify-between items-end gap-4 mt-6">
         <div>
             {#if loading}
                 <Skeleton class="h-5 w-24 mb-3 mt-2" />
@@ -98,7 +107,14 @@
             {/if}
         </div>
         {#if !loading}
-            <FavoriteButton gameItem={item} />
+            <div class="flex items-center gap-2 ml-auto">
+                {#if allowHide}
+                    <HideButton gameItem={item} />
+                {/if}
+                {#if allowFavorite}
+                    <FavoriteButton gameItem={item} />
+                {/if}
+            </div>
         {/if}
     </div>
 </div>

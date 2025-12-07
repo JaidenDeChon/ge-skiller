@@ -2,7 +2,7 @@
     import { page } from '$app/state';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import { skillTreePages } from '$lib/constants/skill-tree-pages';
-    import { Home, Heart, Sword } from 'lucide-svelte';
+    import { Home, Heart, Sword, EyeOff } from 'lucide-svelte';
 
     interface Item {
         title: string;
@@ -30,6 +30,11 @@
             title: 'Favorites',
             url: '/favorites',
             icon: Heart,
+        },
+        {
+            title: 'Hidden',
+            url: '/hidden',
+            icon: EyeOff,
         },
     ];
 

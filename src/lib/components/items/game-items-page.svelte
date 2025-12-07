@@ -68,7 +68,9 @@
     const headingLabel = $derived(skill?.title ?? headingProp);
 
     let loading = $state(true);
-    let gameItems = $state([] as IGameItem[]);
+    let fetchedItems = $state([] as IGameItem[]);
+    import { hiddenStore } from '$lib/stores/hidden-store';
+    const hiddenIds = $derived($hiddenStore.hidden ?? []);
     let totalItems = $state(0);
     let currentPage = $state(Number($itemsPagePreferences.page) || 1);
     let perPageSelected = $state($itemsPagePreferences.perPage || '12');
@@ -147,7 +149,7 @@
             });
             const data: { items: IGameItem[]; total: number; page: number; perPage: number } = await response.json();
             if (controller.signal.aborted) return;
-            gameItems = data.items;
+            fetchedItems = data.items;
             totalItems = data.total;
         } catch (error) {
             if ((error as Error).name !== 'AbortError') {
@@ -162,6 +164,11 @@
     // Fetch whenever pagination inputs change.
     $effect(() => {
         void loadPage(currentPage, perPageValue, filterSelected, sortOrderSelected, skillLevelsForQuery, skillSlug);
+    });
+
+    const gameItems = $derived.by(() => {
+        const hiddenSet = new Set(hiddenIds);
+        return fetchedItems.filter((gi) => !hiddenSet.has(gi.id as unknown as number));
     });
 
     // Persist current page when it changes without creating feedback loops.
@@ -198,6 +205,7 @@
         currentPage = 1;
         itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
     }
+
 </script>
 
 <div class="items-page pt-6 pb-8">
@@ -210,7 +218,7 @@
         </div>
     </div>
 
-    <div class="border-b border-border mb-4">
+    <div class="border-b border-border">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm px-4 sm:px-6 lg:px-8 py-2">
             <div class="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 <div class="min-w-[180px] sm:w-[210px]">
@@ -241,18 +249,6 @@
             </div>
 
             <div class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:text-right">
-                <div class="flex items-center gap-2 sm:justify-end">
-                    <Switch
-                        id="skill-filter-switch"
-                        bind:checked={skillFilterChecked}
-                        onCheckedChange={handleSkillFilterToggle}
-                        aria-label={skillToggleLabel}
-                    />
-                    <Label for="skill-filter-switch" class="cursor-pointer select-none text-sm">
-                        {skillToggleLabel}
-                    </Label>
-                </div>
-
                 <div class="min-w-[170px] sm:w-[190px]">
                     <Select.Root type="single" bind:value={perPageSelected} onValueChange={handlePerPageChange}>
                         <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
@@ -269,6 +265,25 @@
         </div>
     </div>
 
+    <div class="border-b border-border mb-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm px-4 sm:px-6 lg:px-8 py-2">
+            <div class="flex w-full flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-start">
+                <div class="flex items-center gap-2">
+                    <Switch
+                        id="skill-filter-switch"
+                        bind:checked={skillFilterChecked}
+                        onCheckedChange={handleSkillFilterToggle}
+                        aria-label={skillToggleLabel}
+                    />
+                    <Label for="skill-filter-switch" class="cursor-pointer select-none text-sm">
+                        {skillToggleLabel}
+                    </Label>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
     <div class="px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {#if loading}
@@ -277,7 +292,7 @@
                 {/each}
             {:else}
                 {#each gameItems as item}
-                    <ItemCard {item} linkToItemPage />
+                    <ItemCard {item} linkToItemPage allowHide={true} allowFavorite={true} />
                 {/each}
             {/if}
         </div>
