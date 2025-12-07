@@ -3,6 +3,8 @@
     import * as Sidebar from '$lib/components/ui/sidebar';
     import { skillTreePages } from '$lib/constants/skill-tree-pages';
     import { Home, Heart, Sword, EyeOff } from 'lucide-svelte';
+    import { favoritesStore } from '$lib/stores/favorites-store';
+    import { hiddenStore } from '$lib/stores/hidden-store';
 
     interface Item {
         title: string;
@@ -45,6 +47,8 @@
     }));
 
     const currentPath = $derived(page.url.pathname || '');
+    const favoritesCount = $derived(($favoritesStore.favorites || []).length);
+    const hiddenCount = $derived(($hiddenStore.hidden || []).length);
 </script>
 
 {#snippet activeRouteIndicator()}
@@ -64,9 +68,21 @@
                             <a href={item.url} {...props}>
                                 <item.icon />
                                 <span>{item.title}</span>
-                                {#if currentPath === item.url}
-                                    {@render activeRouteIndicator()}
-                                {/if}
+                                <span class="ml-auto inline-flex items-center gap-2">
+                                    {#if currentPath === item.url}
+                                        {@render activeRouteIndicator()}
+                                    {/if}
+                                    {#if item.title === 'Favorites' && favoritesCount > 0}
+                                        <span class="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                            {favoritesCount}
+                                        </span>
+                                    {/if}
+                                    {#if item.title === 'Hidden' && hiddenCount > 0}
+                                        <span class="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                            {hiddenCount}
+                                        </span>
+                                    {/if}
+                                </span>
                             </a>
                         {/snippet}
                     </Sidebar.MenuButton>
