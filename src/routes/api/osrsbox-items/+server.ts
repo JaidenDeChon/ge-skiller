@@ -48,6 +48,47 @@ type IncomingPayload = {
     lowTime?: number | null;
 };
 
+export const GET: RequestHandler = async ({ url }) => {
+    const idParam = url.searchParams.get('id');
+    const nameParam = url.searchParams.get('name');
+
+    if (!idParam && !nameParam) {
+        return new Response('Provide an "id" or "name" query parameter.', { status: 400 });
+    }
+
+    let query: Record<string, unknown> | null = null;
+
+    if (idParam) {
+        const numericId = Number(idParam);
+        if (Number.isFinite(numericId)) {
+            query = { id: numericId };
+        } else if (Types.ObjectId.isValid(idParam)) {
+            query = { _id: new Types.ObjectId(idParam) };
+        }
+    }
+
+    if (!query && nameParam) {
+        const trimmed = nameParam.trim();
+        if (trimmed) {
+            query = { name: new RegExp(`^${escapeRegex(trimmed)}$`, 'i') };
+        }
+    }
+
+    if (!query) {
+        return new Response('Invalid lookup parameters.', { status: 400 });
+    }
+
+    const doc = await OsrsboxItemModel.findOne(query).lean().exec();
+    if (!doc) {
+        return new Response('Item not found.', { status: 404 });
+    }
+
+    return new Response(JSON.stringify(doc), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+    });
+};
+
 export const POST: RequestHandler = async ({ request }) => {
     let raw: IncomingPayload | null = null;
     try {
@@ -223,4 +264,8 @@ async function resolveItemReference(value: string | number): Promise<Types.Objec
     }
 
     throw new Error(`Could not resolve ingredient item id: ${raw}`);
+}
+
+function escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

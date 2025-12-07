@@ -70,7 +70,7 @@
     let loading = $state(true);
     let gameItems = $state([] as IGameItem[]);
     let totalItems = $state(0);
-    let currentPage = $state(skillSlug ? 1 : Number($itemsPagePreferences.page) || 1);
+    let currentPage = $state(Number($itemsPagePreferences.page) || 1);
     let perPageSelected = $state($itemsPagePreferences.perPage || '12');
     let filterSelected = $state($itemsPagePreferences.filter || 'all');
     let sortOrderSelected = $state($itemsPagePreferences.sortOrder || 'desc');
@@ -81,7 +81,7 @@
         sortOrderOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Price order',
     );
     let listAbort: AbortController | null = null;
-    let lastSkillSlug: string | null = skillSlug;
+    let lastSkillSlug: string | null = null;
 
     $effect(() => {
         if ($filterItemsStore.filterItemsByPlayerLevels !== skillFilterChecked) {
@@ -108,6 +108,8 @@
         if (nextSkillSlug && nextSkillSlug !== lastSkillSlug) {
             currentPage = 1;
             itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
+        } else if (!nextSkillSlug && lastSkillSlug) {
+            currentPage = Number($itemsPagePreferences.page) || 1;
         }
         lastSkillSlug = nextSkillSlug;
     });

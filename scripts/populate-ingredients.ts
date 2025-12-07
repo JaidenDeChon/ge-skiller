@@ -216,6 +216,61 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function shouldIgnoreIngredientName(name: string): boolean {
+  return name.trim().toLowerCase() === 'string jewellery';
+}
+
+function buildIngredientLookupCandidates(rawName: string): { candidates: string[]; ignore: boolean } {
+  const trimmed = rawName.trim();
+  const lower = trimmed.toLowerCase();
+  const candidates: string[] = [];
+
+  // Default ambiguous "Axe" to a bronze axe but keep the raw name as a fallback.
+  if (lower === 'axe') {
+    candidates.push('Bronze axe');
+  }
+
+  // Pendant of Ates (inert) should map to Pendant of ates
+  if (lower.startsWith('pendant of ates')) {
+    candidates.push('Pendant of ates');
+  }
+
+  // "___ tribal mask" -> "Tribal mask (___)"
+  const tribalMatch = trimmed.match(/^(.*)\s+tribal mask$/i);
+  if (tribalMatch) {
+    const descriptor = tribalMatch[1]?.trim();
+    if (descriptor) {
+      const displayDescriptor =
+        descriptor.charAt(0).toUpperCase() + descriptor.slice(1);
+      candidates.push(`Tribal mask (${descriptor})`);
+      candidates.push(`Tribal mask (${displayDescriptor})`);
+    }
+  }
+
+  candidates.push(trimmed);
+
+  // Some wiki ingredient strings include explanatory parentheses that aren't part of the in-game name.
+  if (lower.startsWith('herb tea mix')) {
+    candidates.push('Herb tea mix');
+  }
+
+  const parentheticalMatch = trimmed.match(/^(.*)\s+\([^)]+\)$/);
+  if (parentheticalMatch) {
+    const base = parentheticalMatch[1]?.trim();
+    if (base) candidates.push(base);
+  }
+
+  const deduped: string[] = [];
+  for (const c of candidates) {
+    if (!deduped.includes(c)) deduped.push(c);
+  }
+
+  return {
+    candidates: deduped,
+    ignore: shouldIgnoreIngredientName(trimmed),
+  };
+}
+
 function isCursorNotFoundError(err: unknown): boolean {
   return Boolean(
     err &&
@@ -275,34 +330,46 @@ async function resolveItemIdForName(
   name: string,
   owner: OsrsboxItemDocument,
   cache: Map<string, mongoose.Types.ObjectId>,
-): Promise<mongoose.Types.ObjectId | null> {
-  const key = name.trim();
+): Promise<{ itemId: mongoose.Types.ObjectId | null; ignored: boolean }> {
+  const { candidates, ignore } = buildIngredientLookupCandidates(name);
+  const rawKey = name.trim();
 
-  // Use cache if possible
-  const cached = cache.get(key);
-  if (cached) return cached;
+  if (ignore) {
+    return { itemId: null, ignored: true };
+  }
 
-  // If this is clearly the same as the owner, short-circuit
-  const normName = key.toLowerCase();
   const ownerNames = [
     owner.name?.toLowerCase(),
     owner.wiki_name?.toLowerCase(),
   ].filter(Boolean) as string[];
 
-  if (ownerNames.includes(normName)) {
-    cache.set(key, owner._id);
-    return owner._id;
+  for (const candidate of candidates) {
+    const candidateKey = candidate.trim();
+    const cached = cache.get(candidateKey);
+    if (cached) return { itemId: cached, ignored: false };
+
+    if (ownerNames.includes(candidateKey.toLowerCase())) {
+      cache.set(candidateKey, owner._id);
+      cache.set(rawKey, owner._id);
+      return { itemId: owner._id, ignored: false };
+    }
+
+    const doc = await findItemByDisplayName(candidateKey);
+    if (doc) {
+      cache.set(candidateKey, doc._id);
+      cache.set(rawKey, doc._id);
+      return { itemId: doc._id, ignored: false };
+    }
   }
 
-  const doc = await findItemByDisplayName(key);
-  if (!doc) {
-    logWithProgress('warn', `🚨 [creation-importer] Could not resolve item name -> document: "${name}"`);
-    logUnresolvedIngredient(owner, name);
-    return null;
-  }
-
-  cache.set(key, doc._id);
-  return doc._id;
+  logWithProgress(
+    'warn',
+    `🚨 [creation-importer] Could not resolve item name -> document: "${name}" (tried: ${candidates.join(
+      ' | ',
+    )})`,
+  );
+  logUnresolvedIngredient(owner, name);
+  return { itemId: null, ignored: false };
 }
 
 // ----- mapping wiki -> DB shapes -----
@@ -357,8 +424,8 @@ async function mapWikiMethodToCreationSpecs(
 
   // 1) Normal materials (consumed = true/false based on wiki data)
   for (const m of wikiMethod.materials) {
-    const itemId = await resolveItemIdForName(m.item.name, owner, cache);
-    if (!itemId) continue;
+    const { itemId, ignored } = await resolveItemIdForName(m.item.name, owner, cache);
+    if (ignored || !itemId) continue;
 
     ingredients.push({
       consumedDuringCreation: m.consumed,
@@ -382,8 +449,8 @@ async function mapWikiMethodToCreationSpecs(
       .filter(Boolean);
 
     for (const toolName of toolNames) {
-      const itemId = await resolveItemIdForName(toolName, owner, cache);
-      if (!itemId) continue;
+      const { itemId, ignored } = await resolveItemIdForName(toolName, owner, cache);
+      if (ignored || !itemId) continue;
 
       ingredients.push({
         consumedDuringCreation: false,

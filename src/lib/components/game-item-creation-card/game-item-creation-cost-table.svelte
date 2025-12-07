@@ -2,6 +2,7 @@
     import * as Table from '$lib/components/ui/table';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { GameItemCreationIngredient, GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+    import { untrack } from 'svelte';
 
     interface GameItemCreationCostTableProps {
         gameItem: IOsrsboxItemWithMeta | null;
@@ -21,9 +22,12 @@
     const rootSpec = $derived(creationSpec ?? getPrimaryCreationSpec(gameItem) ?? null);
     const costRows = $derived(buildCostRows(rootSpec));
     // Owned map: checked = already have it, so we should exclude its cost
-    let ownedMap = $state<Record<string | number, boolean>>(
-        Object.fromEntries(costRows.map((row) => [row.key, false])),
-    );
+    let ownedMap = $state<Record<string | number, boolean>>({});
+
+    $effect(() => {
+        const prev = untrack(() => ownedMap);
+        ownedMap = Object.fromEntries(costRows.map((row) => [row.key, prev[row.key] ?? false]));
+    });
 
     const allChecked = $derived(Object.values(ownedMap).every(Boolean));
 
@@ -132,7 +136,7 @@
                         type="checkbox"
                         aria-label="Mark all ingredients as already owned"
                         checked={allChecked}
-                        on:change={(event) => toggleAll((event.currentTarget as HTMLInputElement).checked)}
+                        onchange={(event) => toggleAll((event.currentTarget as HTMLInputElement).checked)}
                     />
                 </Table.Head>
                 <Table.Head>Item (owned?)</Table.Head>
@@ -145,9 +149,17 @@
             {#each costRows as row}
                 <Table.Row>
                     <Table.Cell class="w-16">
-                        <input type="checkbox" checked={ownedMap[row.key]} on:change={() => toggleRow(row.key)} />
+                        <input type="checkbox" checked={ownedMap[row.key]} onchange={() => toggleRow(row.key)} />
                     </Table.Cell>
-                    <Table.Cell class="font-medium">{row.item.name}</Table.Cell>
+                    <Table.Cell class="font-medium">
+                        {#if row.item.id}
+                            <a class="text-primary hover:underline" href={`/items/${row.item.id}`}>
+                                {row.item.name}
+                            </a>
+                        {:else}
+                            {row.item.name}
+                        {/if}
+                    </Table.Cell>
                     <Table.Cell class="text-end">{formatNumber(row.amount)}</Table.Cell>
                     <Table.Cell class="text-end">{formatNumber(row.unitPrice)}</Table.Cell>
                     <Table.Cell class="text-end">{formatNumber(ownedMap[row.key] ? 0 : row.totalPrice)}</Table.Cell>

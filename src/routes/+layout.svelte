@@ -7,7 +7,7 @@
     import SiteHeader from '$lib/components/layout/site-header.svelte';
     import { ModeWatcher } from 'mode-watcher';
 
-    let { children } = $props();
+    let { children, data } = $props();
 
     onNavigate((navigation) => {
         // Bail early if the browser doesn't support view transitions.
@@ -25,7 +25,7 @@
 <Toaster />
 
 <Sidebar.Provider>
-    <NavMenu />
+    <NavMenu showDevControls={data.showDevControls} />
     <Sidebar.Inset>
         <main class="w-full">
             <SiteHeader />

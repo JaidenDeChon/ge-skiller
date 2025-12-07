@@ -21,7 +21,7 @@
     const specOptions = $derived(
         creationSpecs.map((spec, index) => ({
             id: `spec-${index}`,
-            label: creationSpecs.length === 1 ? 'Spec' : `Spec ${index + 1}`,
+            label: creationSpecs.length === 1 ? 'Spec 1' : `Spec ${index + 1}`,
             spec,
         })),
     );
@@ -57,15 +57,13 @@
         <!-- Body -->
         {#if hasIngredients}
             <Tabs.Root value={selectedSpecId} onValueChange={(val) => (selectedSpecId = val)}>
-                {#if specOptions.length > 1}
-                    <div class="px-5 mt-4">
-                        <Tabs.List class="flex gap-2 flex-wrap w-fit">
-                            {#each specOptions as option}
-                                <Tabs.Trigger value={option.id}>{option.label}</Tabs.Trigger>
-                            {/each}
-                        </Tabs.List>
-                    </div>
-                {/if}
+                <div class="px-5 mt-4">
+                    <Tabs.List class="flex gap-2 flex-wrap w-fit">
+                        {#each specOptions as option}
+                            <Tabs.Trigger value={option.id}>{option.label}</Tabs.Trigger>
+                        {/each}
+                    </Tabs.List>
+                </div>
 
                 {#each specOptions as option}
                     <Tabs.Content value={option.id} class="px-5">

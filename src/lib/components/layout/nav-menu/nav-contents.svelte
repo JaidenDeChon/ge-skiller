@@ -1,7 +1,8 @@
 <script lang="ts">
     import { page } from '$app/state';
     import * as Sidebar from '$lib/components/ui/sidebar';
-    import { Home, Heart, ChartNoAxesColumn, Sword } from 'lucide-svelte';
+    import { skillTreePages } from '$lib/constants/skill-tree-pages';
+    import { Home, Heart, Sword } from 'lucide-svelte';
 
     interface Item {
         title: string;
@@ -30,60 +31,13 @@
             url: '/favorites',
             icon: Heart,
         },
-        {
-            title: 'Character stats',
-            url: '#',
-            icon: ChartNoAxesColumn,
-        },
     ];
 
-    const skills: Item[] = [
-        {
-            title: 'Cooking',
-            url: '#',
-            iconString: '/skill-images/cooking.png',
-        },
-        {
-            title: 'Crafting',
-            url: '#',
-            iconString: '/skill-images/crafting.png',
-        },
-        {
-            title: 'Fishing',
-            url: '#',
-            iconString: '/skill-images/fishing.png',
-        },
-        {
-            title: 'Fletching',
-            url: '#',
-            iconString: '/skill-images/fletching.png',
-        },
-        {
-            title: 'Herblore',
-            url: '#',
-            iconString: '/skill-images/herblore.png',
-        },
-        {
-            title: 'Mining',
-            url: '#',
-            iconString: '/skill-images/mining.png',
-        },
-        {
-            title: 'Smithing',
-            url: '#',
-            iconString: '/skill-images/smithing.png',
-        },
-        {
-            title: 'Thieving',
-            url: '#',
-            iconString: '/skill-images/thieving.png',
-        },
-        {
-            title: 'Woodcutting',
-            url: '#',
-            iconString: '/skill-images/woodcutting.png',
-        },
-    ];
+    const skills: Item[] = skillTreePages.map((skill) => ({
+        title: skill.title,
+        url: `/items/${skill.slug}`,
+        iconString: skill.icon,
+    }));
 
     const currentPath = $derived(page.url.pathname || '');
 </script>
@@ -105,7 +59,7 @@
                             <a href={item.url} {...props}>
                                 <item.icon />
                                 <span>{item.title}</span>
-                                {#if currentPath === item.url || (item.url !== '/' && currentPath.startsWith(item.url))}
+                                {#if currentPath === item.url}
                                     {@render activeRouteIndicator()}
                                 {/if}
                             </a>
@@ -127,12 +81,19 @@
                         {#snippet tooltipContent()}
                             {skill.title}
                         {/snippet}
-                        {#if skill.icon}
-                            <skill.icon />
-                        {:else if skill.iconString}
-                            <img src={skill.iconString} alt="skill icon" class="w-4 h-4" />
-                        {/if}
-                        <span>{skill.title}</span>
+                        {#snippet child({ props })}
+                            <a href={skill.url} {...props}>
+                                {#if skill.icon}
+                                    <skill.icon />
+                                {:else if skill.iconString}
+                                    <img src={skill.iconString} alt="skill icon" class="w-4 h-4" />
+                                {/if}
+                                <span>{skill.title}</span>
+                                {#if currentPath === skill.url || currentPath.startsWith(`${skill.url}/`)}
+                                    {@render activeRouteIndicator()}
+                                {/if}
+                            </a>
+                        {/snippet}
                     </Sidebar.MenuButton>
                 </Sidebar.MenuItem>
             {/each}

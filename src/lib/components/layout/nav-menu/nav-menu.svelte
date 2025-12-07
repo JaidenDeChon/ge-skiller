@@ -3,6 +3,8 @@
     import NavHeader from '$lib/components/layout/nav-menu/nav-header.svelte';
     import NavContents from '$lib/components/layout/nav-menu/nav-contents.svelte';
     import NavFooter from '$lib/components/layout/nav-menu/nav-footer.svelte';
+
+    const { showDevControls = false } = $props<{ showDevControls?: boolean }>();
 </script>
 
 <nav>
@@ -17,7 +19,7 @@
 
         <!-- Footer -->
         <Sidebar.Footer>
-            <NavFooter />
+            <NavFooter showDevControls={showDevControls} />
         </Sidebar.Footer>
     </Sidebar.Root>
 </nav>

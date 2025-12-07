@@ -20,8 +20,12 @@
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { IOsrsboxItemWithMeta, SkillLevelDesignation } from '$lib/models/osrsbox-db-item';
     import Button from '$lib/components/ui/button/button.svelte';
+    import OsrsboxItemUploadDialog from '$lib/components/dialogs/osrsbox-item-upload-dialog.svelte';
+    import { afterNavigate, beforeNavigate } from '$app/navigation';
+    import { browser } from '$app/environment';
+    import { toast } from 'svelte-sonner';
 
-    const { data }: { data: { gameItem: IOsrsboxItemWithMeta | null } } = $props();
+    const { data }: { data: { gameItem: IOsrsboxItemWithMeta | null; showDevControls?: boolean } } = $props();
 
     type AssociatedSkillsArray = SkillLevelDesignation[];
     let loading = $state(false);
@@ -51,6 +55,7 @@
         if (alch === null || alch === undefined || price === null || price === undefined) return null;
         return alch - price;
     });
+    const devControlsEnabled = Boolean(data.showDevControls);
 
     function formatValue(value: number | null | undefined, suffix = ' gp') {
         if (value === null || value === undefined) return '—';
@@ -61,6 +66,27 @@
         if (value === null || value === undefined) return '—';
         const sign = value > 0 ? '+' : '';
         return `${sign}${formatWithCommas(Math.round(value))} gp`;
+    }
+
+    let editLoading = $state(false);
+
+    async function handleEdit(openWithItem: (item: Record<string, unknown>) => void) {
+        if (!gameItem?.id) return;
+        editLoading = true;
+        try {
+            const resp = await fetch(`/api/osrsbox-items?id=${encodeURIComponent(gameItem.id)}`);
+            if (!resp.ok) {
+                const message = await resp.text();
+                throw new Error(message || 'Failed to load item for editing.');
+            }
+            const item = (await resp.json()) as Record<string, unknown>;
+            openWithItem(item);
+        } catch (error) {
+            console.error(error);
+            toast.error(error instanceof Error ? error.message : 'Failed to load item for editing.');
+        } finally {
+            editLoading = false;
+        }
     }
 
     let lastDataItemId: string | number | null = null;
@@ -157,6 +183,20 @@
                     >
                         Wiki
                     </Button>
+                {/if}
+                {#if devControlsEnabled}
+                    <OsrsboxItemUploadDialog triggerClass="inline-flex">
+                        {#snippet trigger({ openWithItem, triggerClass })}
+                            <Button
+                                variant="outline"
+                                class={triggerClass}
+                                disabled={!gameItem || editLoading}
+                                onclick={() => gameItem && handleEdit(openWithItem)}
+                            >
+                                Edit
+                            </Button>
+                        {/snippet}
+                    </OsrsboxItemUploadDialog>
                 {/if}
                 <FavoriteButton {gameItem} />
             </div>

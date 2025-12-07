@@ -206,7 +206,7 @@ const TARGET_ITEM_NAMES: string[] = [
   'Willow seedling (w)',
   "Xeric's talisman (inert)",
   'Yew seedling (w)',
-  "Zamorak's unfermented wine",
+ "Zamorak's unfermented wine",
   'Zombie monkey greegree (small)',
 ];
 
@@ -214,9 +214,15 @@ const TARGET_ITEM_NAMES: string[] = [
  * Internal name overrides where your local name ≠ wiki/osrsreboxed name.
  */
 const MANUAL_NAME_OVERRIDES: Record<string, string> = {
+  Axe: 'Bronze axe',
+  'Herb tea mix (2 guams and harralander)': 'Herb tea mix',
+  'Herb tea mix (2 guams and marrentill)': 'Herb tea mix',
+  'Herb tea mix (harralander, marrentill and guam)': 'Herb tea mix',
   'Incomplete stew#Meat': 'Incomplete stew',
   'Incomplete stew#Potato': 'Incomplete stew',
 };
+
+const IGNORED_TARGET_NAMES = new Set(['string jewellery']);
 
 /**
  * ======================================================================
@@ -253,6 +259,10 @@ function canonicalLookupKey(rawName: string): string {
   const override = MANUAL_NAME_OVERRIDES[rawName] ?? rawName;
   const dehashed = override.replace(/#/g, ' ');
   return normalizeName(dehashed);
+}
+
+function shouldSkipTarget(rawName: string): boolean {
+  return IGNORED_TARGET_NAMES.has(rawName.trim().toLowerCase());
 }
 
 /**
@@ -721,6 +731,11 @@ async function main() {
   const failed: { name: string; reason: string }[] = [];
 
   for (const rawName of TARGET_ITEM_NAMES) {
+    if (shouldSkipTarget(rawName)) {
+      console.log(`[SKIP] Ignoring "${rawName}" because it is not an item to fetch.`);
+      continue;
+    }
+
     const lookupKey = canonicalLookupKey(rawName);
 
     // 1. Skip if already exists in DB (case-insensitive name match)
