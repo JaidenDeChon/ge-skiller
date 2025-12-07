@@ -286,6 +286,8 @@
         formData = structuredClone(initialForm);
         iconFileName = '';
         ingredientNameCache = {};
+        isLookupLoading = false;
+        isDbLookupLoading = false;
         selectedSpecIndex = 0;
     }
 
@@ -1169,7 +1171,7 @@
                             <span class="text-xs text-muted-foreground">Loaded from {iconFileName}</span>
                         {/if}
                     </div>
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-start">
                         <div class="space-y-2">
                             <Input type="file" accept="image/*" onchange={handleIconFileSelect} />
                             <p class="text-[11px] text-muted-foreground">File will be converted to base64 for storage.</p>
@@ -1182,6 +1184,21 @@
                                 rows="4"
                                 bind:value={formData.icon}
                             ></textarea>
+                        </div>
+                        <div class="space-y-2">
+                            <Label>Preview</Label>
+                            {#if formData.icon?.trim()}
+                                <div class="flex items-center gap-2">
+                                    <img
+                                        src={`data:image/png;base64,${formData.icon.trim()}`}
+                                        alt="Item icon preview"
+                                        class="h-12 w-12 object-contain border rounded bg-muted"
+                                    />
+                                    <span class="text-xs text-muted-foreground break-all">Base64 applied</span>
+                                </div>
+                            {:else}
+                                <p class="text-xs text-muted-foreground">No base64 icon provided yet.</p>
+                            {/if}
                         </div>
                     </div>
                 </section>
@@ -1289,13 +1306,12 @@
                                                             placeholder="Skill"
                                                             bind:value={expRow.skillName}
                                                         />
-                                                        <Input
-                                                            class="col-span-2"
-                                                            type="number"
-                                                            inputmode="decimal"
-                                                            placeholder="XP"
-                                                            bind:value={expRow.experienceAmount}
-                                                        />
+                                                    <Input
+                                                        class="col-span-2"
+                                                        type="number"
+                                                        inputmode="decimal"
+                                                        bind:value={expRow.experienceAmount}
+                                                    />
                                                         <Button
                                                             class="col-span-5 justify-start"
                                                             variant="ghost"
@@ -1326,13 +1342,12 @@
                                                 {#each currentSpec.requiredSkills as reqRow, reqIndex}
                                                     <div class="grid grid-cols-5 gap-2 items-center">
                                                         <Input class="col-span-3" placeholder="Skill" bind:value={reqRow.skillName} />
-                                                        <Input
-                                                            class="col-span-2"
-                                                            type="number"
-                                                            inputmode="numeric"
-                                                            placeholder="Level"
-                                                            bind:value={reqRow.skillLevel}
-                                                        />
+                                                    <Input
+                                                        class="col-span-2"
+                                                        type="number"
+                                                        inputmode="numeric"
+                                                        bind:value={reqRow.skillLevel}
+                                                    />
                                                         <Button
                                                             class="col-span-5 justify-start"
                                                             variant="ghost"
@@ -1379,12 +1394,11 @@
                                                     </div>
                                                     <div class="md:col-span-3 space-y-1">
                                                         <Label class="text-xs">Amount</Label>
-                                                        <Input
-                                                            type="number"
-                                                            inputmode="numeric"
-                                                            placeholder="1"
-                                                            bind:value={ingRow.amount}
-                                                        />
+                                                    <Input
+                                                        type="number"
+                                                        inputmode="numeric"
+                                                        bind:value={ingRow.amount}
+                                                    />
                                                     </div>
                                                     <div class="md:col-span-3 space-y-1">
                                                         <Label class="text-xs">Consumed?</Label>

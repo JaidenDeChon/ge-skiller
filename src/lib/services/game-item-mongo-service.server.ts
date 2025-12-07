@@ -344,7 +344,10 @@ async function populateIngredientsRecursive(
                     }
 
                     const cached = cache.get(key);
-                    if (cached) ingredient.item = cached;
+                    if (cached) {
+                        // Clone to prevent shared object graphs that JSON.stringify treats as circular.
+                        ingredient.item = structuredClone(cached);
+                    }
                 }),
             );
         }),

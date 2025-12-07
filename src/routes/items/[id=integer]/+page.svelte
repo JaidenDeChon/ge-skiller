@@ -89,6 +89,28 @@
         }
     }
 
+    async function refreshItemFromApi() {
+        if (!gameItem?.id) return;
+        loading = true;
+        try {
+            const resp = await fetch(`/api/osrsbox-items?id=${encodeURIComponent(gameItem.id)}`);
+            if (!resp.ok) {
+                const message = await resp.text();
+                throw new Error(message || 'Failed to refresh item.');
+            }
+            const updated = (await resp.json()) as IOsrsboxItemWithMeta;
+            gameItem = updated;
+            associatedSkills = undefined;
+            getAssociatedSkills(updated);
+            toast.success('Item updated.');
+        } catch (error) {
+            console.error(error);
+            toast.error(error instanceof Error ? error.message : 'Failed to refresh item.');
+        } finally {
+            loading = false;
+        }
+    }
+
     let lastDataItemId: string | number | null = null;
 
     $effect(() => {
@@ -185,7 +207,7 @@
                     </Button>
                 {/if}
                 {#if devControlsEnabled}
-                    <OsrsboxItemUploadDialog triggerClass="inline-flex">
+                    <OsrsboxItemUploadDialog triggerClass="inline-flex" onCreated={refreshItemFromApi}>
                         {#snippet trigger({ openWithItem, triggerClass })}
                             <Button
                                 variant="outline"
