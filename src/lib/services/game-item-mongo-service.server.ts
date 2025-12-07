@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { skillTreeSlugs } from '$lib/constants/skill-tree-pages';
 import { OsrsboxItemModel, type OsrsboxItemDocument } from '$lib/models/mongo-schemas/osrsbox-db-item-schema';
 import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
@@ -67,6 +68,7 @@ export async function getPaginatedGameItems(
         filter?: GameItemFilter;
         sortOrder?: GameItemSortOrder;
         skillLevels?: PlayerSkillLevels | null;
+        skill?: string | null;
     },
 ): Promise<PaginatedGameItems> {
     const page = Math.max(1, params?.page ?? 1);
@@ -74,7 +76,9 @@ export async function getPaginatedGameItems(
     const skip = (page - 1) * perPage;
     const filter = normalizeFilter(params?.filter);
     const sortDirection = params?.sortOrder === 'asc' ? 1 : -1;
-    const filterQuery = getFilterQuery(filter);
+    const baseFilterQuery = getFilterQuery(filter);
+    const skillQuery = getSkillMatchQuery(params?.skill);
+    const filterQuery = mergeQueries(baseFilterQuery, skillQuery);
     const skillLevels = normalizeSkillLevels(params?.skillLevels);
 
     if (!skillLevels) {
@@ -192,6 +196,31 @@ function getFilterQuery(filter: GameItemFilter): Record<string, unknown> {
     }
 }
 
+function getSkillMatchQuery(skill?: string | null): Record<string, unknown> | null {
+    const normalized = normalizeSkillFilter(skill);
+    if (!normalized) return null;
+
+    const skillRegex = new RegExp(`^${escapeRegex(normalized)}$`, 'i');
+
+    return {
+        creationSpecs: {
+            $elemMatch: {
+                $or: [
+                    { 'requiredSkills.skillName': skillRegex },
+                    { 'experienceGranted.skillName': skillRegex },
+                ],
+            },
+        },
+    };
+}
+
+function mergeQueries(...queries: (Record<string, unknown> | null)[]): Record<string, unknown> {
+    const valid = queries.filter(Boolean) as Record<string, unknown>[];
+    if (!valid.length) return {};
+    if (valid.length === 1) return valid[0];
+    return { $and: valid };
+}
+
 /**
  * Normalizes incoming skill level data to a lowercase map of finite numbers.
  */
@@ -207,6 +236,12 @@ function normalizeSkillLevels(skillLevels?: PlayerSkillLevels | null): PlayerSki
 
     if (!normalizedEntries.length) return null;
     return Object.fromEntries(normalizedEntries);
+}
+
+function normalizeSkillFilter(skill?: string | null): string | null {
+    if (!skill) return null;
+    const normalized = skill.trim().toLowerCase();
+    return skillTreeSlugs.includes(normalized) ? normalized : null;
 }
 
 /**

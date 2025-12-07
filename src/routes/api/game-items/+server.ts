@@ -16,6 +16,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const filter = (url.searchParams.get('filter') ?? undefined) as GameItemFilter | undefined;
     const orderParam = url.searchParams.get('order');
     const sortOrder: GameItemSortOrder = orderParam === 'asc' ? 'asc' : 'desc';
+    const skill = url.searchParams.get('skill');
     const skillLevelsParam = url.searchParams.get('skillLevels');
     let skillLevels: PlayerSkillLevels | undefined;
 
@@ -34,6 +35,6 @@ export const GET: RequestHandler = async ({ url }) => {
         }
     }
 
-    const paginated = await getPaginatedGameItems({ page, perPage, filter, sortOrder, skillLevels });
+    const paginated = await getPaginatedGameItems({ page, perPage, filter, sortOrder, skillLevels, skill });
     return new Response(JSON.stringify(paginated));
 };

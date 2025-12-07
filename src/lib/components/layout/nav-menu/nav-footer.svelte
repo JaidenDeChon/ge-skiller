@@ -12,71 +12,79 @@
 
 <Sidebar.Menu class="mb-3">
     <Sidebar.MenuItem>
-        <NavUser />
+        <!-- Todo - Add authentication and stuff -->
+        <!-- <NavUser /> -->
     </Sidebar.MenuItem>
 </Sidebar.Menu>
 
 {#if sidebar.open || sidebar.isMobile}
-    <div class="flex gap-3">
-        <Tooltip.Provider>
-            <Tooltip.Root>
-                <Tooltip.Trigger
-                    class={[
-                        'flex-1 min-h-10 min-w-10 max-h-10',
-                        buttonVariants({
-                            class: 'p-0 text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors',
-                        }),
-                    ]}
-                >
-                    <a href="/" class="h-full w-full flex items-center justify-center">
-                        <Info />
-                        <span class="sr-only">About</span>
-                    </a>
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                    <p>About ge-skiller</p>
-                </Tooltip.Content>
-            </Tooltip.Root>
-        </Tooltip.Provider>
-
-        <Tooltip.Provider>
-            <Tooltip.Root>
-                <Tooltip.Trigger
-                    class={[
-                        'flex-1 min-h-10 min-w-10 max-h-10',
-                        buttonVariants({
-                            class: 'p-0 text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors',
-                        }),
-                    ]}
-                >
-                    <a
-                        class="h-full w-full flex items-center justify-center"
-                        href="https://github.com/JaidenDeChon/ge-skiller"
-                        target="_blank"
+    <div class="flex flex-col gap-2">
+        <div class="grid grid-cols-2 gap-2">
+            <Tooltip.Provider>
+                <Tooltip.Root>
+                    <Tooltip.Trigger
+                        class={[
+                            'w-full min-h-10 min-w-10 max-h-10',
+                            buttonVariants({
+                                class: 'p-0 text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors',
+                            }),
+                        ]}
                     >
-                        <SiGithub />
-                        <span class="sr-only">View source on Github</span>
-                    </a>
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                    <p>View source on GitHub</p>
-                </Tooltip.Content>
-            </Tooltip.Root>
-        </Tooltip.Provider>
+                        <a href="/" class="h-full w-full flex items-center justify-center">
+                            <Info />
+                            <span class="sr-only">About</span>
+                        </a>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>
+                        <p>About ge-skiller</p>
+                    </Tooltip.Content>
+                </Tooltip.Root>
+            </Tooltip.Provider>
+
+            <Tooltip.Provider>
+                <Tooltip.Root>
+                    <Tooltip.Trigger
+                        class={[
+                            'w-full min-h-10 min-w-10 max-h-10',
+                            buttonVariants({
+                                class: 'p-0 text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors',
+                            }),
+                        ]}
+                    >
+                        <a
+                            class="h-full w-full flex items-center justify-center"
+                            href="https://github.com/JaidenDeChon/ge-skiller"
+                            target="_blank"
+                        >
+                            <SiGithub />
+                            <span class="sr-only">View source on Github</span>
+                        </a>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>
+                        <p>View source on GitHub</p>
+                    </Tooltip.Content>
+                </Tooltip.Root>
+            </Tooltip.Provider>
+        </div>
 
         <Tooltip.Provider>
             <Tooltip.Root>
                 <Tooltip.Trigger
                     class={[
-                        'flex-1 min-h-10 min-w-10 max-h-10',
+                        'w-full min-h-10 min-w-10 max-h-10',
                         buttonVariants({
                             class: 'p-0 text-foreground border border-input rounded-md bg-background/70 hover:bg-muted/55 transition-colors',
                         }),
                     ]}
                     onclick={toggleMode}
                 >
-                    <Sun class="dark:scale-0" />
-                    <Moon class="absolute scale-0 dark:scale-100" />
+                    <div class="flex items-center justify-center gap-2 w-full">
+                        <span class="flex h-5 w-5 items-center justify-center shrink-0 relative">
+                            <Sun class="block transition-opacity dark:hidden" />
+                            <Moon class="block transition-opacity hidden dark:block" />
+                        </span>
+                        <span class="text-sm">Toggle theme</span>
+                    </div>
                     <span class="sr-only">Toggle theme</span>
                 </Tooltip.Trigger>
                 <Tooltip.Content>
@@ -90,8 +98,10 @@
         <Tooltip.Root>
             <Tooltip.Trigger>
                 <Button variant="outline" class="h-9 w-9" onclick={toggleMode}>
-                    <Sun class="dark:scale-0" />
-                    <Moon class="absolute scale-0 dark:scale-100" />
+                    <span class="flex h-5 w-5 items-center justify-center shrink-0 relative">
+                        <Sun class="block transition-opacity dark:hidden" />
+                        <Moon class="block transition-opacity hidden dark:block" />
+                    </span>
                     <span class="sr-only">Toggle theme</span>
                 </Button>
             </Tooltip.Trigger>

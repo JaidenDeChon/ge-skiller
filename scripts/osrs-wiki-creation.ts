@@ -497,13 +497,13 @@ export async function getCreationMethodsForItem(
 ): Promise<CreationMethod[]> {
   const sectionIndex = await getCreationSectionIndex(pageTitle);
   if (sectionIndex == null) {
-    console.log(`No Creation section found for page: ${pageTitle}`);
+    console.log(`⚠️ [creation-importer] No creation section found for page "${pageTitle}".`);
     return [];
   }
 
   const html = await getCreationSectionHtml(pageTitle, sectionIndex);
   if (!html) {
-    console.log(`No Creation HTML found for page: ${pageTitle}`);
+    console.log(`⚠️ [creation-importer] No creation HTML found for page "${pageTitle}".`);
     return [];
   }
 
@@ -521,7 +521,7 @@ async function main() {
     const methods = await getCreationMethodsForItem(pageTitle);
 
     if (methods.length === 0) {
-      console.log("No Creation methods found.");
+      console.log("No creation methods found.");
       return;
     }
 

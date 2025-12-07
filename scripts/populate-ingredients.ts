@@ -10,6 +10,7 @@ import {
   type CreationMethod as WikiCreationMethod,
   type CreationRequirement as WikiRequirement,
 } from './osrs-wiki-creation';
+import logUpdate from 'log-update';
 import type {
   GameItemCreationSpecs,
   GameItemCreationExperienceGranted,
@@ -31,6 +32,113 @@ const dbName = process.env.VITE_MONGO_DB_DB_NAME || 'osrsbox';
 const prepend = 'mongodb+srv';
 const append = '?retryWrites=true&w=majority';
 const connectionString = `${prepend}://${user}:${pw}@${cluster}.${host}/${dbName}${append}`;
+const BATCH_FETCH_LIMIT = 250;
+let lastProcessedIdForResume: string | null = null;
+const progressState = {
+  processed: 0,
+  total: 0,
+  active: false,
+  startedAt: null as number | null,
+  processedOffset: 0,
+  recentRequests: [] as number[],
+};
+let isShuttingDown = false;
+const originalConsole = {
+  log: console.log.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+};
+
+function recordAtlasRequest(timestamp: number = Date.now()) {
+  progressState.recentRequests.push(timestamp);
+  const cutoff = timestamp - 60_000;
+  progressState.recentRequests = progressState.recentRequests.filter((ts) => ts >= cutoff);
+}
+
+function logWithProgress(method: 'log' | 'warn' | 'error', message?: unknown, ...args: unknown[]) {
+  if (progressState.active) logUpdate.clear();
+  originalConsole[method](message as any, ...args);
+  if (progressState.active) renderProgressLine(progressState.processed, progressState.total);
+}
+
+console.log = (...args: unknown[]) => logWithProgress('log', ...args);
+console.warn = (...args: unknown[]) => logWithProgress('warn', ...args);
+console.error = (...args: unknown[]) => logWithProgress('error', ...args);
+
+async function performCleanup(params?: { reason?: string; exitCode?: number; exitAfter?: boolean }) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  const { reason, exitCode = 0, exitAfter = true } = params ?? {};
+
+  if (reason) logWithProgress('log', `[creation-importer] Shutting down (${reason})...`);
+
+  try {
+    writeErrorReport();
+  } catch (reportErr) {
+    logWithProgress('error', '🚨 [creation-importer] Failed to write error report:', reportErr);
+  }
+
+  try {
+    await mongoose.disconnect();
+  } catch (disconnectErr) {
+    logWithProgress('error', '🚨 [creation-importer] Error disconnecting from MongoDB:', disconnectErr);
+  }
+
+  logUpdate.done();
+  progressState.active = false;
+
+  if (exitAfter) process.exit(exitCode);
+}
+
+process.once('SIGINT', () => {
+  void performCleanup({ reason: 'SIGINT', exitCode: 0 });
+});
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+function renderProgressLine(processed: number, total: number) {
+  progressState.processed = processed;
+  progressState.total = total;
+  progressState.active = total > 0;
+  if (!progressState.startedAt && total > 0) {
+    progressState.startedAt = Date.now();
+  }
+
+  if (!total) {
+    logUpdate('ℹ️ [creation-importer] Progress: no items to process.');
+    return;
+  }
+
+  const percentage = Math.min(100, (processed / total) * 100);
+  const barLength = 30;
+  const filledLength = Math.min(barLength, Math.round((processed / total) * barLength));
+  const bar = `${'█'.repeat(filledLength)}${'░'.repeat(barLength - filledLength)}`;
+  const percentText = percentage.toFixed(2).padStart(6, ' ');
+  const lastHint = lastProcessedIdForResume ? ` | last _id=${lastProcessedIdForResume}` : '';
+
+  const elapsedMs = progressState.startedAt ? Date.now() - progressState.startedAt : 0;
+  const processedSinceStart = Math.max(0, processed - progressState.processedOffset);
+  const avgMsPerItem = processedSinceStart > 0 ? elapsedMs / processedSinceStart : 0;
+  const remaining = Math.max(0, total - processed);
+  const etaMs = processed > 0 ? avgMsPerItem * remaining : 0;
+  const etaText = processed > 0 ? ` | ETA ~${formatDuration(etaMs)}` : '';
+  const now = Date.now();
+  progressState.recentRequests = progressState.recentRequests.filter((ts) => now - ts <= 60_000);
+  const rpm = progressState.recentRequests.length;
+  const rpmText = ` | ~${rpm} req/min (limited to 500 by Atlas free tier)`;
+
+  logUpdate(
+    `⏳ [creation-importer] Progress ${processed}/${total} ${bar} ${percentText}%${etaText}${rpmText}${lastHint}`,
+  );
+}
 
 /**
  * ====================================================================================================================
@@ -69,49 +177,24 @@ function logUnresolvedIngredient(owner: OsrsboxItemDocument, ingredientName: str
  * Write all collected errors to a log file in the same directory as this script.
  */
 function writeErrorReport() {
-  const errorLogPath = path.join(__dirname, 'creation-import-errors.log');
+  const errorLogPath = path.join(__dirname, 'creation-import-errors-2.log');
   const lines: string[] = [];
   const timestamp = new Date().toISOString();
 
-  lines.push('# Creation import error report');
+  lines.push('# Creation import unresolved ingredient report');
   lines.push(`# Generated at ${timestamp}`);
   lines.push('');
 
-  if (
-    !ownerNotFoundErrors.length &&
-    !noWikiMethodsErrors.length &&
-    !creationSpecsEmptyErrors.length &&
-    !unresolvedIngredientErrors.length
-  ) {
-    lines.push('No errors recorded.');
+  if (!unresolvedIngredientErrors.length) {
+    lines.push('No unresolved ingredient names recorded.');
   } else {
-    if (ownerNotFoundErrors.length) {
-      lines.push('## Owner not found for identifier(s):');
-      for (const e of ownerNotFoundErrors) lines.push(`- ${e}`);
-      lines.push('');
-    }
-
-    if (noWikiMethodsErrors.length) {
-      lines.push('## Items with no wiki creation methods:');
-      for (const e of noWikiMethodsErrors) lines.push(`- ${e}`);
-      lines.push('');
-    }
-
-    if (creationSpecsEmptyErrors.length) {
-      lines.push('## Items with wiki methods but no valid creationSpecs (no skills/ingredients):');
-      for (const e of creationSpecsEmptyErrors) lines.push(`- ${e}`);
-      lines.push('');
-    }
-
-    if (unresolvedIngredientErrors.length) {
-      lines.push('## Unresolved ingredient names (could not map to OsrsboxItem):');
-      for (const e of unresolvedIngredientErrors) lines.push(`- ${e}`);
-      lines.push('');
-    }
+    lines.push('## Unresolved ingredient names (could not map to OsrsboxItem):');
+    for (const e of unresolvedIngredientErrors) lines.push(`- ${e}`);
+    lines.push('');
   }
 
   fs.writeFileSync(errorLogPath, lines.join('\n'), 'utf8');
-  console.log(`[creation-importer] Error report written to ${errorLogPath}`);
+  logWithProgress('log', `[creation-importer] Error report written to ${errorLogPath}`);
 }
 
 /**
@@ -132,6 +215,28 @@ function normalizeTitleForLookup(title: string): string {
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+function isCursorNotFoundError(err: unknown): boolean {
+  return Boolean(
+    err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      // Mongo cursor-not-found error code
+      (err as { code?: unknown }).code === 43,
+  );
+}
+
+type ImportOptions = {
+  /**
+   * When true, items that already have creationSpecs will be skipped.
+   * Default is false so existing records get refreshed with the latest data.
+   */
+  skipExisting?: boolean;
+  /**
+   * Resume after the given Mongo ObjectId (string). Any items before or matching this id will be skipped.
+   */
+  resumeFromId?: string;
+};
 
 /**
  * Find an OsrsboxItem by wiki_name or name, with some lenient matching.
@@ -191,7 +296,7 @@ async function resolveItemIdForName(
 
   const doc = await findItemByDisplayName(key);
   if (!doc) {
-    console.warn(`[creation-importer] Could not resolve item name -> document: "${name}"`);
+    logWithProgress('warn', `🚨 [creation-importer] Could not resolve item name -> document: "${name}"`);
     logUnresolvedIngredient(owner, name);
     return null;
   }
@@ -227,7 +332,7 @@ function extractSkillRequirements(
     }
 
     // xp property isn’t in the WikiRequirement type, but we added it to our parser
-    const xp = (r as any).xp;
+    const xp = (r as { xp?: number }).xp;
     if (typeof xp === 'number') {
       experienceGranted.push({
         skillName: r.skill,
@@ -258,7 +363,7 @@ async function mapWikiMethodToCreationSpecs(
     ingredients.push({
       consumedDuringCreation: m.consumed,
       amount: m.quantity,
-      item: itemId as unknown as any,
+      item: itemId,
     });
   }
 
@@ -283,7 +388,7 @@ async function mapWikiMethodToCreationSpecs(
       ingredients.push({
         consumedDuringCreation: false,
         amount: 1,
-        item: itemId as unknown as any,
+        item: itemId,
       });
     }
   }
@@ -313,7 +418,10 @@ function looksLikeObjectId(value: string): boolean {
  *   - map results into creationSpecs
  *   - save them on the item doc
  */
-export async function importCreationForItemTitle(identifier: string): Promise<void> {
+export async function importCreationForItemTitle(
+  identifier: string,
+  options: ImportOptions = {},
+): Promise<void> {
   let owner: OsrsboxItemDocument | null = null;
 
   // 1) If it looks like an ObjectId, try that first
@@ -334,10 +442,19 @@ export async function importCreationForItemTitle(identifier: string): Promise<vo
   }
 
   if (!owner) {
-    console.warn(
+    logWithProgress(
+      'warn',
       `[creation-importer] No OsrsboxItem found for identifier "${identifier}"`,
     );
     logOwnerNotFound(identifier);
+    return;
+  }
+
+  if (options.skipExisting && owner.creationSpecs?.length) {
+    logWithProgress(
+      'log',
+      `[creation-importer] Skipping "${identifier}" because creation specs already exist (use without --skip-existing to refresh).`,
+    );
     return;
   }
 
@@ -358,8 +475,9 @@ export async function importCreationForItemTitle(identifier: string): Promise<vo
   }
 
   if (!wikiMethods.length) {
-    console.log(
-      `[creation-importer] No creation methods from wiki for "${normalizedTitle}" (base="${baseTitle}", identifier="${identifier}")`,
+    logWithProgress(
+      'warn',
+      `⚠️ [creation-importer] No creation methods from wiki for "${normalizedTitle}" (base="${baseTitle}", identifier="${identifier}")`,
     );
     logNoWikiMethods(owner, identifier, normalizedTitle);
     return;
@@ -377,7 +495,8 @@ export async function importCreationForItemTitle(identifier: string): Promise<vo
     const hasIngredients = specs.ingredients.length > 0;
 
     if (!hasSkills && !hasIngredients) {
-      console.warn(
+      logWithProgress(
+        'warn',
         `[creation-importer] Skipping method for "${identifier}" with no skills or ingredients (methodName="${m.methodName}")`,
       );
       continue;
@@ -387,18 +506,24 @@ export async function importCreationForItemTitle(identifier: string): Promise<vo
   }
 
   if (!creationSpecs.length) {
-    console.log(
+    logWithProgress(
+      'warn',
       `[creation-importer] No valid creationSpecs built for "${identifier}" after filtering.`,
     );
     logCreationSpecsEmpty(owner, identifier);
     return;
   }
 
+  const hadExistingSpecs = owner.creationSpecs?.length ?? 0;
+
   owner.creationSpecs = creationSpecs;
   await owner.save();
 
-  console.log(
-    `[creation-importer] Saved ${creationSpecs.length} creation spec(s) for "${
+  const action = hadExistingSpecs ? 'Updated' : 'Saved';
+
+  logWithProgress(
+    'log',
+    `✅ [creation-importer] ${action} ${creationSpecs.length} creation spec(s) for "${
       owner.wiki_name ?? owner.name
     }".`,
   );
@@ -409,28 +534,131 @@ export async function importCreationForItemTitle(identifier: string): Promise<vo
  *   - Iterate over every item in the DB
  *   - Fetch & store creation specs for each.
  */
-export async function importCreationForAllItems(): Promise<void> {
-  const cursor = OsrsboxItemModel.find({}, { _id: 1 }).cursor();
-  let processed = 0;
+export async function importCreationForAllItems(options: ImportOptions = {}): Promise<void> {
+  let resumeObjectId: mongoose.Types.ObjectId | null = null;
 
-  for await (const doc of cursor) {
-    const idStr = doc._id.toString();
+  if (options.resumeFromId) {
     try {
-      await importCreationForItemTitle(idStr);
-      processed++;
-      if (processed % 100 === 0) {
-        console.log(`[creation-importer] Processed ${processed} items...`);
-      }
-    } catch (err) {
-      console.error(
-        `[creation-importer] Error importing creation methods for _id=${idStr}:`,
-        err,
+      resumeObjectId = new mongoose.Types.ObjectId(options.resumeFromId);
+    } catch {
+      logWithProgress(
+        'warn',
+        `⚠️ [creation-importer] --resume-from "${options.resumeFromId}" is not a valid ObjectId; ignoring.`,
       );
-      logOwnerNotFound(`${idStr} (exception during import)`);
+      resumeObjectId = null;
     }
   }
 
-  console.log(`[creation-importer] Finished processing ${processed} items.`);
+  const resumeIdFound = resumeObjectId
+    ? Boolean(await OsrsboxItemModel.exists({ _id: resumeObjectId }))
+    : false;
+
+  const baseFilter: Record<string, unknown> = {};
+
+  if (options.skipExisting) {
+    baseFilter.$or = [
+      { creationSpecs: { $exists: false } },
+      { creationSpecs: { $size: 0 } },
+    ];
+  }
+
+  const totalToProcess = await OsrsboxItemModel.countDocuments(baseFilter).exec();
+  recordAtlasRequest();
+
+  const processedStart = resumeObjectId
+    ? await OsrsboxItemModel.countDocuments({
+        ...baseFilter,
+      _id: { $lte: resumeObjectId },
+      }).exec()
+    : 0;
+  recordAtlasRequest();
+
+  let processed = processedStart;
+  let skippedExisting = 0;
+  let lastId: mongoose.Types.ObjectId | null = resumeObjectId;
+  if (resumeObjectId) lastProcessedIdForResume = resumeObjectId.toString();
+  progressState.startedAt = null;
+  progressState.processedOffset = processedStart;
+  renderProgressLine(processed, totalToProcess);
+
+  try {
+    while (true) {
+      const query = {
+        ...baseFilter,
+        ...(lastId ? { _id: { $gt: lastId } } : {}),
+      };
+
+      const docs = await OsrsboxItemModel.find(query, { _id: 1, creationSpecs: 1 })
+        .sort({ _id: 1 })
+        .limit(BATCH_FETCH_LIMIT)
+        .lean<{ _id: mongoose.Types.ObjectId; creationSpecs?: unknown[] }[]>()
+        .exec();
+      recordAtlasRequest();
+      progressState.recentRequests.push(Date.now());
+
+      if (!docs.length) break;
+
+      for (const doc of docs) {
+        const idStr = doc._id.toString();
+
+        const hasCreationSpecs =
+          Array.isArray((doc as OsrsboxItemDocument).creationSpecs) &&
+          !!(doc as OsrsboxItemDocument).creationSpecs?.length;
+
+        if (options.skipExisting && hasCreationSpecs) {
+          skippedExisting++;
+          continue;
+        }
+
+        try {
+          await importCreationForItemTitle(idStr, options);
+        } catch (err) {
+          logWithProgress(
+            'error',
+            `🚨 [creation-importer] Error importing creation methods for _id=${idStr}:`,
+            err,
+          );
+          logOwnerNotFound(`${idStr} (exception during import)`);
+        } finally {
+          recordAtlasRequest();
+          processed++;
+          lastProcessedIdForResume = idStr;
+          renderProgressLine(processed, totalToProcess);
+          if (processed % 100 === 0) {
+            logWithProgress('log', `ℹ️ [creation-importer] Processed ${processed} items...`);
+          }
+        }
+      }
+
+      lastId = docs[docs.length - 1]._id;
+    }
+  } catch (err) {
+    if (isCursorNotFoundError(err)) {
+      logWithProgress(
+        'error',
+        '🚨 [creation-importer] Mongo cursor was lost (code 43 CursorNotFound). This can happen if the connection idles or is interrupted. Rerun to continue.',
+      );
+    } else {
+      logWithProgress('error', '🚨 [creation-importer] Unexpected error while iterating cursor:', err);
+    }
+    throw err;
+  } finally {
+    logUpdate.done();
+    progressState.active = false;
+  }
+
+  if (options.resumeFromId && !resumeIdFound) {
+    logWithProgress(
+      'warn',
+      `⚠️ [creation-importer] --resume-from id "${options.resumeFromId}" was not found; processed items from the start of the collection.`,
+    );
+  }
+
+  const skippedText = options.skipExisting
+    ? ` Skipped ${skippedExisting} item(s) that already had creation specs.`
+    : '';
+
+  logWithProgress('log', `[creation-importer] Finished processing ${processed} items.${skippedText}`);
 }
 
 /**
@@ -440,32 +668,75 @@ export async function importCreationForAllItems(): Promise<void> {
  */
 
 async function main() {
-  const arg = process.argv[2];
+  const args = process.argv.slice(2);
+  let skipExisting = false;
+  let resumeFromId: string | undefined;
+  const positionalArgs: string[] = [];
+  lastProcessedIdForResume = null;
+  progressState.startedAt = null;
+  progressState.processedOffset = 0;
+  progressState.recentRequests = [];
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === '--skip-existing') {
+      skipExisting = true;
+      continue;
+    }
+
+    if (arg === '--resume-from') {
+      resumeFromId = args[i + 1];
+      i++; // skip value
+      continue;
+    }
+
+    if (arg.startsWith('--resume-from=')) {
+      resumeFromId = arg.split('=')[1];
+      continue;
+    }
+
+    positionalArgs.push(arg);
+  }
+
+  const arg = positionalArgs[0];
 
   if (!user || !pw || !cluster || !host) {
-    console.error('[creation-importer] Missing MongoDB env vars.');
+    logWithProgress('error', '[creation-importer] Missing MongoDB env vars.');
     process.exit(1);
   }
 
-  console.log(`[creation-importer] Connecting to MongoDB...`);
+  logWithProgress('log', `[creation-importer] Connecting to MongoDB...`);
   await mongoose.connect(connectionString);
 
   try {
-    if (!arg || arg === '--all') {
-      console.log('[creation-importer] Running in batch mode over all items...');
-      await importCreationForAllItems();
+    if (skipExisting) {
+      logWithProgress('log', '[creation-importer] Will skip items that already have creation specs (--skip-existing).');
     } else {
-      console.log(`[creation-importer] Importing creation specs for "${arg}"...`);
-      await importCreationForItemTitle(arg);
+      logWithProgress('log', '[creation-importer] Existing creation specs will be refreshed if wiki data is available.');
     }
 
-    // After any run (single or batch), write error report
-    writeErrorReport();
+    if (resumeFromId) {
+      logWithProgress('log', `[creation-importer] Will resume after _id=${resumeFromId} (skipping it and anything before it).`);
+    }
+
+    if (!arg || arg === '--all') {
+      logWithProgress('log', '[creation-importer] Running in batch mode over all items...');
+      await importCreationForAllItems({ skipExisting, resumeFromId });
+    } else {
+      logWithProgress('log', `[creation-importer] Importing creation specs for "${arg}"...`);
+      await importCreationForItemTitle(arg, { skipExisting });
+    }
   } catch (err) {
-    console.error('[creation-importer] Unhandled error:', err);
+    logWithProgress('error', '🚨 [creation-importer] Unhandled error:', err);
+    if (lastProcessedIdForResume) {
+      logWithProgress(
+        'log',
+        `ℹ️ [creation-importer] To resume after the last successful item, run with --resume-from ${lastProcessedIdForResume}`,
+      );
+    }
   } finally {
-    await mongoose.disconnect();
-    console.log('[creation-importer] Disconnected. Exiting.');
+    await performCleanup({ reason: 'normal completion', exitAfter: false });
     process.exit(0);
   }
 }

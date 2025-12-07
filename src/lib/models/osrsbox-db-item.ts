@@ -1,3 +1,5 @@
+import type { Types } from 'mongoose';
+
 /**
  * Represents the amount of experience in a given skill awarded for creating an item.
  * @property skillName - The name of the skill in which experience is awarded.
@@ -27,7 +29,7 @@ export type SkillLevelDesignation = {
 export type GameItemCreationIngredient = {
     consumedDuringCreation: boolean;
     amount: number;
-    item: IOsrsboxItem | IOsrsboxItemWithMeta;
+    item: IOsrsboxItem | IOsrsboxItemWithMeta | Types.ObjectId;
 }
 
 /**

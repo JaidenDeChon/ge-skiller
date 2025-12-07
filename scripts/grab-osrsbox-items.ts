@@ -1,5 +1,5 @@
 // To use this file, clone the OSRSBox repo to this directory:
-// git clone https://github.com/osrsbox/osrsbox-db.git
+// git clone https://github.com/0xNeffarion/osrsreboxed-db.git osrsbox-db
 // Then run this script with `bun run scripts/grab-osrsbox-items.ts`.
 
 import mongoose from 'mongoose';
@@ -143,13 +143,27 @@ async function upsertGameItems(
 
   const upsertLog = scopedLogger('upsert', context.sourceName);
 
-  const ops = items.map((item) => ({
-    updateOne: {
-      filter: { id: item.id },
-      update: { $set: item },
-      upsert: true,
-    },
-  }));
+  const ops = items.map((item) => {
+    // Preserve any existing creationSpecs by never updating them from this source.
+    const { creationSpecs, ...itemWithoutCreationSpecs } = item;
+
+    const update: {
+      $set: typeof itemWithoutCreationSpecs;
+      $setOnInsert?: { creationSpecs: IOsrsboxItem['creationSpecs'] };
+    } = { $set: itemWithoutCreationSpecs };
+
+    if (creationSpecs !== undefined) {
+      update.$setOnInsert = { creationSpecs };
+    }
+
+    return {
+      updateOne: {
+        filter: { id: item.id },
+        update,
+        upsert: true,
+      },
+    };
+  });
 
   const result = await OsrsboxItemModel.bulkWrite(ops, { ordered: false });
 

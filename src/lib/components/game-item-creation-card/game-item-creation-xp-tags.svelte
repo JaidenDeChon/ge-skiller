@@ -110,7 +110,7 @@
         {#each rows as row}
             <span class="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-xs font-semibold">
                 <span class="text-foreground">
-                    {#if row.level}{row.level} {/if}{row.skillName}
+                    {#if row.level}{row.level} {/if} {row.skillName}
                 </span>
                 <span class="text-muted-foreground">Step: {formatXp(row.stepXp)}</span>
                 <span class="text-primary font-bold">Total: {formatXp(row.totalXp)}</span>
