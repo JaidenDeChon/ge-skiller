@@ -285,6 +285,40 @@
     </div>
 
     <div class="px-4 sm:px-6 lg:px-8">
+        {#snippet pagination()}
+            <div class="max-w-24 mx-auto">
+                <Pagination.Root class="item-page-pagination" bind:page={currentPage} count={totalItems} perPage={perPageValue}>
+                    {#snippet children({ pages, currentPage })}
+                        <Pagination.Content>
+                            <Pagination.Item>
+                                <Pagination.PrevButton />
+                            </Pagination.Item>
+                            {#each pages as page (page.key)}
+                                {#if page.type === "ellipsis"}
+                                    <Pagination.Item>
+                                        <Pagination.Ellipsis />
+                                    </Pagination.Item>
+                                {:else}
+                                    <Pagination.Item>
+                                        <Pagination.Link {page} isActive={currentPage === page.value}>
+                                            {page.value}
+                                        </Pagination.Link>
+                                    </Pagination.Item>
+                                {/if}
+                            {/each}
+                            <Pagination.Item>
+                                <Pagination.NextButton />
+                            </Pagination.Item>
+                        </Pagination.Content>
+                    {/snippet}
+                </Pagination.Root>
+            </div>
+        {/snippet}
+
+        <div class="mb-6">
+            {@render pagination()}
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {#if loading}
                 {#each Array.from({ length: perPageValue }, (_, i) => i) as index (index)}
@@ -297,32 +331,8 @@
             {/if}
         </div>
 
-        <div class="mt-8 max-w-24 mx-auto">
-            <Pagination.Root class="item-page-pagination" bind:page={currentPage} count={totalItems} perPage={perPageValue}>
-                {#snippet children({ pages, currentPage })}
-                    <Pagination.Content>
-                        <Pagination.Item>
-                            <Pagination.PrevButton />
-                        </Pagination.Item>
-                        {#each pages as page (page.key)}
-                            {#if page.type === "ellipsis"}
-                                <Pagination.Item>
-                                    <Pagination.Ellipsis />
-                                </Pagination.Item>
-                            {:else}
-                                <Pagination.Item>
-                                    <Pagination.Link {page} isActive={currentPage === page.value}>
-                                        {page.value}
-                                    </Pagination.Link>
-                                </Pagination.Item>
-                            {/if}
-                        {/each}
-                        <Pagination.Item>
-                            <Pagination.NextButton />
-                        </Pagination.Item>
-                    </Pagination.Content>
-                {/snippet}
-            </Pagination.Root>
+        <div class="mt-8">
+            {@render pagination()}
         </div>
     </div>
 </div>
