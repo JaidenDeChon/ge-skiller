@@ -15,10 +15,9 @@ interface RecentSearchesState {
 
 const MAX_RECENT_SEARCHES = 15;
 
-export const recentSearchesStore = persisted<RecentSearchesState>(
-    LocalStorageStoreNames.RECENT_SEARCHES_STORE,
-    { recentSearches: [] },
-);
+export const recentSearchesStore = persisted<RecentSearchesState>(LocalStorageStoreNames.RECENT_SEARCHES_STORE, {
+    recentSearches: [],
+});
 
 function normalize(entries: RecentSearchesState['recentSearches'] | string[] | undefined): RecentSearchEntry[] {
     if (!Array.isArray(entries)) return [];
@@ -27,9 +26,7 @@ function normalize(entries: RecentSearchesState['recentSearches'] | string[] | u
     const first = entries[0];
     if (typeof first === 'string') return [];
 
-    return (entries as RecentSearchEntry[]).filter(
-        (entry) => entry?.item?.id !== undefined && entry?.item?.name,
-    );
+    return (entries as RecentSearchEntry[]).filter((entry) => entry?.item?.id !== undefined && entry?.item?.name);
 }
 
 export function addRecentSearch(query: string, item: RecentSearchItem) {

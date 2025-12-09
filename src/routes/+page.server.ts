@@ -28,7 +28,7 @@ const npcImages: string[] = [
     'farmer-m.png',
     'frog-princess.png',
     'lumberjack-m.png',
-    'shayzien.png'
+    'shayzien.png',
 ];
 
 async function assembleHomepageData(): Promise<HomepageData['imageUrl']> {

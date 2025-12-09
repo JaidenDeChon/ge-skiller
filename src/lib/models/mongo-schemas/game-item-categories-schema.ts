@@ -14,8 +14,8 @@ export const gameItemCategoriesSchema = new mongoose.Schema<IGameItemCategory>({
         {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'GameItem',
-        }
-    ]
+        },
+    ],
 });
 
 let GameItemCategoryModel: mongoose.Model<IGameItemCategory>;
@@ -26,7 +26,7 @@ if (mongoose.models.GameItemCategory) {
     GameItemCategoryModel = mongoose.model<IGameItemCategory>(
         'GameItemCategory',
         gameItemCategoriesSchema,
-        'game-item-categories'
+        'game-item-categories',
     );
 }
 

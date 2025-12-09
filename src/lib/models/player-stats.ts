@@ -25,7 +25,7 @@ export class CharacterProfile implements ICharacterProfile {
         skillLevels: ICharacterProfile['skillLevels'] = defaultSkillLevels,
         id?: ICharacterProfile['id'],
     ) {
-        this.id = id || uuidv4() as UUID;
+        this.id = id || (uuidv4() as UUID);
         this.name = name;
         this.skillLevels = Object.assign(defaultSkillLevels, skillLevels);
     }

@@ -9,23 +9,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const logPath = path.join(__dirname, 'creation-import-errors-2.log');
 
 function main() {
-  const text = readFileSync(logPath, 'utf8');
-  const lines = text.split(/\r?\n/);
-  const ingredients = new Set();
+    const text = readFileSync(logPath, 'utf8');
+    const lines = text.split(/\r?\n/);
+    const ingredients = new Set();
 
-  for (const line of lines) {
-    const match = line.match(/ingredient="([^"]+)"/);
-    if (match) {
-      ingredients.add(match[1]);
+    for (const line of lines) {
+        const match = line.match(/ingredient="([^"]+)"/);
+        if (match) {
+            ingredients.add(match[1]);
+        }
     }
-  }
 
-  const sorted = Array.from(ingredients).sort((a, b) => a.localeCompare(b));
+    const sorted = Array.from(ingredients).sort((a, b) => a.localeCompare(b));
 
-  console.log(`Found ${sorted.length} unique ingredients:\n`);
-  for (const name of sorted) {
-    console.log(name);
-  }
+    console.log(`Found ${sorted.length} unique ingredients:\n`);
+    for (const name of sorted) {
+        console.log(name);
+    }
 }
 
 main();

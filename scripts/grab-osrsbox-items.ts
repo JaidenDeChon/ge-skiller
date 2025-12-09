@@ -25,39 +25,39 @@ function scopedLogger(scope: string, sourceName?: string) {
 
 /** Formats a range for display. */
 function formatRange(from: number, to: number): string {
-  return from === to ? `${from}` : `${from}-${to}`;
+    return from === to ? `${from}` : `${from}-${to}`;
 }
 
 /** Renders the progress of a batch operation. */
 function renderBatchProgress(params: {
-  sourceName: string;
-  batchRange: [number, number];
-  consecutive404: number;
-  fetchedTotal: number;
-  insertedTotal: number;
-  modifiedTotal: number;
-  errorCount: number;
-  skippedTotal: number;
+    sourceName: string;
+    batchRange: [number, number];
+    consecutive404: number;
+    fetchedTotal: number;
+    insertedTotal: number;
+    modifiedTotal: number;
+    errorCount: number;
+    skippedTotal: number;
 }) {
-  const {
-    sourceName,
-    batchRange,
-    consecutive404,
-    fetchedTotal,
-    insertedTotal,
-    modifiedTotal,
-    errorCount,
-    skippedTotal,
-  } = params;
+    const {
+        sourceName,
+        batchRange,
+        consecutive404,
+        fetchedTotal,
+        insertedTotal,
+        modifiedTotal,
+        errorCount,
+        skippedTotal,
+    } = params;
 
-  logUpdate(
-    `[${sourceName}] batch ${formatRange(batchRange[0], batchRange[1])} | fetched=${fetchedTotal} inserted=${insertedTotal} modified=${modifiedTotal} skipped=${skippedTotal} errors=${errorCount} | consecutive 404s=${consecutive404}`,
-  );
+    logUpdate(
+        `[${sourceName}] batch ${formatRange(batchRange[0], batchRange[1])} | fetched=${fetchedTotal} inserted=${insertedTotal} modified=${modifiedTotal} skipped=${skippedTotal} errors=${errorCount} | consecutive 404s=${consecutive404}`,
+    );
 }
 
 /** Completes the batch progress logging. */
 function finishBatchProgress() {
-  logUpdate.done();
+    logUpdate.done();
 }
 
 /**
@@ -90,15 +90,15 @@ const connectionString = `${prepend}://${user}:${pw}@${cluster}.${host}/${dbName
 
 /** Result of fetching an item. */
 interface FetchResult {
-  id: number;
-  item: IOsrsboxItem | null;
-  status: number; // HTTP status
-  url: string;
+    id: number;
+    item: IOsrsboxItem | null;
+    status: number; // HTTP status
+    url: string;
 }
 
 /** Simple sleep helper. */
 function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -115,18 +115,18 @@ function sleep(ms: number) {
  * @returns FetchResult containing item data or error status.
  */
 async function fetchItem(baseUrl: URL, id: number, sourceName: string): Promise<FetchResult> {
-  const fileUrl = new URL(`${id}.json`, baseUrl);
-  const fetchLog = scopedLogger('fetch', sourceName);
+    const fileUrl = new URL(`${id}.json`, baseUrl);
+    const fetchLog = scopedLogger('fetch', sourceName);
 
-  try {
-    const file = Bun.file(fileUrl);
-    const json = await file.text();
-    const item = JSON.parse(json) as IOsrsboxItem;
-    return { id, item, status: 200, url: fileUrl.href };
-  } catch (error) {
-    fetchLog.error(`Failed to read ${fileUrl.href} | error=${error}`);
-    return { id, item: null, status: 500, url: fileUrl.href };
-  }
+    try {
+        const file = Bun.file(fileUrl);
+        const json = await file.text();
+        const item = JSON.parse(json) as IOsrsboxItem;
+        return { id, item, status: 200, url: fileUrl.href };
+    } catch (error) {
+        fetchLog.error(`Failed to read ${fileUrl.href} | error=${error}`);
+        return { id, item: null, status: 500, url: fileUrl.href };
+    }
 }
 
 /**
@@ -136,42 +136,42 @@ async function fetchItem(baseUrl: URL, id: number, sourceName: string): Promise<
  * @returns Object with counts of inserted and modified items.
  */
 async function upsertGameItems(
-  items: IOsrsboxItem[],
-  context: { sourceName: string; batchRange: [number, number] },
+    items: IOsrsboxItem[],
+    context: { sourceName: string; batchRange: [number, number] },
 ): Promise<{ inserted: number; modified: number }> {
-  if (!items.length) return { inserted: 0, modified: 0 };
+    if (!items.length) return { inserted: 0, modified: 0 };
 
-  const upsertLog = scopedLogger('upsert', context.sourceName);
+    const upsertLog = scopedLogger('upsert', context.sourceName);
 
-  const ops = items.map((item) => {
-    // Preserve any existing creationSpecs by never updating them from this source.
-    const { creationSpecs, ...itemWithoutCreationSpecs } = item;
+    const ops = items.map((item) => {
+        // Preserve any existing creationSpecs by never updating them from this source.
+        const { creationSpecs, ...itemWithoutCreationSpecs } = item;
 
-    const update: {
-      $set: typeof itemWithoutCreationSpecs;
-      $setOnInsert?: { creationSpecs: IOsrsboxItem['creationSpecs'] };
-    } = { $set: itemWithoutCreationSpecs };
+        const update: {
+            $set: typeof itemWithoutCreationSpecs;
+            $setOnInsert?: { creationSpecs: IOsrsboxItem['creationSpecs'] };
+        } = { $set: itemWithoutCreationSpecs };
 
-    if (creationSpecs !== undefined) {
-      update.$setOnInsert = { creationSpecs };
-    }
+        if (creationSpecs !== undefined) {
+            update.$setOnInsert = { creationSpecs };
+        }
 
-    return {
-      updateOne: {
-        filter: { id: item.id },
-        update,
-        upsert: true,
-      },
-    };
-  });
+        return {
+            updateOne: {
+                filter: { id: item.id },
+                update,
+                upsert: true,
+            },
+        };
+    });
 
-  const result = await OsrsboxItemModel.bulkWrite(ops, { ordered: false });
+    const result = await OsrsboxItemModel.bulkWrite(ops, { ordered: false });
 
-  upsertLog.success(
-    `Batch ${formatRange(context.batchRange[0], context.batchRange[1])} | inserted=${result.upsertedCount} modified=${result.modifiedCount} size=${items.length}`,
-  );
+    upsertLog.success(
+        `Batch ${formatRange(context.batchRange[0], context.batchRange[1])} | inserted=${result.upsertedCount} modified=${result.modifiedCount} size=${items.length}`,
+    );
 
-  return { inserted: result.upsertedCount, modified: result.modifiedCount };
+    return { inserted: result.upsertedCount, modified: result.modifiedCount };
 }
 
 /**
@@ -181,112 +181,106 @@ async function upsertGameItems(
  * @param sourceName - Name of the data source (for logging).
  * @param startId - ID to start importing from.
  */
-async function importItemsFrom(params: {
-  baseUrl: URL;
-  sourceName: string;
-  startId: number;
-}) {
-  const { baseUrl, sourceName, startId } = params;
-  const importLog = scopedLogger('import', sourceName);
-  const fetchLog = scopedLogger('fetch', sourceName);
+async function importItemsFrom(params: { baseUrl: URL; sourceName: string; startId: number }) {
+    const { baseUrl, sourceName, startId } = params;
+    const importLog = scopedLogger('import', sourceName);
+    const fetchLog = scopedLogger('fetch', sourceName);
 
-  importLog.start(
-    `Start import at id=${startId} | stop after ${MAX_CONSECUTIVE_404} consecutive 404s or id>${ABSOLUTE_END_ID} | base=${baseUrl.href}`,
-  );
+    importLog.start(
+        `Start import at id=${startId} | stop after ${MAX_CONSECUTIVE_404} consecutive 404s or id>${ABSOLUTE_END_ID} | base=${baseUrl.href}`,
+    );
 
-  let currentId = startId;
-  let consecutive404 = 0;
-  let fetchedCount = 0;
-  let total404 = 0;
-  let insertedTotal = 0;
-  let modifiedTotal = 0;
-  let errorCount = 0;
-  let skippedTotal = 0;
+    let currentId = startId;
+    let consecutive404 = 0;
+    let fetchedCount = 0;
+    let total404 = 0;
+    let insertedTotal = 0;
+    let modifiedTotal = 0;
+    let errorCount = 0;
+    let skippedTotal = 0;
 
-  while (currentId <= ABSOLUTE_END_ID && consecutive404 < MAX_CONSECUTIVE_404) {
-    const remaining = ABSOLUTE_END_ID - currentId + 1;
-    const batchSize = Math.min(BATCH_SIZE, remaining);
+    while (currentId <= ABSOLUTE_END_ID && consecutive404 < MAX_CONSECUTIVE_404) {
+        const remaining = ABSOLUTE_END_ID - currentId + 1;
+        const batchSize = Math.min(BATCH_SIZE, remaining);
 
-    const batchIds = Array.from({ length: batchSize }, (_, idx) => currentId + idx);
-    const batchRange: [number, number] = [batchIds[0], batchIds[batchIds.length - 1]];
+        const batchIds = Array.from({ length: batchSize }, (_, idx) => currentId + idx);
+        const batchRange: [number, number] = [batchIds[0], batchIds[batchIds.length - 1]];
 
-    renderBatchProgress({
-      sourceName,
-      batchRange,
-      consecutive404,
-      fetchedTotal: fetchedCount,
-      insertedTotal,
-      modifiedTotal,
-      errorCount,
-      skippedTotal,
-    });
+        renderBatchProgress({
+            sourceName,
+            batchRange,
+            consecutive404,
+            fetchedTotal: fetchedCount,
+            insertedTotal,
+            modifiedTotal,
+            errorCount,
+            skippedTotal,
+        });
 
-    const results = await Promise.all(batchIds.map((id) => fetchItem(baseUrl, id, sourceName)));
+        const results = await Promise.all(batchIds.map((id) => fetchItem(baseUrl, id, sourceName)));
 
-    const itemsToUpsert: IOsrsboxItem[] = [];
+        const itemsToUpsert: IOsrsboxItem[] = [];
 
-    for (const result of results) {
-      const { id, item, status, url } = result;
+        for (const result of results) {
+            const { id, item, status, url } = result;
 
-      if (item) {
-        fetchedCount += 1;
-        consecutive404 = 0;
+            if (item) {
+                fetchedCount += 1;
+                consecutive404 = 0;
 
-        // Skip untradeable and noted items.
-        if (!item.tradeable || item.noted) {
-          skippedTotal += 1;
-          continue;
+                // Skip untradeable and noted items.
+                if (!item.tradeable || item.noted) {
+                    skippedTotal += 1;
+                    continue;
+                }
+
+                itemsToUpsert.push(item);
+            } else if (status === 404) {
+                consecutive404 += 1;
+                total404 += 1;
+            } else {
+                // Some other error; log, but don't increment 404 streak
+                errorCount += 1;
+                fetchLog.warn(`Non-404 response for id=${id} | status=${status} | url=${url}`);
+            }
+
+            if (consecutive404 >= MAX_CONSECUTIVE_404) {
+                importLog.info(
+                    `Hit ${MAX_CONSECUTIVE_404} consecutive 404s at id=${id}. Assuming we're past the end for this source.`,
+                );
+                break;
+            }
         }
 
-        itemsToUpsert.push(item);
-      } else if (status === 404) {
-        consecutive404 += 1;
-        total404 += 1;
-      } else {
-        // Some other error; log, but don't increment 404 streak
-        errorCount += 1;
-        fetchLog.warn(`Non-404 response for id=${id} | status=${status} | url=${url}`);
-      }
+        if (itemsToUpsert.length) {
+            const upsertTotals = await upsertGameItems(itemsToUpsert, { sourceName, batchRange });
+            insertedTotal += upsertTotals.inserted;
+            modifiedTotal += upsertTotals.modified;
+        } else importLog.info(`No valid items in batch ${formatRange(batchRange[0], batchRange[1])}`);
 
-      if (consecutive404 >= MAX_CONSECUTIVE_404) {
-        importLog.info(
-          `Hit ${MAX_CONSECUTIVE_404} consecutive 404s at id=${id}. Assuming we're past the end for this source.`,
-        );
-        break;
-      }
+        renderBatchProgress({
+            sourceName,
+            batchRange,
+            consecutive404,
+            fetchedTotal: fetchedCount,
+            insertedTotal,
+            modifiedTotal,
+            errorCount,
+            skippedTotal,
+        });
+
+        currentId += batchSize;
+
+        // Gentle pause between batches so we don't hammer their server
+        if (currentId <= ABSOLUTE_END_ID && consecutive404 < MAX_CONSECUTIVE_404)
+            await sleep(MONGODB_REQUEST_POLITENESS_DELAY_MS);
     }
 
-    if (itemsToUpsert.length) {
-      const upsertTotals = await upsertGameItems(itemsToUpsert, { sourceName, batchRange });
-      insertedTotal += upsertTotals.inserted;
-      modifiedTotal += upsertTotals.modified;
-    }
+    finishBatchProgress();
 
-    else importLog.info(`No valid items in batch ${formatRange(batchRange[0], batchRange[1])}`);
-
-    renderBatchProgress({
-      sourceName,
-      batchRange,
-      consecutive404,
-      fetchedTotal: fetchedCount,
-      insertedTotal,
-      modifiedTotal,
-      errorCount,
-      skippedTotal,
-    });
-
-    currentId += batchSize;
-
-    // Gentle pause between batches so we don't hammer their server
-    if (currentId <= ABSOLUTE_END_ID && consecutive404 < MAX_CONSECUTIVE_404)
-        await sleep(MONGODB_REQUEST_POLITENESS_DELAY_MS);
-  }
-
-  finishBatchProgress();
-
-  importLog.success(
-    `Import finished | last attempted id=${currentId - 1} | fetched=${fetchedCount} | inserted=${insertedTotal} | modified=${modifiedTotal} | skipped=${skippedTotal} | total404=${total404} | errors=${errorCount}`,
-  );
+    importLog.success(
+        `Import finished | last attempted id=${currentId - 1} | fetched=${fetchedCount} | inserted=${insertedTotal} | modified=${modifiedTotal} | skipped=${skippedTotal} | total404=${total404} | errors=${errorCount}`,
+    );
 }
 
 /**
@@ -296,28 +290,28 @@ async function importItemsFrom(params: {
  */
 
 (async function main() {
-  try {
-    const mainLog = scopedLogger('main');
+    try {
+        const mainLog = scopedLogger('main');
 
-    mainLog.info('Connecting to MongoDB...');
+        mainLog.info('Connecting to MongoDB...');
 
-    await mongoose.connect(connectionString, { dbName });
+        await mongoose.connect(connectionString, { dbName });
 
-    mainLog.success('Connection established.');
+        mainLog.success('Connection established.');
 
-    mainLog.box(`Starting import.`);
+        mainLog.box(`Starting import.`);
 
-    await importItemsFrom({
-    baseUrl: LOCAL_ITEMS_DIR,
-    sourceName: LOCAL_ITEMS_DIR.pathname.split('/').pop() || 'local-items',
-    startId: START_ID,
-    });
+        await importItemsFrom({
+            baseUrl: LOCAL_ITEMS_DIR,
+            sourceName: LOCAL_ITEMS_DIR.pathname.split('/').pop() || 'local-items',
+            startId: START_ID,
+        });
 
-    mainLog.success('Finished processing all data sources.');
-  } catch (error) {
-    scopedLogger('main').error(`Error in script: ${error}`);
-  } finally {
-    await mongoose.disconnect();
-    scopedLogger('main').info('MongoDB connection closed.');
-  }
+        mainLog.success('Finished processing all data sources.');
+    } catch (error) {
+        scopedLogger('main').error(`Error in script: ${error}`);
+    } finally {
+        await mongoose.disconnect();
+        scopedLogger('main').info('MongoDB connection closed.');
+    }
 })();

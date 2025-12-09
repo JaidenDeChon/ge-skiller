@@ -19,7 +19,7 @@
 
         <!-- Footer -->
         <Sidebar.Footer>
-            <NavFooter showDevControls={showDevControls} />
+            <NavFooter {showDevControls} />
         </Sidebar.Footer>
     </Sidebar.Root>
 </nav>

@@ -54,12 +54,12 @@ export type FullMap = {
 };
 
 /** A combined type of MapData and low alch/high alch values. */
-export type MapDataCombined = MapData & { highPrice: number, lowPrice: number };
+export type MapDataCombined = MapData & { highPrice: number; lowPrice: number };
 
 /** An object with a string for a key and the above type for a value. */
 export type FullMapDataCombined = {
-    [key: string]: MapData & { highPrice: number, lowPrice: number, highTime: number, lowTime: number }
-}
+    [key: string]: MapData & { highPrice: number; lowPrice: number; highTime: number; lowTime: number };
+};
 
 /**
  * A list of the high and low prices of an item.

@@ -8,7 +8,7 @@ import type { IOsrsboxItem } from './osrsbox-db-item';
 export type GameItemCreationExperienceGranted = {
     skillName: string;
     experienceAmount: number;
-}
+};
 
 /**
  * Represents a skill level requirement for creating an item.
@@ -18,7 +18,7 @@ export type GameItemCreationExperienceGranted = {
 export type SkillLevelDesignation = {
     skillName: string;
     skillLevel: number;
-}
+};
 
 /**
  * Represents an item required as an ingredient for creating another item.
@@ -29,8 +29,8 @@ export type SkillLevelDesignation = {
 export type GameItemCreationIngredient = {
     consumedDuringCreation: boolean;
     amount: number;
-    item: IGameItem
-}
+    item: IGameItem;
+};
 
 /**
  * Represents the character requirements for creating a given item.
@@ -42,7 +42,7 @@ export type GameItemCreationSpecs = {
     experienceGranted: GameItemCreationExperienceGranted[];
     requiredSkills: SkillLevelDesignation[];
     ingredients: GameItemCreationIngredient[];
-}
+};
 
 /**
  * Represents an in-game item with creation specs and GE price data attached.
@@ -53,19 +53,19 @@ export type GameItemCreationSpecs = {
  * @property lowTime        - The time at which the item sold at the most recent low price.
  */
 export type IGameItem = {
-  id: IOsrsboxItem['id'];
-  name: IOsrsboxItem['name'];
-  icon: IOsrsboxItem['icon'];
-  examine: IOsrsboxItem['examine'];
+    id: IOsrsboxItem['id'];
+    name: IOsrsboxItem['name'];
+    icon: IOsrsboxItem['icon'];
+    examine: IOsrsboxItem['examine'];
 } & Partial<IOsrsboxItem> & {
-  creationSpecs?: GameItemCreationSpecs;
-  highPrice?: number;
-  highTime?: number;
-  lowPrice?: number;
-  lowTime?: number;
-  buyLimit?: number;
-  wikiName?: string | null;
-};
+        creationSpecs?: GameItemCreationSpecs;
+        highPrice?: number;
+        highTime?: number;
+        lowPrice?: number;
+        lowTime?: number;
+        buyLimit?: number;
+        wikiName?: string | null;
+    };
 
 /**
  * Pairs multiple GameItems together under a single category represented by a string.

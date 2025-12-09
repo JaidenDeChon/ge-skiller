@@ -8,12 +8,9 @@ export type ItemsPagePreferences = {
     page: number;
 };
 
-export const itemsPagePreferences = persisted<ItemsPagePreferences>(
-    LocalStorageStoreNames.ITEMS_PAGE_PREFERENCES,
-    {
-        filter: 'all',
-        sortOrder: 'desc',
-        perPage: '12',
-        page: 1,
-    },
-);
+export const itemsPagePreferences = persisted<ItemsPagePreferences>(LocalStorageStoreNames.ITEMS_PAGE_PREFERENCES, {
+    filter: 'all',
+    sortOrder: 'desc',
+    perPage: '12',
+    page: 1,
+});

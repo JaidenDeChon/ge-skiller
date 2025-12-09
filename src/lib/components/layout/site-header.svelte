@@ -7,11 +7,7 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { afterNavigate } from '$app/navigation';
     import type { IGameItem } from '$lib/models/game-item';
-    import {
-        addRecentSearch,
-        recentSearchesStore,
-        type RecentSearchEntry,
-    } from '$lib/stores/recent-searches-store';
+    import { addRecentSearch, recentSearchesStore, type RecentSearchEntry } from '$lib/stores/recent-searches-store';
 
     let searchQuery = $state('');
     let searchDialogOpen = $state(false);
@@ -98,10 +94,7 @@
 
             <Dialog.Content class="p-0">
                 <Command.Root class="w-full rounded-lg border">
-                    <Command.Input
-                        placeholder="Search..."
-                        bind:value={searchQuery}
-                    />
+                    <Command.Input placeholder="Search..." bind:value={searchQuery} />
 
                     <Command.List>
                         {#if searchLoading}
@@ -124,17 +117,27 @@
                                                 }
                                             }}
                                         >
-                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border">
+                                            <span
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border"
+                                            >
                                                 {#if item.icon}
-                                                    <img src={iconToDataUri(item.icon)} alt={item.name} class="h-6 w-6 object-contain" />
+                                                    <img
+                                                        src={iconToDataUri(item.icon)}
+                                                        alt={item.name}
+                                                        class="h-6 w-6 object-contain"
+                                                    />
                                                 {:else}
-                                                    <span class="text-xs text-muted-foreground">{item.name.slice(0, 2)}</span>
+                                                    <span class="text-xs text-muted-foreground"
+                                                        >{item.name.slice(0, 2)}</span
+                                                    >
                                                 {/if}
                                             </span>
                                             <div class="flex flex-col text-left">
                                                 <span class="text-sm font-medium">{item.name}</span>
                                                 {#if item.examine}
-                                                    <span class="text-xs text-muted-foreground line-clamp-1">{item.examine}</span>
+                                                    <span class="text-xs text-muted-foreground line-clamp-1"
+                                                        >{item.examine}</span
+                                                    >
                                                 {/if}
                                             </div>
                                         </div>
@@ -159,17 +162,27 @@
                                                 }
                                             }}
                                         >
-                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border">
+                                            <span
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border"
+                                            >
                                                 {#if entry.item.icon}
-                                                    <img src={iconToDataUri(entry.item.icon)} alt={entry.item.name} class="h-6 w-6 object-contain" />
+                                                    <img
+                                                        src={iconToDataUri(entry.item.icon)}
+                                                        alt={entry.item.name}
+                                                        class="h-6 w-6 object-contain"
+                                                    />
                                                 {:else}
-                                                    <span class="text-xs text-muted-foreground">{entry.item.name.slice(0, 2)}</span>
+                                                    <span class="text-xs text-muted-foreground"
+                                                        >{entry.item.name.slice(0, 2)}</span
+                                                    >
                                                 {/if}
                                             </span>
                                             <div class="flex flex-col text-left">
                                                 <span class="text-sm font-medium">{entry.item.name}</span>
                                                 {#if entry.item.examine}
-                                                    <span class="text-xs text-muted-foreground line-clamp-1">{entry.item.examine}</span>
+                                                    <span class="text-xs text-muted-foreground line-clamp-1"
+                                                        >{entry.item.examine}</span
+                                                    >
                                                 {/if}
                                             </div>
                                         </div>

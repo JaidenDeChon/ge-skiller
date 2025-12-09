@@ -15,9 +15,7 @@ export const GET: RequestHandler = async ({ url }) => {
         return new Response(json, { headers: { 'Content-Type': 'application/json' } });
     } catch (err) {
         const message =
-            err instanceof Error
-                ? err.message
-                : 'Failed to serialize game item tree (possible circular reference).';
+            err instanceof Error ? err.message : 'Failed to serialize game item tree (possible circular reference).';
         console.error('[game-item-full-tree] serialization error:', err);
         return new Response(JSON.stringify({ error: message }), {
             status: 500,
@@ -74,5 +72,5 @@ function describeObject(obj: Record<string, unknown>): string {
     const parts: string[] = [];
     if (name) parts.push(String(name));
     if (id) parts.push(`(${String(id)})`);
-    return parts.length ? parts.join(' ') : obj.constructor?.name ?? 'object';
+    return parts.length ? parts.join(' ') : (obj.constructor?.name ?? 'object');
 }

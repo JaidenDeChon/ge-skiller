@@ -17,7 +17,7 @@
             document.startViewTransition(async () => {
                 resolve();
                 await navigation.complete;
-            })
+            });
         });
     });
 </script>

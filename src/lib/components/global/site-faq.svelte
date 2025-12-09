@@ -3,7 +3,6 @@
 
     const { showTitle = true } = $props();
 
-
     interface FAQ {
         question: string;
         answer: string[];
@@ -17,35 +16,31 @@
             question: 'What is this website?',
             answer: [
                 'This website aims to help players of the video game Old School RuneScape, or OSRS, optimize their ' +
-                'skilling experience, such as for maximizing in-game profits or XP value. ',
-                'I do this by comparing your character\'s metrics (levels, quest completion, etc) to every item that ' +
-                'can be made for XP and/or GP, and find what will make you the most of either, making it ' +
-                'potentially useful for both free-trading and ironman accounts.*'
+                    'skilling experience, such as for maximizing in-game profits or XP value. ',
+                "I do this by comparing your character's metrics (levels, quest completion, etc) to every item that " +
+                    'can be made for XP and/or GP, and find what will make you the most of either, making it ' +
+                    'potentially useful for both free-trading and ironman accounts.*',
             ],
-            subtext: [
-                '* These features are a work in progress. The whole site is, really.'
-            ],
+            subtext: ['* These features are a work in progress. The whole site is, really.'],
         },
         {
             value: 'Does this cost money?',
             question: 'Does this cost money?',
             answer: [
                 'No. This is a passion project, not a money-making one. If you would like to donate to the developer, ' +
-                'then thank you, first of all! There is a link at the bottom of the main menu!*'
+                    'then thank you, first of all! There is a link at the bottom of the main menu!*',
             ],
-            subtext: [
-                '* Still to be set up'
+            subtext: ['* Still to be set up'],
+        },
+        {
+            value: 'Do I have to make an account?',
+            question: 'Do I have to make an account?',
+            answer: [
+                'Nope! Creating an account is not yet supported, but it will be eventually. The plan is for creating an ' +
+                    "account to be optional. It will enable you to save your character's metrics and your favorites so you " +
+                    "can access them from any device, but it won't be required to use the site.",
             ],
         },
-      {
-        value: 'Do I have to make an account?',
-        question: 'Do I have to make an account?',
-        answer: [
-          'Nope! Creating an account is not yet supported, but it will be eventually. The plan is for creating an ' +
-          'account to be optional. It will enable you to save your character\'s metrics and your favorites so you ' +
-          'can access them from any device, but it won\'t be required to use the site.',
-        ],
-      }
     ];
 </script>
 

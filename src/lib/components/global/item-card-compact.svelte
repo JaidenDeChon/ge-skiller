@@ -27,11 +27,7 @@
         >
             <!-- Image -->
             <div class="flex justify-center items-center size-9 bg-muted rounded-full border group-hover:bg-background">
-                <img
-                    class="game-item-shadow transition-fade-in-delayed size-5"
-                    src={iconSrc}
-                    alt={gameItem.name}
-                />
+                <img class="game-item-shadow transition-fade-in-delayed size-5" src={iconSrc} alt={gameItem.name} />
             </div>
 
             <!-- Item name -->

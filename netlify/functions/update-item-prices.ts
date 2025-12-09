@@ -1,7 +1,7 @@
 import { startMongo } from '../../src/db/mongo';
 import { updateAllGameItemPricesInMongo } from '../../src/lib/services/game-item-price-service';
 
-(async function doThing () {
+(async function doThing() {
     console.info('Attempting item prices update');
 
     try {

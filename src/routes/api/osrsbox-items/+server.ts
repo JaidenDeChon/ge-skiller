@@ -5,7 +5,12 @@ import { OsrsboxItemModel } from '$lib/models/mongo-schemas/osrsbox-db-item-sche
 type IncomingSpec = {
     experienceGranted?: { skillName?: string; experienceAmount?: number }[];
     requiredSkills?: { skillName?: string; skillLevel?: number }[];
-    ingredients?: { consumedDuringCreation?: boolean; amount?: number; item?: string | number; itemId?: string | number }[];
+    ingredients?: {
+        consumedDuringCreation?: boolean;
+        amount?: number;
+        item?: string | number;
+        itemId?: string | number;
+    }[];
 };
 
 type IncomingPayload = {
@@ -99,11 +104,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
     try {
         const payload = await normalizePayload(raw);
-        const saved = await OsrsboxItemModel.findOneAndUpdate(
-            { id: payload.id },
-            payload,
-            { upsert: true, new: true, setDefaultsOnInsert: true },
-        )
+        const saved = await OsrsboxItemModel.findOneAndUpdate({ id: payload.id }, payload, {
+            upsert: true,
+            new: true,
+            setDefaultsOnInsert: true,
+        })
             .lean<{ _id: Types.ObjectId; id: number }>()
             .exec();
 
@@ -205,7 +210,11 @@ async function normalizeCreationSpecs(specs: IncomingSpec[]) {
             spec.experienceGranted
                 ?.map((row, rowIndex) => {
                     if (!row?.skillName?.trim()) return null;
-                    const amount = toNumber(row.experienceAmount, `creationSpecs[${i}].experienceGranted[${rowIndex}]`, true);
+                    const amount = toNumber(
+                        row.experienceAmount,
+                        `creationSpecs[${i}].experienceGranted[${rowIndex}]`,
+                        true,
+                    );
                     return amount === null ? null : { skillName: row.skillName.trim(), experienceAmount: amount };
                 })
                 .filter(Boolean) ?? [];
@@ -259,7 +268,10 @@ async function resolveItemReference(value: string | number): Promise<Types.Objec
 
     const numeric = Number(raw);
     if (Number.isFinite(numeric)) {
-        const found = await OsrsboxItemModel.findOne({ id: numeric }).select('_id').lean<{ _id: Types.ObjectId }>().exec();
+        const found = await OsrsboxItemModel.findOne({ id: numeric })
+            .select('_id')
+            .lean<{ _id: Types.ObjectId }>()
+            .exec();
         if (found?._id) return found._id;
     }
 

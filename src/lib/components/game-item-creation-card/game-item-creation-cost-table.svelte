@@ -1,7 +1,11 @@
 <script lang="ts">
     import * as Table from '$lib/components/ui/table';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
-    import type { GameItemCreationIngredient, GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+    import type {
+        GameItemCreationIngredient,
+        GameItemCreationSpecs,
+        IOsrsboxItemWithMeta,
+    } from '$lib/models/osrsbox-db-item';
     import { untrack } from 'svelte';
 
     interface GameItemCreationCostTableProps {
@@ -82,7 +86,7 @@
                 existing.totalPrice =
                     unitPrice !== null && existing.totalPrice !== null
                         ? existing.totalPrice + totalPrice!
-                        : existing.totalPrice ?? totalPrice;
+                        : (existing.totalPrice ?? totalPrice);
             } else {
                 map.set(key, { key, item, amount, unitPrice, totalPrice });
             }
@@ -180,7 +184,8 @@
                         Profit vs GE (high)
                     </div>
                 </Table.Cell>
-                <Table.Cell class="text-end font-semibold" colspan={3}>{formatDelta(geValue, selectedTotal)}</Table.Cell>
+                <Table.Cell class="text-end font-semibold" colspan={3}>{formatDelta(geValue, selectedTotal)}</Table.Cell
+                >
             </Table.Row>
             <Table.Row>
                 <Table.Cell colspan={2} class="font-semibold">
@@ -189,16 +194,24 @@
                         Profit vs store
                     </div>
                 </Table.Cell>
-                <Table.Cell class="text-end font-semibold" colspan={3}>{formatDelta(storeValue, selectedTotal)}</Table.Cell>
+                <Table.Cell class="text-end font-semibold" colspan={3}
+                    >{formatDelta(storeValue, selectedTotal)}</Table.Cell
+                >
             </Table.Row>
             <Table.Row>
                 <Table.Cell colspan={2} class="font-semibold">
                     <div class="inline-flex items-center gap-2">
-                        <img src="/spell-images/high-level-alchemy.png" alt="High alchemy" class="h-5 w-5 drop-shadow" />
+                        <img
+                            src="/spell-images/high-level-alchemy.png"
+                            alt="High alchemy"
+                            class="h-5 w-5 drop-shadow"
+                        />
                         Profit vs high alch
                     </div>
                 </Table.Cell>
-                <Table.Cell class="text-end font-semibold" colspan={3}>{formatDelta(highAlchValue, selectedTotal)}</Table.Cell>
+                <Table.Cell class="text-end font-semibold" colspan={3}
+                    >{formatDelta(highAlchValue, selectedTotal)}</Table.Cell
+                >
             </Table.Row>
             <Table.Row>
                 <Table.Cell colspan={2} class="font-semibold">
@@ -207,7 +220,9 @@
                         Profit vs low alch
                     </div>
                 </Table.Cell>
-                <Table.Cell class="text-end font-semibold" colspan={3}>{formatDelta(lowAlchValue, selectedTotal)}</Table.Cell>
+                <Table.Cell class="text-end font-semibold" colspan={3}
+                    >{formatDelta(lowAlchValue, selectedTotal)}</Table.Cell
+                >
             </Table.Row>
         </Table.Body>
     </Table.Root>

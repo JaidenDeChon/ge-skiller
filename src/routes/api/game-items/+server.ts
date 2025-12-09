@@ -1,5 +1,11 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getGameItems, getPaginatedGameItems, type GameItemFilter, type GameItemSortOrder, type PlayerSkillLevels } from '$lib/services/game-item-mongo-service.server';
+import {
+    getGameItems,
+    getPaginatedGameItems,
+    type GameItemFilter,
+    type GameItemSortOrder,
+    type PlayerSkillLevels,
+} from '$lib/services/game-item-mongo-service.server';
 
 export const GET: RequestHandler = async ({ url }) => {
     // Get all "id" parameters from the query string (supports multiple IDs).

@@ -26,9 +26,7 @@
         })),
     );
     let selectedSpecId = $state('');
-    const selectedSpec = $derived(
-        specOptions.find((opt) => opt.id === selectedSpecId)?.spec ?? creationSpec ?? null,
-    );
+    const selectedSpec = $derived(specOptions.find((opt) => opt.id === selectedSpecId)?.spec ?? creationSpec ?? null);
 
     $effect(() => {
         const firstOptionId = specOptions[0]?.id ?? '';
@@ -50,7 +48,9 @@
         <Card.Header>
             <Card.Title class="text-xl">Item creation stats</Card.Title>
             <Card.Description>
-                {hasIngredients ? 'XP and GP you stand to gain when creating this item' : 'This item has no ingredients.'}
+                {hasIngredients
+                    ? 'XP and GP you stand to gain when creating this item'
+                    : 'This item has no ingredients.'}
             </Card.Description>
         </Card.Header>
 
@@ -69,12 +69,12 @@
                     <Tabs.Content value={option.id} class="px-5">
                         <div class="grid gap-4 xl:grid-cols-2">
                             <div class="border rounded-md bg-muted/40 p-3">
-                                <GameItemTree gameItem={gameItem} creationSpec={option.spec} />
+                                <GameItemTree {gameItem} creationSpec={option.spec} />
                             </div>
                             <div class="border rounded-lg bg-card shadow-sm overflow-hidden">
                                 <div class="space-y-4 max-h-[28rem] overflow-auto">
-                                    <GameItemCreationXpTags gameItem={gameItem} creationSpec={option.spec} />
-                                    <GameItemCreationCostTable gameItem={gameItem} creationSpec={option.spec} />
+                                    <GameItemCreationXpTags {gameItem} creationSpec={option.spec} />
+                                    <GameItemCreationCostTable {gameItem} creationSpec={option.spec} />
                                 </div>
                             </div>
                         </div>

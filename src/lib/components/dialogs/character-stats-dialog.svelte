@@ -16,11 +16,13 @@
         trigger,
         triggerClass = buttonVariants({ variant: 'default' }),
         populateCharacter = '',
-        onClose = () => { open.set(false); },
-        onCharacterSelected = () => { },
+        onClose = () => {
+            open.set(false);
+        },
+        onCharacterSelected = () => {},
     } = $props();
 
-    const padding = 'p-2'
+    const padding = 'p-2';
 
     // Controls whether the dialog is open.
     let open = writable(false);
@@ -39,7 +41,7 @@
             if (!found) {
                 resetDialog();
                 return;
-            };
+            }
 
             populatedStats.set({ ...found });
         }
@@ -126,10 +128,7 @@
             <Dialog.Description>Enter your skills manually or import them from skill trackers.</Dialog.Description>
         </Dialog.Header>
 
-        <form
-            class="flex flex-col gap-6"
-            onsubmit={(saveCharacterStats)}
-        >
+        <form class="flex flex-col gap-6" onsubmit={saveCharacterStats}>
             <div class="max-h-[35vh] overflow-auto pb-1 flex flex-col gap-6 {padding}">
                 <div>
                     <Label class="capitalize text-xs" for="character-name">Character name</Label>
@@ -265,7 +264,7 @@
                                 type="number"
                                 bind:value={$populatedStats.skillLevels.hitpoints}
                                 min={10}
-                            max="99"
+                                max="99"
                                 inputmode="numeric"
                             />
                         </div>

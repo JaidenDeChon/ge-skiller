@@ -43,11 +43,11 @@ export const gameItemSchema = new mongoose.Schema<IGameItem>({
     },
     highalch: {
         type: Number,
-        required: false
+        required: false,
     },
     lowalch: {
         type: Number,
-        required: false
+        required: false,
     },
     highPrice: {
         type: Number,
@@ -69,27 +69,30 @@ export const gameItemSchema = new mongoose.Schema<IGameItem>({
         experienceGranted: [
             {
                 skillName: String,
-                experienceAmount: Number
-            }
+                experienceAmount: Number,
+            },
         ],
         requiredSkills: [
             {
                 skillName: String,
-                skillLevel: Number
-            }
+                skillLevel: Number,
+            },
         ],
         ingredients: [
-            new mongoose.Schema({
-                consumedDuringCreation: Boolean,
-                amount: Number,
-                // Recursively reference another GameItem
-                item: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: 'GameItem'
-                }
-            }, { _id: false })
-        ]
-    }
+            new mongoose.Schema(
+                {
+                    consumedDuringCreation: Boolean,
+                    amount: Number,
+                    // Recursively reference another GameItem
+                    item: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: 'GameItem',
+                    },
+                },
+                { _id: false },
+            ),
+        ],
+    },
 });
 
 let GameItemModel: mongoose.Model<IGameItem>;

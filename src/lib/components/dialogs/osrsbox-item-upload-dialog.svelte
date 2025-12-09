@@ -172,36 +172,33 @@
 
         return specs
             .map((spec) => {
-                const experienceGranted =
-                    Array.isArray((spec as any)?.experienceGranted)
-                        ? (spec as any).experienceGranted
-                              .map((row: any) => ({
-                                  skillName: row?.skillName ?? '',
-                                  experienceAmount: toStringField(row?.experienceAmount ?? ''),
-                              }))
-                              .filter((row: any) => row.skillName || row.experienceAmount)
-                        : [];
+                const experienceGranted = Array.isArray((spec as any)?.experienceGranted)
+                    ? (spec as any).experienceGranted
+                          .map((row: any) => ({
+                              skillName: row?.skillName ?? '',
+                              experienceAmount: toStringField(row?.experienceAmount ?? ''),
+                          }))
+                          .filter((row: any) => row.skillName || row.experienceAmount)
+                    : [];
 
-                const requiredSkills =
-                    Array.isArray((spec as any)?.requiredSkills)
-                        ? (spec as any).requiredSkills
-                              .map((row: any) => ({
-                                  skillName: row?.skillName ?? '',
-                                  skillLevel: toStringField(row?.skillLevel ?? ''),
-                              }))
-                              .filter((row: any) => row.skillName || row.skillLevel)
-                        : [];
+                const requiredSkills = Array.isArray((spec as any)?.requiredSkills)
+                    ? (spec as any).requiredSkills
+                          .map((row: any) => ({
+                              skillName: row?.skillName ?? '',
+                              skillLevel: toStringField(row?.skillLevel ?? ''),
+                          }))
+                          .filter((row: any) => row.skillName || row.skillLevel)
+                    : [];
 
-                const ingredients =
-                    Array.isArray((spec as any)?.ingredients)
-                        ? (spec as any).ingredients
-                              .map((row: any) => ({
-                                  consumedDuringCreation: Boolean(row?.consumedDuringCreation),
-                                  amount: toStringField(row?.amount ?? ''),
-                                  itemId: toStringField(row?.item ?? row?.itemId ?? ''),
-                              }))
-                              .filter((row: any) => row.itemId)
-                        : [];
+                const ingredients = Array.isArray((spec as any)?.ingredients)
+                    ? (spec as any).ingredients
+                          .map((row: any) => ({
+                              consumedDuringCreation: Boolean(row?.consumedDuringCreation),
+                              amount: toStringField(row?.amount ?? ''),
+                              itemId: toStringField(row?.item ?? row?.itemId ?? ''),
+                          }))
+                          .filter((row: any) => row.itemId)
+                    : [];
 
                 if (!experienceGranted.length && !requiredSkills.length && !ingredients.length) {
                     return null;
@@ -519,7 +516,7 @@
 
     async function fetchWikiHtmlByTitle(title: string): Promise<string> {
         const url = `${OSRS_WIKI_API}?action=parse&format=json&formatversion=2&prop=text&page=${encodeURIComponent(
-            title
+            title,
         )}&origin=*`;
 
         const res = await fetch(url);
@@ -527,7 +524,7 @@
             throw new Error(`Wiki parse failed: ${res.status} ${res.statusText}`);
         }
 
-        const json = await res.json() as any;
+        const json = (await res.json()) as any;
         const html: string | undefined =
             typeof json?.parse?.text === 'string' ? json.parse.text : json?.parse?.text?.['*'];
 
@@ -591,7 +588,7 @@
         // Search for "id = 6675" in the wikitext (Infobox Item uses |id = 6675)
         const query = `insource:"id = ${id}"`;
         const url = `${OSRS_WIKI_API}?action=query&format=json&list=search&srlimit=1&srsearch=${encodeURIComponent(
-            query
+            query,
         )}&origin=*`;
 
         const res = await fetch(url);
@@ -599,7 +596,7 @@
             throw new Error(`Wiki search failed: ${res.status} ${res.statusText}`);
         }
 
-        const json = await res.json() as any;
+        const json = (await res.json()) as any;
         const first = json?.query?.search?.[0];
         if (!first?.title) return null;
         return first.title as string;
@@ -690,9 +687,7 @@
             }
 
             // Release date
-            const release = parseReleaseDateToIso(
-                map['released'] ?? map['release'] ?? map['release date']
-            );
+            const release = parseReleaseDateToIso(map['released'] ?? map['release'] ?? map['release date']);
             if (release && !formData.release_date) {
                 updates.release_date = release;
             }
@@ -708,9 +703,7 @@
             if (!formData.wiki_name) {
                 updates.wiki_name = pageTitle;
             }
-            const wikiUrl = `https://oldschool.runescape.wiki/w/${encodeURIComponent(
-                pageTitle.replace(/ /g, '_')
-            )}`;
+            const wikiUrl = `https://oldschool.runescape.wiki/w/${encodeURIComponent(pageTitle.replace(/ /g, '_'))}`;
             if (!formData.wiki_url) {
                 updates.wiki_url = wikiUrl;
             }
@@ -730,11 +723,7 @@
             toast.success('Loaded item data from OSRS Wiki.');
         } catch (error) {
             console.error(error);
-            toast.error(
-                error instanceof Error
-                    ? `Wiki lookup failed: ${error.message}`
-                    : 'Wiki lookup failed.'
-            );
+            toast.error(error instanceof Error ? `Wiki lookup failed: ${error.message}` : 'Wiki lookup failed.');
         } finally {
             isLookupLoading = false;
         }
@@ -769,11 +758,7 @@
             await fetchAndApplyWikiData(title);
         } catch (error) {
             console.error(error);
-            toast.error(
-                error instanceof Error
-                    ? `ID lookup failed: ${error.message}`
-                    : 'ID lookup failed.'
-            );
+            toast.error(error instanceof Error ? `ID lookup failed: ${error.message}` : 'ID lookup failed.');
         } finally {
             isLookupLoading = false;
         }
@@ -848,17 +833,23 @@
                 const experienceGranted = spec.experienceGranted
                     .map((row, rowIndex) => {
                         if (!row.skillName.trim()) return null;
-                        const amount = toNumber(row.experienceAmount, `Spec ${specIndex + 1} experience ${rowIndex + 1}`, true);
-                        return amount === null
-                            ? null
-                            : { skillName: row.skillName.trim(), experienceAmount: amount };
+                        const amount = toNumber(
+                            row.experienceAmount,
+                            `Spec ${specIndex + 1} experience ${rowIndex + 1}`,
+                            true,
+                        );
+                        return amount === null ? null : { skillName: row.skillName.trim(), experienceAmount: amount };
                     })
                     .filter(Boolean) as UploadPayload['creationSpecs'][number]['experienceGranted'];
 
                 const requiredSkills = spec.requiredSkills
                     .map((row, rowIndex) => {
                         if (!row.skillName.trim()) return null;
-                        const level = toNumber(row.skillLevel, `Spec ${specIndex + 1} requirement ${rowIndex + 1}`, true);
+                        const level = toNumber(
+                            row.skillLevel,
+                            `Spec ${specIndex + 1} requirement ${rowIndex + 1}`,
+                            true,
+                        );
                         return level === null ? null : { skillName: row.skillName.trim(), skillLevel: level };
                     })
                     .filter(Boolean) as UploadPayload['creationSpecs'][number]['requiredSkills'];
@@ -866,7 +857,11 @@
                 const ingredients = spec.ingredients
                     .map((row, rowIndex) => {
                         if (!row.itemId.trim()) return null;
-                        const amount = toNumber(row.amount, `Spec ${specIndex + 1} ingredient ${rowIndex + 1} amount`, true);
+                        const amount = toNumber(
+                            row.amount,
+                            `Spec ${specIndex + 1} ingredient ${rowIndex + 1} amount`,
+                            true,
+                        );
                         if (amount === null) return null;
                         return {
                             consumedDuringCreation: row.consumedDuringCreation,
@@ -1014,12 +1009,7 @@
                         <div class="md:col-span-2">
                             <Label for="item-name">Name *</Label>
                             <div class="flex gap-2">
-                                <Input
-                                    id="item-name"
-                                    required
-                                    class="flex-1"
-                                    bind:value={formData.name}
-                                />
+                                <Input id="item-name" required class="flex-1" bind:value={formData.name} />
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -1049,7 +1039,12 @@
                         </div>
                         <div>
                             <Label for="release-date">Release date</Label>
-                            <Input id="release-date" type="text" placeholder="YYYY-MM-DD" bind:value={formData.release_date} />
+                            <Input
+                                id="release-date"
+                                type="text"
+                                placeholder="YYYY-MM-DD"
+                                bind:value={formData.release_date}
+                            />
                         </div>
                         <div>
                             <Label for="cost">Cost *</Label>
@@ -1065,7 +1060,13 @@
                         </div>
                         <div>
                             <Label for="weight">Weight (kg)</Label>
-                            <Input id="weight" type="number" step="0.001" inputmode="decimal" bind:value={formData.weight} />
+                            <Input
+                                id="weight"
+                                type="number"
+                                step="0.001"
+                                inputmode="decimal"
+                                bind:value={formData.weight}
+                            />
                         </div>
                         <div>
                             <Label for="buy-limit">Buy limit</Label>
@@ -1077,15 +1078,30 @@
                         </div>
                         <div>
                             <Label for="linked-item">Linked item ID</Label>
-                            <Input id="linked-item" type="number" inputmode="numeric" bind:value={formData.linked_id_item} />
+                            <Input
+                                id="linked-item"
+                                type="number"
+                                inputmode="numeric"
+                                bind:value={formData.linked_id_item}
+                            />
                         </div>
                         <div>
                             <Label for="linked-noted">Linked noted ID</Label>
-                            <Input id="linked-noted" type="number" inputmode="numeric" bind:value={formData.linked_id_noted} />
+                            <Input
+                                id="linked-noted"
+                                type="number"
+                                inputmode="numeric"
+                                bind:value={formData.linked_id_noted}
+                            />
                         </div>
                         <div>
                             <Label for="linked-placeholder">Linked placeholder ID</Label>
-                            <Input id="linked-placeholder" type="number" inputmode="numeric" bind:value={formData.linked_id_placeholder} />
+                            <Input
+                                id="linked-placeholder"
+                                type="number"
+                                inputmode="numeric"
+                                bind:value={formData.linked_id_placeholder}
+                            />
                         </div>
                         <div>
                             <Label for="wiki-name">Wiki name</Label>
@@ -1174,7 +1190,9 @@
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-start">
                         <div class="space-y-2">
                             <Input type="file" accept="image/*" onchange={handleIconFileSelect} />
-                            <p class="text-[11px] text-muted-foreground">File will be converted to base64 for storage.</p>
+                            <p class="text-[11px] text-muted-foreground">
+                                File will be converted to base64 for storage.
+                            </p>
                         </div>
                         <div class="space-y-2">
                             <Label for="icon-base64">Or paste base64</Label>
@@ -1210,7 +1228,9 @@
                         <FileText class="size-4 text-muted-foreground" />
                         <div>
                             <p class="text-base font-semibold leading-tight">Equipment & weapon JSON</p>
-                            <p class="text-xs text-muted-foreground">Paste JSON blobs straight from the wiki or leave empty.</p>
+                            <p class="text-xs text-muted-foreground">
+                                Paste JSON blobs straight from the wiki or leave empty.
+                            </p>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1290,10 +1310,15 @@
                                         <div class="space-y-2">
                                             <div class="flex items-center justify-between">
                                                 <Label>Experience granted</Label>
-                                                <Button variant="ghost" size="sm" type="button" onclick={() => addExperience(selectedSpecIndex)}>
-                                                <Plus class="size-4" />
-                                                Add row
-                                            </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    type="button"
+                                                    onclick={() => addExperience(selectedSpecIndex)}
+                                                >
+                                                    <Plus class="size-4" />
+                                                    Add row
+                                                </Button>
                                             </div>
                                             <div class="space-y-2">
                                                 {#if currentSpec.experienceGranted.length === 0}
@@ -1306,18 +1331,19 @@
                                                             placeholder="Skill"
                                                             bind:value={expRow.skillName}
                                                         />
-                                                    <Input
-                                                        class="col-span-2"
-                                                        type="number"
-                                                        inputmode="decimal"
-                                                        bind:value={expRow.experienceAmount}
-                                                    />
+                                                        <Input
+                                                            class="col-span-2"
+                                                            type="number"
+                                                            inputmode="decimal"
+                                                            bind:value={expRow.experienceAmount}
+                                                        />
                                                         <Button
                                                             class="col-span-5 justify-start"
                                                             variant="ghost"
                                                             size="sm"
                                                             type="button"
-                                                            onclick={() => removeExperience(selectedSpecIndex, expIndex)}
+                                                            onclick={() =>
+                                                                removeExperience(selectedSpecIndex, expIndex)}
                                                         >
                                                             <Trash2 class="size-4" />
                                                             Remove
@@ -1330,10 +1356,15 @@
                                         <div class="space-y-2">
                                             <div class="flex items-center justify-between">
                                                 <Label>Required skills</Label>
-                                                <Button variant="ghost" size="sm" type="button" onclick={() => addRequiredSkill(selectedSpecIndex)}>
-                                                <Plus class="size-4" />
-                                                Add row
-                                            </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    type="button"
+                                                    onclick={() => addRequiredSkill(selectedSpecIndex)}
+                                                >
+                                                    <Plus class="size-4" />
+                                                    Add row
+                                                </Button>
                                             </div>
                                             <div class="space-y-2">
                                                 {#if currentSpec.requiredSkills.length === 0}
@@ -1341,19 +1372,24 @@
                                                 {/if}
                                                 {#each currentSpec.requiredSkills as reqRow, reqIndex}
                                                     <div class="grid grid-cols-5 gap-2 items-center">
-                                                        <Input class="col-span-3" placeholder="Skill" bind:value={reqRow.skillName} />
-                                                    <Input
-                                                        class="col-span-2"
-                                                        type="number"
-                                                        inputmode="numeric"
-                                                        bind:value={reqRow.skillLevel}
-                                                    />
+                                                        <Input
+                                                            class="col-span-3"
+                                                            placeholder="Skill"
+                                                            bind:value={reqRow.skillName}
+                                                        />
+                                                        <Input
+                                                            class="col-span-2"
+                                                            type="number"
+                                                            inputmode="numeric"
+                                                            bind:value={reqRow.skillLevel}
+                                                        />
                                                         <Button
                                                             class="col-span-5 justify-start"
                                                             variant="ghost"
                                                             size="sm"
                                                             type="button"
-                                                            onclick={() => removeRequiredSkill(selectedSpecIndex, reqIndex)}
+                                                            onclick={() =>
+                                                                removeRequiredSkill(selectedSpecIndex, reqIndex)}
                                                         >
                                                             <Trash2 class="size-4" />
                                                             Remove
@@ -1367,17 +1403,26 @@
                                     <div class="space-y-2">
                                         <div class="flex items-center justify-between">
                                             <Label>Ingredients</Label>
-                                            <Button variant="ghost" size="sm" type="button" onclick={() => addIngredient(selectedSpecIndex)}>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                type="button"
+                                                onclick={() => addIngredient(selectedSpecIndex)}
+                                            >
                                                 <Plus class="size-4" />
-                                            Add ingredient
-                                        </Button>
+                                                Add ingredient
+                                            </Button>
                                         </div>
                                         <div class="space-y-3">
                                             {#if currentSpec.ingredients.length === 0}
-                                                <p class="text-xs text-muted-foreground">List the item IDs and quantities needed.</p>
+                                                <p class="text-xs text-muted-foreground">
+                                                    List the item IDs and quantities needed.
+                                                </p>
                                             {/if}
                                             {#each currentSpec.ingredients as ingRow, ingIndex}
-                                                <div class="grid gap-2 md:grid-cols-12 items-center rounded-md border bg-background/80 p-3">
+                                                <div
+                                                    class="grid gap-2 md:grid-cols-12 items-center rounded-md border bg-background/80 p-3"
+                                                >
                                                     <div class="md:col-span-5 space-y-1">
                                                         <Label class="text-xs">Item ID or ObjectId</Label>
                                                         <Input
@@ -1386,26 +1431,32 @@
                                                         />
                                                         {#if normalizeIngredientKey(ingRow.itemId)}
                                                             <p class="text-[11px] text-muted-foreground">
-                                                                Resolved: {ingredientNameCache[normalizeIngredientKey(ingRow.itemId)] ?? '…'}
+                                                                Resolved: {ingredientNameCache[
+                                                                    normalizeIngredientKey(ingRow.itemId)
+                                                                ] ?? '…'}
                                                             </p>
                                                         {:else}
-                                                            <p class="text-[11px] text-muted-foreground">Enter an item id to resolve name</p>
+                                                            <p class="text-[11px] text-muted-foreground">
+                                                                Enter an item id to resolve name
+                                                            </p>
                                                         {/if}
                                                     </div>
                                                     <div class="md:col-span-3 space-y-1">
                                                         <Label class="text-xs">Amount</Label>
-                                                    <Input
-                                                        type="number"
-                                                        inputmode="numeric"
-                                                        bind:value={ingRow.amount}
-                                                    />
+                                                        <Input
+                                                            type="number"
+                                                            inputmode="numeric"
+                                                            bind:value={ingRow.amount}
+                                                        />
                                                     </div>
                                                     <div class="md:col-span-3 space-y-1">
                                                         <Label class="text-xs">Consumed?</Label>
                                                         <div class="flex items-center gap-2">
                                                             <Switch bind:checked={ingRow.consumedDuringCreation} />
                                                             <span class="text-xs text-muted-foreground">
-                                                                {ingRow.consumedDuringCreation ? 'Consumed' : 'Retained/tool'}
+                                                                {ingRow.consumedDuringCreation
+                                                                    ? 'Consumed'
+                                                                    : 'Retained/tool'}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -1414,7 +1465,8 @@
                                                             variant="ghost"
                                                             size="icon"
                                                             type="button"
-                                                            onclick={() => removeIngredient(selectedSpecIndex, ingIndex)}
+                                                            onclick={() =>
+                                                                removeIngredient(selectedSpecIndex, ingIndex)}
                                                         >
                                                             <Trash2 class="size-4" />
                                                             <span class="sr-only">Remove ingredient</span>

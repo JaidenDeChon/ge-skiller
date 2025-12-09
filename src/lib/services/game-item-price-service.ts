@@ -15,7 +15,7 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
 
     const bulkOperations: AnyBulkWriteOperation[] = [];
     const missingData: number[] = [];
-    
+
     // Update the price of every game item in MongoDB.
     for (const item of gameItemsInMongo) {
         const fullItemData = updatedGameItems[item.id];
@@ -61,9 +61,11 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
     const lastUpdated = Date.now();
 
     // Update the collection metadata.
-    await CollectionMetadataModel
-        .findOneAndUpdate({ collectionName }, { lastUpdated, collectionName }, { upsert: true })
-        .exec();
+    await CollectionMetadataModel.findOneAndUpdate(
+        { collectionName },
+        { lastUpdated, collectionName },
+        { upsert: true },
+    ).exec();
 
     logger.info(`Collection metadata updated for "${collectionName}" at ${new Date(lastUpdated).toISOString()}`);
 

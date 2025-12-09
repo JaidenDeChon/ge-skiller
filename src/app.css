@@ -81,7 +81,7 @@
         @apply border-border;
     }
     body {
-        @apply bg-background text-foreground transition-colors font-sans animate-fade-in-delayed;
+        @apply animate-fade-in-delayed bg-background font-sans text-foreground transition-colors;
     }
 }
 
@@ -93,7 +93,7 @@
                 90ms cubic-bezier(0.4, 0, 1, 1) both fade-out,
                 300ms cubic-bezier(0.4, 0, 0.2, 1) both slide-to-left;
         }
-    
+
         :root::view-transition-new(root) {
             animation:
                 210ms cubic-bezier(0, 0, 0.2, 1) 90ms both fade-in,
@@ -108,7 +108,7 @@
      */
     .content-sizing {
         width: 100%;
-        @apply w-full max-w-5xl px-8 mx-auto;
+        @apply mx-auto w-full max-w-5xl px-8;
     }
 
     /*
@@ -117,21 +117,21 @@
      */
     .content-sizing-half {
         width: 100%;
-        @apply w-full max-w-2xl py-3 px-8 mx-auto;
+        @apply mx-auto w-full max-w-2xl px-8 py-3;
     }
 
     /**
      * Applies a background blur to the element.
      */
     .custom-bg-blur {
-        @apply bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur;
+        @apply bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60;
     }
 
     /**
      * Applies custom card styles.
      */
     .custom-card {
-        @apply text-card-foreground p-6 bg-card rounded-xl border shadow;
+        @apply rounded-xl border bg-card p-6 text-card-foreground shadow;
     }
 
     /**
@@ -146,7 +146,7 @@
      */
     .rs-font-with-shadow {
         @apply rs-font;
-        text-shadow: .042em .042em black;
+        text-shadow: 0.042em 0.042em black;
     }
 
     /**

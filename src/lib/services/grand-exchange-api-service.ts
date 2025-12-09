@@ -1,14 +1,15 @@
 import type * as Types from '../models/grand-exchange-protocols';
 
 const headers = {
-    'User-Agent': 'npm runelite | ge-skiller | Helps OSRS players turn their skilling processes into more valuable ' +
-        'ventures. | Contact: me@jaiden.foo'
+    'User-Agent':
+        'npm runelite | ge-skiller | Helps OSRS players turn their skilling processes into more valuable ' +
+        'ventures. | Contact: me@jaiden.foo',
 };
 
 const fetchData = async (url: RequestInfo | URL) => {
     const response = await fetch(url, { headers });
     return await response.json();
-}
+};
 
 /**
  * Get the latest high and low prices for the items that we have data for,
@@ -40,13 +41,12 @@ const mappingCache: Types.FullMap = {};
  * @see https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices
  */
 export const mapping = async (): Promise<Types.FullMap> => {
-
     const cached = Object.keys(mappingCache).length > 0;
-    const url = "https://prices.runescape.wiki/api/v1/osrs/mapping";
+    const url = 'https://prices.runescape.wiki/api/v1/osrs/mapping';
 
     if (!cached) {
-        const response = await fetchData(url) as Types.MapData[];
-        response.forEach((item) => mappingCache[item.id] = item);
+        const response = (await fetchData(url)) as Types.MapData[];
+        response.forEach((item) => (mappingCache[item.id] = item));
     }
 
     return mappingCache;
@@ -84,12 +84,12 @@ export const prices = async (options: Types.PricesOptions): Promise<Types.TimeSe
     const { timestamp } = options || {};
 
     let { timestep } = options || {};
-    if (timestep) timestep = timestep.toLowerCase() as "5m" | "1h";
+    if (timestep) timestep = timestep.toLowerCase() as '5m' | '1h';
 
-    if (timestep !== "5m" && timestep !== "1h")
+    if (timestep !== '5m' && timestep !== '1h')
         console.error("interval must be '5m' or '1h'. Falling back to 5min, in future, this will be an error.");
 
-    timestep = timestep ?? "5m";
+    timestep = timestep ?? '5m';
 
     const url = timestamp
         ? `https://prices.runescape.wiki/api/v1/osrs/${timestep}?timestamp=${timestamp}`

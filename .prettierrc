@@ -5,10 +5,7 @@
     "svelteIndentScriptAndStyle": true,
     "printWidth": 120,
     "singleQuote": true,
-    "plugins": [
-        "prettier-plugin-tailwindcss",
-        "prettier-plugin-svelte"
-    ],
+    "plugins": ["prettier-plugin-tailwindcss", "prettier-plugin-svelte"],
     "tailwindConfig": "./tailwind.config.ts",
     "overrides": [
         {

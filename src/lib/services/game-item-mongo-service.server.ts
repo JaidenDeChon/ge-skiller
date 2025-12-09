@@ -41,10 +41,7 @@ export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxI
 export async function getGameItems(ids?: string[]): Promise<GameItemDoc[]> {
     if (!ids || !ids.length) {
         // Only grab first 32 items for performance reasons
-        return OsrsboxItemModel.find({})
-            .limit(32)
-            .lean<GameItemDoc[]>()
-            .exec();
+        return OsrsboxItemModel.find({}).limit(32).lean<GameItemDoc[]>().exec();
     }
 
     const normalizedIds = ids.map((rawId) => {
@@ -60,16 +57,14 @@ export async function getGameItems(ids?: string[]): Promise<GameItemDoc[]> {
 /**
  * Returns a paginated list of game items with optional filtering and sort order (defaults high price desc).
  */
-export async function getPaginatedGameItems(
-    params?: {
-        page?: number;
-        perPage?: number;
-        filter?: GameItemFilter;
-        sortOrder?: GameItemSortOrder;
-        skillLevels?: PlayerSkillLevels | null;
-        skill?: string | null;
-    },
-): Promise<PaginatedGameItems> {
+export async function getPaginatedGameItems(params?: {
+    page?: number;
+    perPage?: number;
+    filter?: GameItemFilter;
+    sortOrder?: GameItemSortOrder;
+    skillLevels?: PlayerSkillLevels | null;
+    skill?: string | null;
+}): Promise<PaginatedGameItems> {
     const page = Math.max(1, params?.page ?? 1);
     const perPage = Math.max(1, Math.min(200, params?.perPage ?? 12));
     const skip = (page - 1) * perPage;
@@ -88,7 +83,7 @@ export async function getPaginatedGameItems(
                 .limit(perPage)
                 .lean<GameItemDoc[]>()
                 .exec(),
-            OsrsboxItemModel.countDocuments(filterQuery).exec()
+            OsrsboxItemModel.countDocuments(filterQuery).exec(),
         ]);
 
         return { items, total, page, perPage };
@@ -141,7 +136,9 @@ export async function searchGameItems(query: string, limit: number = 10): Promis
             .lean<GameItemDoc[]>()
             .exec();
 
-        const alphabetized = docs.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'en', { sensitivity: 'base' }));
+        const alphabetized = docs.sort((a, b) =>
+            (a.name ?? '').localeCompare(b.name ?? '', 'en', { sensitivity: 'base' }),
+        );
 
         for (const doc of alphabetized) {
             const key = doc.id?.toString() ?? (doc as unknown as { _id?: Types.ObjectId })._id?.toString();
@@ -204,10 +201,7 @@ function getSkillMatchQuery(skill?: string | null): Record<string, unknown> | nu
     return {
         creationSpecs: {
             $elemMatch: {
-                $or: [
-                    { 'requiredSkills.skillName': skillRegex },
-                    { 'experienceGranted.skillName': skillRegex },
-                ],
+                $or: [{ 'requiredSkills.skillName': skillRegex }, { 'experienceGranted.skillName': skillRegex }],
             },
         },
     };

@@ -78,7 +78,9 @@
     let sortOrderSelected = $state($itemsPagePreferences.sortOrder || 'desc');
     const perPageValue = $derived(Number(perPageSelected) || 12);
     const perPageLabel = $derived(`${perPageValue}`);
-    const filterLabel = $derived(filterOptions.find((option) => option.value === filterSelected)?.label ?? 'Filter items');
+    const filterLabel = $derived(
+        filterOptions.find((option) => option.value === filterSelected)?.label ?? 'Filter items',
+    );
     const sortOrderLabel = $derived(
         sortOrderOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Price order',
     );
@@ -206,7 +208,6 @@
         currentPage = 1;
         itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
     }
-
 </script>
 
 <div class="items-page pt-6 pb-8">
@@ -250,7 +251,9 @@
                     </div>
                 </div>
 
-                <div class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:text-right">
+                <div
+                    class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:text-right"
+                >
                     <div class="min-w-[170px] sm:w-[190px]">
                         <Select.Root type="single" bind:value={perPageSelected} onValueChange={handlePerPageChange}>
                             <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
@@ -282,7 +285,6 @@
                         {skillToggleLabel}
                     </Label>
                 </div>
-                
             </div>
         </div>
     </div>
@@ -290,20 +292,25 @@
     <div class="content-sizing">
         {#snippet pagination()}
             <div class="max-w-24 mx-auto">
-                <Pagination.Root class="item-page-pagination" bind:page={currentPage} count={totalItems} perPage={perPageValue}>
+                <Pagination.Root
+                    class="item-page-pagination"
+                    bind:page={currentPage}
+                    count={totalItems}
+                    perPage={perPageValue}
+                >
                     {#snippet children({ pages, currentPage })}
                         <Pagination.Content>
                             <Pagination.Item>
                                 <Pagination.PrevButton />
                             </Pagination.Item>
-                            {#each (isMobile ? pages.filter((p) => {
-                                    const last = pages[pages.length - 1];
-                                    const lastVal = last && last.type !== 'ellipsis' ? last.value : undefined;
-                                    if (p.type === 'ellipsis') return false;
-                                    const val = p.value;
-                                    return val === 1 || val === currentPage || (lastVal !== undefined && val === lastVal) || val === currentPage - 1 || val === currentPage + 1;
-                                }) : pages) as page (page.key)}
-                                {#if page.type === "ellipsis"}
+                            {#each isMobile ? pages.filter((p) => {
+                                      const last = pages[pages.length - 1];
+                                      const lastVal = last && last.type !== 'ellipsis' ? last.value : undefined;
+                                      if (p.type === 'ellipsis') return false;
+                                      const val = p.value;
+                                      return val === 1 || val === currentPage || (lastVal !== undefined && val === lastVal) || val === currentPage - 1 || val === currentPage + 1;
+                                  }) : pages as page (page.key)}
+                                {#if page.type === 'ellipsis'}
                                     <Pagination.Item>
                                         <Pagination.Ellipsis />
                                     </Pagination.Item>

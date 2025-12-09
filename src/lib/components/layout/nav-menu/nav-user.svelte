@@ -7,9 +7,9 @@
     const sidebar = Sidebar.useSidebar();
 
     const user = {
-      name: 'Jaiden DeChon',
-      email: 'me@jaiden.foo',
-      avatar: '/npc-images/zanik.png',
+        name: 'Jaiden DeChon',
+        email: 'me@jaiden.foo',
+        avatar: '/npc-images/zanik.png',
     };
 </script>
 
@@ -17,9 +17,9 @@
     <DropdownMenu.Trigger>
         {#snippet child({ props })}
             <Sidebar.MenuButton
-                    size="lg"
-                    class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                    {...props}
+                size="lg"
+                class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                {...props}
             >
                 <Avatar.Root class="h-8 w-8 rounded-lg">
                     <Avatar.Image src={user.avatar} alt={user.name} />
@@ -34,10 +34,10 @@
         {/snippet}
     </DropdownMenu.Trigger>
     <DropdownMenu.Content
-            class="w-[--bits-dropdown-menu-anchor-width] min-w-56 rounded-lg"
-            side={sidebar.isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
+        class="w-[--bits-dropdown-menu-anchor-width] min-w-56 rounded-lg"
+        side={sidebar.isMobile ? 'bottom' : 'right'}
+        align="end"
+        sideOffset={4}
     >
         <DropdownMenu.Label class="p-0 font-normal">
             <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">

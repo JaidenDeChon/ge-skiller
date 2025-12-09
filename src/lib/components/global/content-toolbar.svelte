@@ -27,7 +27,7 @@
         { label: 'Skill requirement', value: 'skill' },
     ];
     const sortDropdownTriggerContent = $derived(
-        sortOptions.find(sortOption => sortOption.value === sortValue)?.label ?? 'Sort by...',
+        sortOptions.find((sortOption) => sortOption.value === sortValue)?.label ?? 'Sort by...',
     );
 
     let orderValue = $state('');
@@ -36,8 +36,8 @@
         { label: 'Descending', value: 'descending' },
     ];
     const orderDropdownTriggerContent = $derived(
-        orderOptions.find(orderOption => orderOption.value === orderValue)?.label ?? 'Order by...',
-    )
+        orderOptions.find((orderOption) => orderOption.value === orderValue)?.label ?? 'Order by...',
+    );
 </script>
 
 <div class="border-t border-b">
@@ -48,21 +48,14 @@
         </div>
 
         <div class="flex flex-col gap-3 md:flex-row">
-            <Select.Root
-                    type="multiple"
-                    name="skillSelect"
-                    bind:value={selectedSkills}
-            >
+            <Select.Root type="multiple" name="skillSelect" bind:value={selectedSkills}>
                 <Select.Trigger>
                     {skillDropdownTriggerContent}
                 </Select.Trigger>
                 <Select.Content>
                     <Select.Group>
                         {#each skillsOptions as skill}
-                            <Select.Item
-                                    value={skill}
-                                    label={skill}
-                            >
+                            <Select.Item value={skill} label={skill}>
                                 {skill}
                             </Select.Item>
                         {/each}
@@ -70,21 +63,14 @@
                 </Select.Content>
             </Select.Root>
 
-            <Select.Root
-                    type="single"
-                    name="sortSelect"
-                    bind:value={sortValue}
-            >
+            <Select.Root type="single" name="sortSelect" bind:value={sortValue}>
                 <Select.Trigger>
                     {sortDropdownTriggerContent}
                 </Select.Trigger>
                 <Select.Content>
                     <Select.Group>
                         {#each sortOptions as sortOpt}
-                            <Select.Item
-                                    value={sortOpt.value}
-                                    label={sortOpt.label}
-                            >
+                            <Select.Item value={sortOpt.value} label={sortOpt.label}>
                                 {sortOpt.label}
                             </Select.Item>
                         {/each}
@@ -92,21 +78,14 @@
                 </Select.Content>
             </Select.Root>
 
-            <Select.Root
-                    type="single"
-                    name="orderSelect"
-                    bind:value={orderValue}
-            >
+            <Select.Root type="single" name="orderSelect" bind:value={orderValue}>
                 <Select.Trigger>
                     {orderDropdownTriggerContent}
                 </Select.Trigger>
                 <Select.Content>
                     <Select.Group>
                         {#each orderOptions as orderOpt}
-                            <Select.Item
-                                    value={orderOpt.value}
-                                    label={orderOpt.label}
-                            >
+                            <Select.Item value={orderOpt.value} label={orderOpt.label}>
                                 {orderOpt.label}
                             </Select.Item>
                         {/each}

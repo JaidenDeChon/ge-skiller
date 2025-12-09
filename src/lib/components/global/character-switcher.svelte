@@ -111,7 +111,7 @@
                 <div class="flex gap-1">
                     <!-- "Add character" button -->
                     <Button variant="ghost" class="flex-1" onclick={() => selectCharacter(character)}>
-                        { character.name }
+                        {character.name}
                     </Button>
 
                     <!-- Remove character from store's `characters` list. -->

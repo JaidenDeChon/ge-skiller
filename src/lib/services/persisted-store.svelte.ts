@@ -33,9 +33,8 @@ export class LocalStorage<T> {
         // Access #version to trigger reactivity.
         this.#version.toString();
 
-        const root = typeof localStorage !== 'undefined'
-            ? JSON.parse(localStorage.getItem(this.#key) || 'null')
-            : this.#value;
+        const root =
+            typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem(this.#key) || 'null') : this.#value;
 
         const proxies = new WeakMap();
 
@@ -61,7 +60,7 @@ export class LocalStorage<T> {
                         }
 
                         return true;
-                    }
+                    },
                 });
 
                 proxies.set(value, p);
@@ -80,14 +79,14 @@ export class LocalStorage<T> {
                     await tick();
                     this.#listeners -= 1;
                     if (this.#listeners === 0) window.removeEventListener('storage', this.#handler);
-                }
+                };
             });
         }
 
         return proxy(root);
     }
 
-    set current(value: T) {        
+    set current(value: T) {
         if (typeof localStorage !== 'undefined') {
             localStorage.setItem(this.#key, JSON.stringify(value));
         }

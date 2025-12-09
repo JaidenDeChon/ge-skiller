@@ -17,8 +17,10 @@
         IOsrsboxItemWithMeta,
     } from '$lib/models/osrsbox-db-item';
 
-    const { gameItem, creationSpec: creationSpecOverride = null }: { gameItem: IOsrsboxItemWithMeta | null; creationSpec?: GameItemCreationSpecs | null } =
-        $props();
+    const {
+        gameItem,
+        creationSpec: creationSpecOverride = null,
+    }: { gameItem: IOsrsboxItemWithMeta | null; creationSpec?: GameItemCreationSpecs | null } = $props();
 
     echarts.use([TreeChart, TooltipComponent, CanvasRenderer]);
 
@@ -58,13 +60,7 @@
 
         const visited = new Set<string | number>([item.id ?? 'root']);
         const creationSpec = overrideSpec ?? getPrimaryCreationSpec(item);
-        const children = buildChildren(
-            creationSpec?.ingredients ?? [],
-            `${item.id}`,
-            1,
-            visited,
-            includeTools,
-        );
+        const children = buildChildren(creationSpec?.ingredients ?? [], `${item.id}`, 1, visited, includeTools);
 
         return {
             key: item.id ?? 'root',
@@ -130,10 +126,7 @@
         };
     }
 
-    function shouldSkipIngredient(
-        ingredient: GameItemCreationIngredient,
-        includeTools: boolean,
-    ): boolean {
+    function shouldSkipIngredient(ingredient: GameItemCreationIngredient, includeTools: boolean): boolean {
         if (!includeTools && ingredient.consumedDuringCreation === false) return true;
 
         return false;
@@ -152,11 +145,7 @@
         };
     }
 
-    function buildChartOption(
-        node: IngredientTreeNode | null,
-        colors: ThemeColors,
-        mobile: boolean,
-    ): ECOption | null {
+    function buildChartOption(node: IngredientTreeNode | null, colors: ThemeColors, mobile: boolean): ECOption | null {
         if (!node) return null;
 
         const orient = mobile ? 'TB' : 'LR';
@@ -212,17 +201,12 @@
         return color;
     }
 
-    function buildIconSymbol(
-        icon: string | null | undefined,
-        colors: ThemeColors,
-        amount?: number | null,
-    ): string {
+    function buildIconSymbol(icon: string | null | undefined, colors: ThemeColors, amount?: number | null): string {
         const dataUri = iconToDataUri(icon);
         const mutedFill = colors.muted || DEFAULT_THEME_COLORS.muted;
         const transparentMuted = withAlpha(mutedFill, 0.83);
         const borderStroke = colors.border || DEFAULT_THEME_COLORS.border;
-        const amountDisplay =
-            amount && amount > 1 ? (amount > 999 ? '999+' : `${Math.round(amount)}`) : null;
+        const amountDisplay = amount && amount > 1 ? (amount > 999 ? '999+' : `${Math.round(amount)}`) : null;
         const badge = amountDisplay
             ? `
                 <g>
@@ -395,7 +379,12 @@
     <div class="game-item-tree-shell">
         <div class="chart-controls">
             <div class="flex items-center gap-2">
-                <Switch id="show-tools-switch" bind:checked={renderTools} aria-label="Toggle showing creation tools" class="scale-75" />
+                <Switch
+                    id="show-tools-switch"
+                    bind:checked={renderTools}
+                    aria-label="Toggle showing creation tools"
+                    class="scale-75"
+                />
                 <Label for="show-tools-switch" class="cursor-pointer select-none text-xs font-medium">
                     Show tools (Hammer, Needle, etc)
                 </Label>

@@ -13,9 +13,9 @@ const gameItemSkillsSchema = new mongoose.Schema<IGameItemSkill>({
     categories: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'GameItemCategory'
-        }
-    ]
+            ref: 'GameItemCategory',
+        },
+    ],
 });
 
 let GameItemSkillsModel: mongoose.Model<IGameItemSkill>;

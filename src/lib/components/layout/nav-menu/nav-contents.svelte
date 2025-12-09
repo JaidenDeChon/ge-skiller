@@ -73,12 +73,16 @@
                                         {@render activeRouteIndicator()}
                                     {/if}
                                     {#if item.title === 'Favorites' && favoritesCount > 0}
-                                        <span class="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                        <span
+                                            class="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                        >
                                             {favoritesCount}
                                         </span>
                                     {/if}
                                     {#if item.title === 'Hidden' && hiddenCount > 0}
-                                        <span class="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                        <span
+                                            class="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                        >
                                             {hiddenCount}
                                         </span>
                                     {/if}

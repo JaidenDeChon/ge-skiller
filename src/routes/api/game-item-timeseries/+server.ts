@@ -5,7 +5,8 @@ import type { RequestHandler } from '@sveltejs/kit';
 
 export const GET: RequestHandler = async ({ url }) => {
     const id = url.searchParams.get('id');
-    const timestep = (url.searchParams.get('timestep') ?? TimeSeriesOptionTimestep.SIX_HOURS) as TimeSeriesOptionTimestep;
+    const timestep = (url.searchParams.get('timestep') ??
+        TimeSeriesOptionTimestep.SIX_HOURS) as TimeSeriesOptionTimestep;
 
     if (!id) {
         return json({ error: 'Missing id parameter' }, { status: 400 });

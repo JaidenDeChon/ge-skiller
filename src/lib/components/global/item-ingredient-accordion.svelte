@@ -33,7 +33,9 @@
 
                 <!-- Item name -->
                 {#if linkToItem}
-                    <a href="/items/{gameItem?.id}" class="no-underline hover:underline cursor-pointer">{gameItem?.name}</a>
+                    <a href="/items/{gameItem?.id}" class="no-underline hover:underline cursor-pointer"
+                        >{gameItem?.name}</a
+                    >
                 {:else}
                     <p>{gameItem?.name}</p>
                 {/if}

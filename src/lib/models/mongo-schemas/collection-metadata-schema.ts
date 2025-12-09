@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose from 'mongoose';
 
 export interface ICollectionMetadata {
     collectionName: string;
@@ -9,8 +9,8 @@ const MetadataSchema = new mongoose.Schema<ICollectionMetadata>({
     collectionName: String,
     lastUpdated: {
         type: Number,
-        default: Date.now
-    }
+        default: Date.now,
+    },
 });
 
 let CollectionMetadataModel: mongoose.Model<ICollectionMetadata>;
