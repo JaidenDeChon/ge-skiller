@@ -158,14 +158,12 @@
             associatedSkills = foundSkills;
         }
     </script>
-    
-<div class="px-4 sm:px-6 lg:px-8 pt-6">
-        <div class="max-w-5xl mx-auto w-full">
-            <!-- Header -->
-            <header>
-                <div class="flex justify-between items-center w-full">
-                    {#if loading || !gameItem}
-                    <div class="flex gap-5">
+<div class="content-sizing pt-6">
+        <!-- Header -->
+        <header>
+            <div class="flex justify-between items-center w-full">
+                {#if loading || !gameItem}
+                <div class="flex gap-5">
                         <Skeleton class="h-4 w-10" />
                         <Skeleton class="h-4 w-10" />
                         <Skeleton class="h-4 w-32" />
@@ -417,7 +415,6 @@
         </section>
     </div>
     
-</div>
 </div>
 
 <style>
