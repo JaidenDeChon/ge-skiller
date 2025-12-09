@@ -211,16 +211,19 @@
 
 <div class="items-page pt-6 pb-8">
     <div class="px-4 sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto w-full">
         <div class="flex items-center mb-4 gap-3">
             {#if skill}
                 <img src={skill.icon} alt={`${headingLabel} icon`} class="h-8 w-8" />
             {/if}
             <h1 class="text-3xl font-bold">{headingLabel}</h1>
         </div>
+        </div>
     </div>
 
     <div class="border-b border-border">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm px-4 sm:px-6 lg:px-8 py-2">
+        <div class="px-4 sm:px-6 lg:px-8 py-2">
+        <div class="max-w-5xl mx-auto w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm">
             <div class="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 <div class="min-w-[180px] sm:w-[210px]">
                     <Select.Root type="single" bind:value={filterSelected} onValueChange={handleFilterChange}>
@@ -264,10 +267,12 @@
                 </div>
             </div>
         </div>
+        </div>
     </div>
 
     <div class="border-b border-border mb-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm px-4 sm:px-6 lg:px-8 py-2">
+        <div class="px-4 sm:px-6 lg:px-8 py-2">
+        <div class="max-w-5xl mx-auto w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm">
             <div class="flex w-full flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-start">
                 <div class="flex items-center gap-2">
                     <Switch
@@ -283,9 +288,11 @@
                 
             </div>
         </div>
+        </div>
     </div>
 
     <div class="px-4 sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto w-full">
         {#snippet pagination()}
             <div class="max-w-24 mx-auto">
                 <Pagination.Root class="item-page-pagination" bind:page={currentPage} count={totalItems} perPage={perPageValue}>
@@ -340,6 +347,7 @@
 
         <div class="mt-8">
             {@render pagination()}
+        </div>
         </div>
     </div>
 </div>
