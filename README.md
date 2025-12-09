@@ -1,40 +1,29 @@
-[![Netlify Status](https://api.netlify.com/api/v1/badges/f3006d03-977d-47e9-b484-bcb425e1f193/deploy-status)](https://app.netlify.com/sites/ge-skiller/deploys)
+# GE Skiller
 
-# sv
+SvelteKit application for Old School RuneScape skilling and Grand Exchange browsing. Developed primarily with [Bun](https://bun.sh/) as the runtime.
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+## Project overview
+- Full-stack SvelteKit application
+- Uses tailwind + [shadcn-svelte](https://www.shadcn-svelte.com) component library
+- Powered by:
+  - Price data derived from [OSRS Wiki GE Prices](https://prices.runescape.wiki/osrs)
+  - Item data derived from
+    - [OSRSDeboxed-DB](https://github.com/0xNeffarion/osrsreboxed-db)
+    - [OSRS Wiki](https://oldschool.runescape.wiki)
 
-## Creating a project
+## Key feature areas
+- **Item browsing UI**: `src/lib/components/items/game-items-page.svelte` handles filtering, pagination, skill-based availability, fetches `/api/game-items`, and renders cards with pagination controls.
+- **Data/services**: `src/lib/services/` wraps external APIs (e.g., OSRS wiki) and persistence layers for item data/pricing, including `grand-exchange-api-service.ts` for cached price and timeseries fetches.
+- **State & preferences**: Svelte stores in `src/lib/stores/` persist character profiles, favorites/hidden flags, and item-page filters across sessions.
+- **Helpers**: Utilities for formatting numbers, time, skill defaults, and related helpers reside alongside constants and models.
 
-If you're seeing this, you've probably already done this step. Congrats!
-
+## Getting started
+Install dependencies (Bun preferred). Once the app is started, allow a moment for the MongoDB connection to be established.
 ```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+bun install
+bun run dev
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Tooling
+- Tailwind CSS utilities via `tailwind.config.ts`.
+- Project configured for Bun-first workflows but compatible with Node package managers if needed.
