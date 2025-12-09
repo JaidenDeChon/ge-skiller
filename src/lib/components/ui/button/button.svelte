@@ -38,7 +38,9 @@
 </script>
 
 <script lang="ts">
+    /* eslint-disable svelte/no-navigation-without-resolve */
     import { cn } from '$lib/utils.js';
+    import { resolve } from '$app/paths';
 
     let {
         class: className,
@@ -50,10 +52,17 @@
         children,
         ...restProps
     }: ButtonProps = $props();
+
+    const isExternalHref = (value: string) => /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value) || value.startsWith('#');
 </script>
 
 {#if href}
-    <a bind:this={ref} class={cn(buttonVariants({ variant, size }), className)} {href} {...restProps}>
+    <a
+        bind:this={ref}
+        class={cn(buttonVariants({ variant, size }), className)}
+        href={typeof href === 'string' && !isExternalHref(href) ? resolve(href) : href}
+        {...restProps}
+    >
         {@render children?.()}
     </a>
 {:else}

@@ -5,6 +5,7 @@
     import { CanvasRenderer } from 'echarts/renderers';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
+    import { resolve } from '$app/paths';
     import type { ComposeOption, EChartsType } from 'echarts/core';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IngredientTreeNode } from '$lib/components/game-item-creation-card/types';
@@ -97,6 +98,7 @@
         const ingredientId = ingredient.item?.id ?? `unknown-${index}`;
         const key = `${parentKey}-${ingredientId}-${index}`;
 
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const nextVisited = new Set<string | number>(visited);
 
         // Stop cycles: if we've seen this id in the current path, don't recurse further.
@@ -371,7 +373,7 @@
     function handleNodeClick(params: { data?: TreeDatum }) {
         const itemId = params?.data?.itemId;
         if (!itemId) return;
-        goto(`/items/${itemId}`);
+        goto(resolve(`/items/${itemId}`));
     }
 </script>
 

@@ -5,6 +5,7 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+    import { resolve } from '$app/paths';
 
     interface ItemCardCompactProps {
         gameItem: IOsrsboxItemWithMeta | null;
@@ -32,7 +33,7 @@
 
             <!-- Item name -->
             {#if linkToItem}
-                <a href="/items/{gameItem.id}" class="hover:underline">{gameItem.name}</a>
+                <a href={resolve(`/items/${gameItem.id}`)} class="hover:underline">{gameItem.name}</a>
             {:else}
                 <p>{gameItem.name}</p>
             {/if}
@@ -50,7 +51,7 @@
 
     {#if expanded && creationSpec?.ingredients?.length}
         <div class="border-l ml-auto w-11/12 scale-95">
-            {#each creationSpec.ingredients as ingredient}
+            {#each creationSpec.ingredients as ingredient, index (ingredient.item?.id ?? index)}
                 <Self rootClassname="mb-2 ml-2" gameItem={ingredient.item as IOsrsboxItemWithMeta} linkToItem />
             {/each}
         </div>

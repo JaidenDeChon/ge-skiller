@@ -1,4 +1,5 @@
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     import { toast } from 'svelte-sonner';
     import { Upload, Plus, Trash2, FileText, Search, Database } from 'lucide-svelte';
     import * as Dialog from '$lib/components/ui/dialog';
@@ -1275,7 +1276,7 @@
 
                     <div class="space-y-4">
                         <div class="flex flex-wrap gap-2">
-                            {#each formData.creationSpecs as _, tabIndex}
+                            {#each formData.creationSpecs as spec, tabIndex (spec.id ?? tabIndex)}
                                 <Button
                                     type="button"
                                     size="sm"
@@ -1324,7 +1325,7 @@
                                                 {#if currentSpec.experienceGranted.length === 0}
                                                     <p class="text-xs text-muted-foreground">No XP rows yet.</p>
                                                 {/if}
-                                                {#each currentSpec.experienceGranted as expRow, expIndex}
+                                                {#each currentSpec.experienceGranted as expRow, expIndex (expIndex)}
                                                     <div class="grid grid-cols-5 gap-2 items-center">
                                                         <Input
                                                             class="col-span-3"
@@ -1370,7 +1371,7 @@
                                                 {#if currentSpec.requiredSkills.length === 0}
                                                     <p class="text-xs text-muted-foreground">No requirements yet.</p>
                                                 {/if}
-                                                {#each currentSpec.requiredSkills as reqRow, reqIndex}
+                                                {#each currentSpec.requiredSkills as reqRow, reqIndex (reqIndex)}
                                                     <div class="grid grid-cols-5 gap-2 items-center">
                                                         <Input
                                                             class="col-span-3"
@@ -1419,7 +1420,7 @@
                                                     List the item IDs and quantities needed.
                                                 </p>
                                             {/if}
-                                            {#each currentSpec.ingredients as ingRow, ingIndex}
+                                            {#each currentSpec.ingredients as ingRow, ingIndex (ingIndex)}
                                                 <div
                                                     class="grid gap-2 md:grid-cols-12 items-center rounded-md border bg-background/80 p-3"
                                                 >

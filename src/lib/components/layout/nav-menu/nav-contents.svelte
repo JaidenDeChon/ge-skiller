@@ -5,6 +5,7 @@
     import { Home, Heart, Sword, EyeOff } from 'lucide-svelte';
     import { favoritesStore } from '$lib/stores/favorites-store';
     import { hiddenStore } from '$lib/stores/hidden-store';
+    import { resolve } from '$app/paths';
 
     interface Item {
         title: string;
@@ -58,14 +59,14 @@
 <Sidebar.Group>
     <Sidebar.GroupContent>
         <Sidebar.Menu>
-            {#each primaryMenuItems as item}
+            {#each primaryMenuItems as item (item.url)}
                 <Sidebar.MenuItem>
                     <Sidebar.MenuButton>
                         {#snippet tooltipContent()}
                             {item.title}
                         {/snippet}
                         {#snippet child({ props })}
-                            <a href={item.url} {...props}>
+                            <a href={resolve(item.url)} {...props}>
                                 <item.icon />
                                 <span>{item.title}</span>
                                 <span class="ml-auto inline-flex items-center gap-2">
@@ -107,7 +108,7 @@
                             {skill.title}
                         {/snippet}
                         {#snippet child({ props })}
-                            <a href={skill.url} {...props}>
+                            <a href={resolve(skill.url)} {...props}>
                                 {#if skill.icon}
                                     <skill.icon />
                                 {:else if skill.iconString}

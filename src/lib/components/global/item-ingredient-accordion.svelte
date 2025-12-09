@@ -4,6 +4,7 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+    import { resolve } from '$app/paths';
 
     interface ItemIngredientAccordionProps {
         gameItem: IOsrsboxItemWithMeta | null;
@@ -33,9 +34,9 @@
 
                 <!-- Item name -->
                 {#if linkToItem}
-                    <a href="/items/{gameItem?.id}" class="no-underline hover:underline cursor-pointer"
-                        >{gameItem?.name}</a
-                    >
+                    <a href={resolve(`/items/${gameItem?.id}`)} class="no-underline hover:underline cursor-pointer">
+                        {gameItem?.name}
+                    </a>
                 {:else}
                     <p>{gameItem?.name}</p>
                 {/if}
@@ -43,7 +44,7 @@
         </Accordion.Trigger>
         <Accordion.Content class="pl-6 origin-right">
             {#if creationSpec?.ingredients?.length}
-                {#each creationSpec.ingredients as ingredient}
+                {#each creationSpec.ingredients as ingredient, idx (ingredient.item?.id ?? idx)}
                     <Self
                         gameItem={ingredient.item as IOsrsboxItemWithMeta}
                         linkToItem

@@ -54,7 +54,7 @@
                 </Select.Trigger>
                 <Select.Content>
                     <Select.Group>
-                        {#each skillsOptions as skill}
+                        {#each skillsOptions as skill (skill)}
                             <Select.Item value={skill} label={skill}>
                                 {skill}
                             </Select.Item>
@@ -69,7 +69,7 @@
                 </Select.Trigger>
                 <Select.Content>
                     <Select.Group>
-                        {#each sortOptions as sortOpt}
+                        {#each sortOptions as sortOpt (sortOpt.value)}
                             <Select.Item value={sortOpt.value} label={sortOpt.label}>
                                 {sortOpt.label}
                             </Select.Item>
@@ -84,7 +84,7 @@
                 </Select.Trigger>
                 <Select.Content>
                     <Select.Group>
-                        {#each orderOptions as orderOpt}
+                        {#each orderOptions as orderOpt (orderOpt.value)}
                             <Select.Item value={orderOpt.value} label={orderOpt.label}>
                                 {orderOpt.label}
                             </Select.Item>

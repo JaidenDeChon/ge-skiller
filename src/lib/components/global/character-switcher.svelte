@@ -107,7 +107,7 @@
         <DropdownMenu.Label class="text-muted-foreground text-xs">Characters</DropdownMenu.Label>
 
         <div class="flex flex-col gap-2">
-            {#each characterList as character}
+            {#each characterList as character (character.id ?? character.name)}
                 <div class="flex gap-1">
                     <!-- "Add character" button -->
                     <Button variant="ghost" class="flex-1" onclick={() => selectCharacter(character)}>

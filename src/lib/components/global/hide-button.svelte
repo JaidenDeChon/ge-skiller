@@ -23,7 +23,7 @@
 
         hiddenStore.set({ hidden: next });
         const nowHidden = next.includes(gameItem.id);
-        toast.success(`\"${gameItem.name}\" has been ${nowHidden ? 'hidden' : 'unhidden'}.`);
+        toast.success(`"${gameItem.name}" has been ${nowHidden ? 'hidden' : 'unhidden'}.`);
     }
 </script>
 

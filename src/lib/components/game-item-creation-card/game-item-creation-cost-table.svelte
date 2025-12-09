@@ -1,12 +1,9 @@
 <script lang="ts">
     import * as Table from '$lib/components/ui/table';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
-    import type {
-        GameItemCreationIngredient,
-        GameItemCreationSpecs,
-        IOsrsboxItemWithMeta,
-    } from '$lib/models/osrsbox-db-item';
+    import type { GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
     import { untrack } from 'svelte';
+    import { resolve } from '$app/paths';
 
     interface GameItemCreationCostTableProps {
         gameItem: IOsrsboxItemWithMeta | null;
@@ -150,14 +147,14 @@
             </Table.Row>
         </Table.Header>
         <Table.Body>
-            {#each costRows as row}
+            {#each costRows as row (row.key)}
                 <Table.Row>
                     <Table.Cell class="w-16">
                         <input type="checkbox" checked={ownedMap[row.key]} onchange={() => toggleRow(row.key)} />
                     </Table.Cell>
                     <Table.Cell class="font-medium">
                         {#if row.item.id}
-                            <a class="text-primary hover:underline" href={`/items/${row.item.id}`}>
+                            <a class="text-primary hover:underline" href={resolve(`/items/${row.item.id}`)}>
                                 {row.item.name}
                             </a>
                         {:else}

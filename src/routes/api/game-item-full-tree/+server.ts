@@ -54,7 +54,7 @@ function detectCircular(value: unknown) {
         if (Array.isArray(val)) {
             val.forEach((child) => traverse(child, currentPath));
         } else {
-            for (const [k, child] of Object.entries(val)) {
+            for (const [, child] of Object.entries(val)) {
                 // Only descend into object/array children and skip primitive props
                 if (child && typeof child === 'object') {
                     traverse(child, currentPath);

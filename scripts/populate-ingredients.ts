@@ -54,7 +54,7 @@ function recordAtlasRequest(timestamp: number = Date.now()) {
 
 function logWithProgress(method: 'log' | 'warn' | 'error', message?: unknown, ...args: unknown[]) {
     if (progressState.active) logUpdate.clear();
-    originalConsole[method](message as any, ...args);
+    originalConsole[method](message, ...args);
     if (progressState.active) renderProgressLine(progressState.processed, progressState.total);
 }
 

@@ -132,6 +132,7 @@
         listAbort = controller;
         loading = true;
         try {
+            // eslint-disable-next-line svelte/prefer-svelte-reactivity
             const searchParams = new URLSearchParams({
                 page: page.toString(),
                 perPage: perPageValue.toString(),
@@ -229,7 +230,7 @@
                             <Select.Trigger>{filterLabel}</Select.Trigger>
                             <Select.Content>
                                 <Select.Group>
-                                    {#each filterOptions as option}
+                                    {#each filterOptions as option (option.value)}
                                         <Select.Item value={option.value}>{option.label}</Select.Item>
                                     {/each}
                                 </Select.Group>
@@ -242,7 +243,7 @@
                             <Select.Trigger>{sortOrderLabel}</Select.Trigger>
                             <Select.Content>
                                 <Select.Group>
-                                    {#each sortOrderOptions as option}
+                                    {#each sortOrderOptions as option (option.value)}
                                         <Select.Item value={option.value}>{option.label}</Select.Item>
                                     {/each}
                                 </Select.Group>
@@ -259,7 +260,7 @@
                             <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
                             <Select.Content>
                                 <Select.Group>
-                                    {#each perPageOptions as option}
+                                    {#each perPageOptions as option (option)}
                                         <Select.Item value={option.toString()}>{option}</Select.Item>
                                     {/each}
                                 </Select.Group>
@@ -341,7 +342,7 @@
                     <ItemCard {loading} />
                 {/each}
             {:else}
-                {#each gameItems as item}
+                {#each gameItems as item (item.id)}
                     <ItemCard {item} linkToItemPage allowHide={true} allowFavorite={true} />
                 {/each}
             {/if}

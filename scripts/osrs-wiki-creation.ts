@@ -38,10 +38,13 @@ export type CreationMethod = {
     rawHtml: string; // useful for debugging when parsing goes wrong
 };
 
+type WikiParseText = string | { [key: string]: unknown };
+type WikiParseResponse = { parse?: { text?: WikiParseText; sections?: { index: string; line: string }[] } };
+
 /**
  * Generic helper to call the MediaWiki API with JSON output.
  */
-async function wikiApi(params: Record<string, string>): Promise<any> {
+async function wikiApi(params: Record<string, string>): Promise<WikiParseResponse> {
     const url = new URL(OSRS_WIKI_API);
 
     Object.entries({
@@ -56,7 +59,7 @@ async function wikiApi(params: Record<string, string>): Promise<any> {
         throw new Error(`OSRS wiki API error: ${res.status} ${res.statusText}`);
     }
 
-    return res.json();
+    return (await res.json()) as WikiParseResponse;
 }
 
 function buildMethodFromCaptionTables(
@@ -124,13 +127,14 @@ async function getCreationSectionHtml(title: string, sectionIndex: number): Prom
         section: String(sectionIndex),
     });
 
+    const parseText = data?.parse?.text;
     let html: string | undefined;
 
-    if (typeof data?.parse?.text === 'string') {
-        html = data.parse.text;
-    } else if (data?.parse?.text && typeof (data.parse.text as any)['*'] === 'string') {
+    if (typeof parseText === 'string') {
+        html = parseText;
+    } else if (parseText && typeof parseText === 'object' && typeof (parseText as { '*': unknown })['*'] === 'string') {
         // fallback for formatversion=1-style responses
-        html = (data.parse.text as any)['*'];
+        html = (parseText as { '*': string })['*'];
     }
 
     if (!html) {
@@ -293,7 +297,7 @@ function parseMaterialsAndInlineProducts(
 
         // Find the *real* item cell: first cell whose <a> has visible text.
         let itemCellIndex = -1;
-        $cells.each((i, cell) => {
+        $cells.each((i) => {
             const $cell = $cells.eq(i);
             const link = $cell.find('a').first();
             const linkText = link.text().replace(/\s+/g, ' ').trim();

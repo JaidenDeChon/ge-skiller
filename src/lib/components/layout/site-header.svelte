@@ -6,6 +6,7 @@
     import { Search } from 'lucide-svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { afterNavigate } from '$app/navigation';
+    import { resolve } from '$app/paths';
     import type { IGameItem } from '$lib/models/game-item';
     import { addRecentSearch, recentSearchesStore, type RecentSearchEntry } from '$lib/stores/recent-searches-store';
 
@@ -79,7 +80,7 @@
             })}
         />
 
-        <a href="/" aria-label="logo and home link">
+        <a href={resolve('/')} aria-label="logo and home link">
             <span class="rs-font-with-shadow text-primary text-xl">ge-skiller</span>
         </a>
 

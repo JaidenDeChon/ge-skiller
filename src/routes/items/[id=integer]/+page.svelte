@@ -10,19 +10,15 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { formatWithCommas } from '$lib/helpers/format-number';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
-    import type { IOsrsboxItemWithMeta, SkillLevelDesignation } from '$lib/models/osrsbox-db-item';
+    import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
     import Button from '$lib/components/ui/button/button.svelte';
     import OsrsboxItemUploadDialog from '$lib/components/dialogs/osrsbox-item-upload-dialog.svelte';
-    import { afterNavigate, beforeNavigate } from '$app/navigation';
-    import { browser } from '$app/environment';
     import { toast } from 'svelte-sonner';
 
     const { data }: { data: { gameItem: IOsrsboxItemWithMeta | null; showDevControls?: boolean } } = $props();
 
-    type AssociatedSkillsArray = SkillLevelDesignation[];
     let loading = $state(false);
     let gameItem = $state<IOsrsboxItemWithMeta | null>(data.gameItem ?? null);
-    let associatedSkills = $state(undefined as undefined | AssociatedSkillsArray);
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
     const wikiUrl = $derived(() => {
         const slug = gameItem?.wiki_name ?? gameItem?.name ?? gameItem?.wikiName;
@@ -92,8 +88,6 @@
             }
             const updated = (await resp.json()) as IOsrsboxItemWithMeta;
             gameItem = updated;
-            associatedSkills = undefined;
-            getAssociatedSkills(updated);
             toast.success('Item updated.');
         } catch (error) {
             console.error(error);
@@ -114,41 +108,10 @@
         lastDataItemId = incomingId;
         gameItem = incoming;
         loading = false;
-        associatedSkills = undefined;
-
-        if (incoming) getAssociatedSkills(incoming);
     });
 
     const primaryCreationSpec = $derived(getPrimaryCreationSpec(gameItem));
     const renderChart = $derived(!!primaryCreationSpec?.ingredients?.length);
-    /**
-     * Recursively searches through the item's `creationSpecs` to gather a list of all associated skills.
-     * @param item {IOsrsboxItemWithMeta} The item object to search.
-     */
-    function getAssociatedSkills(item: IOsrsboxItemWithMeta): void {
-        const foundSkills: AssociatedSkillsArray = [];
-
-        function extractSkills(target?: IOsrsboxItemWithMeta | null) {
-            if (!target) return;
-
-            const creationSpec = getPrimaryCreationSpec(target);
-            if (creationSpec?.requiredSkills?.length) {
-                creationSpec.requiredSkills.forEach((requiredSkill: SkillLevelDesignation) => {
-                    const alreadyAdded = foundSkills.some(
-                        (foundSkill: SkillLevelDesignation) => foundSkill.skillName === requiredSkill.skillName,
-                    );
-                    if (!alreadyAdded) foundSkills.push(requiredSkill);
-                });
-            }
-
-            if (creationSpec?.ingredients?.length) {
-                creationSpec.ingredients.forEach((ingredient) => extractSkills(ingredient.item));
-            }
-        }
-
-        extractSkills(item);
-        associatedSkills = foundSkills;
-    }
 </script>
 
 <div class="content-sizing pt-6">

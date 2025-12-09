@@ -41,7 +41,7 @@
             </div>
         {:else}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {#each completeHidden as item}
+                {#each completeHidden as item (item.id)}
                     <ItemCard {item} linkToItemPage allowHide={true} allowFavorite={false} />
                 {/each}
             </div>

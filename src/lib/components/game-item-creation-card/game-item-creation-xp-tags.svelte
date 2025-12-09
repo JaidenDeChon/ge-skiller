@@ -16,7 +16,6 @@
     );
     const xpSummaries = $derived(buildXpSummaries(creationSpecs));
     const rows = $derived(xpSummaries[0]?.rows ?? []);
-    const requiredLevels = $derived(xpSummaries[0]?.requiredLevels ?? {});
 
     function formatXp(value: number | null | undefined) {
         if (value === null || value === undefined) return '—';
@@ -65,6 +64,7 @@
         includeChildren: boolean,
         visited: Set<string | number>,
     ): Map<string, number> {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const map = new Map<string, number>();
 
         for (const xp of spec.experienceGranted ?? []) {
@@ -107,7 +107,7 @@
     <p class="text-sm text-muted-foreground p-3">No experience data available.</p>
 {:else}
     <div class="flex flex-wrap gap-2 p-3">
-        {#each rows as row}
+        {#each rows as row (row.skillName)}
             <span class="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-xs font-semibold">
                 <span class="text-foreground">
                     {#if row.level}{row.level}

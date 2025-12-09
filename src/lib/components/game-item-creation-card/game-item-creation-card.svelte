@@ -59,13 +59,13 @@
             <Tabs.Root value={selectedSpecId} onValueChange={(val) => (selectedSpecId = val)}>
                 <div class="px-5 mt-4">
                     <Tabs.List class="flex gap-2 flex-wrap w-fit">
-                        {#each specOptions as option}
+                        {#each specOptions as option (option.id)}
                             <Tabs.Trigger value={option.id}>{option.label}</Tabs.Trigger>
                         {/each}
                     </Tabs.List>
                 </div>
 
-                {#each specOptions as option}
+                {#each specOptions as option (option.id)}
                     <Tabs.Content value={option.id} class="px-5">
                         <div class="grid gap-4 xl:grid-cols-2">
                             <div class="border rounded-md bg-muted/40 p-3">

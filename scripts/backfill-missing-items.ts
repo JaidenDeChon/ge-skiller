@@ -10,7 +10,7 @@
 //   bun run backfill-missing-items.ts
 // or Node 18+ with ts-node / compiled JS.
 
-import mongoose, { Document, Model } from 'mongoose';
+import mongoose from 'mongoose';
 import * as cheerio from 'cheerio';
 import { OsrsboxItemModel } from '../src/lib/models/mongo-schemas/osrsbox-db-item-schema';
 

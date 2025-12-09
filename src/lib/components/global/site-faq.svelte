@@ -50,14 +50,14 @@
     {/if}
 
     <Accordion.Root type="multiple" class="w-full">
-        {#each faqList as faq}
+        {#each faqList as faq (faq.question)}
             <Accordion.Item value={faq.question}>
                 <Accordion.Trigger>{faq.question}</Accordion.Trigger>
                 <Accordion.Content>
-                    {#each faq.answer as paragraph}
+                    {#each faq.answer as paragraph, index (index)}
                         <p class="my-6 leading-6">{paragraph}</p>
                     {/each}
-                    {#each faq?.subtext ?? [] as subtext}
+                    {#each faq?.subtext ?? [] as subtext, index (index)}
                         <p class="text-muted-foreground">{subtext}</p>
                     {/each}
                 </Accordion.Content>

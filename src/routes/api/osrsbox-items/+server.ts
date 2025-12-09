@@ -98,7 +98,7 @@ export const POST: RequestHandler = async ({ request }) => {
     let raw: IncomingPayload | null = null;
     try {
         raw = (await request.json()) as IncomingPayload;
-    } catch (error) {
+    } catch {
         return new Response('Invalid JSON payload.', { status: 400 });
     }
 

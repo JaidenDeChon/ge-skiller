@@ -8,6 +8,7 @@
     import { formatWithCommas } from '$lib/helpers/format-number';
     import type { IGameItem } from '$lib/models/game-item';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
+    import { resolve } from '$app/paths';
 
     const headerTextDivClasses = 'flex-1 flex flex-col mb-2 text-sm';
 
@@ -70,7 +71,7 @@
             </div>
             <Skeleton class="rounded-full size-12" />
         {:else if linkToItemPage}
-            <a href={`/items/${item.id}`} class="flex justify-between gap-6 w-full items-start">
+            <a href={resolve(`/items/${item.id}`)} class="flex justify-between gap-6 w-full items-start">
                 <div class="group-hover/header:underline {headerTextDivClasses}">
                     {@render itemCardHeaderContent()}
                 </div>
