@@ -31,7 +31,7 @@
     variant="outline"
     size="icon"
     class={[
-        'rounded-full transition-colors text-muted-foreground hover:text-muted-foreground',
+        'rounded-full transition-colors text-muted-foreground hover:text-muted-foreground group/item-toggle',
         isHidden && 'text-muted-foreground',
     ]}
     onclick={handleToggleHidden}
@@ -39,8 +39,10 @@
     title={isHidden ? 'Unhide item' : 'Hide item'}
 >
     {#if isHidden}
-        <EyeOff />
+        <EyeOff class="group-hover/item-toggle:hidden" />
+        <Eye class="hidden group-hover/item-toggle:inline" />
     {:else}
-        <Eye />
+        <Eye class="group-hover/item-toggle:hidden" />
+        <EyeOff class="hidden group-hover/item-toggle:inline" />
     {/if}
 </Button>
