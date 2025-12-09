@@ -49,22 +49,24 @@
     ];
 </script>
 
-{#if showTitle}
-    <h2 class="content-sizing font-bold text-xl">Frequently Asked Questions</h2>
-{/if}
+<div class="content-sizing flex flex-col gap-6">
+    {#if showTitle}
+        <h2 class="font-bold text-xl">Frequently Asked Questions</h2>
+    {/if}
 
-<Accordion.Root type="multiple" class="content-sizing-half">
-    {#each faqList as faq}
-        <Accordion.Item value={faq.question}>
-            <Accordion.Trigger>{faq.question}</Accordion.Trigger>
-            <Accordion.Content>
-                {#each faq.answer as paragraph}
-                    <p class="my-6 leading-6">{paragraph}</p>
-                {/each}
-                {#each faq?.subtext ?? [] as subtext}
-                    <p class="text-muted-foreground">{subtext}</p>
-                {/each}
-            </Accordion.Content>
-        </Accordion.Item>
-    {/each}
-</Accordion.Root>
+    <Accordion.Root type="multiple" class="w-full">
+        {#each faqList as faq}
+            <Accordion.Item value={faq.question}>
+                <Accordion.Trigger>{faq.question}</Accordion.Trigger>
+                <Accordion.Content>
+                    {#each faq.answer as paragraph}
+                        <p class="my-6 leading-6">{paragraph}</p>
+                    {/each}
+                    {#each faq?.subtext ?? [] as subtext}
+                        <p class="text-muted-foreground">{subtext}</p>
+                    {/each}
+                </Accordion.Content>
+            </Accordion.Item>
+        {/each}
+    </Accordion.Root>
+</div>
