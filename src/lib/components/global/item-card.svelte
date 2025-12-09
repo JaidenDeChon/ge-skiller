@@ -59,7 +59,7 @@
     <span class="text-muted-foreground animate-fade-in">{item.examine}</span>
 {/snippet}
 
-<div class="item-card custom-card group">
+<div class="item-card custom-card group flex h-full flex-col">
     <!-- Header -->
     <header class="flex justify-between gap-6 group/header">
         {#if loading}
@@ -90,7 +90,7 @@
     </header>
 
     <!-- Body -->
-    <div class="flex justify-between items-end gap-4 mt-6">
+    <div class="flex justify-between items-end gap-4 mt-auto pt-4">
         <div>
             {#if loading}
                 <Skeleton class="h-5 w-24 mb-3 mt-2" />
