@@ -46,7 +46,8 @@
 
     let timeSinceHighTime = $state('Calculating...');
     const iconSrc = $derived(iconToDataUri(item.icon));
-    const formattedHighPrice = $derived(formatWithCommas(item.highPrice));
+    const highPrice = $derived(Math.max(0, item.highPrice ?? 0));
+    const formattedHighPrice = $derived(formatWithCommas(highPrice));
 
     onMount(() => {
         if (item.highTime) timeSinceHighTime = timeSince(item.highTime);
