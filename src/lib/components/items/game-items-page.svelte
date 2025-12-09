@@ -210,70 +210,67 @@
 </script>
 
 <div class="items-page pt-6 pb-8">
-    <div class="px-4 sm:px-6 lg:px-8">
-        <div class="max-w-5xl mx-auto w-full">
+    <div class="content-sizing">
         <div class="flex items-center mb-4 gap-3">
             {#if skill}
                 <img src={skill.icon} alt={`${headingLabel} icon`} class="h-8 w-8" />
             {/if}
             <h1 class="text-3xl font-bold">{headingLabel}</h1>
         </div>
-        </div>
     </div>
 
     <div class="border-b border-border">
-        <div class="px-4 sm:px-6 lg:px-8 py-2">
-        <div class="max-w-5xl mx-auto w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm">
-            <div class="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                <div class="min-w-[180px] sm:w-[210px]">
-                    <Select.Root type="single" bind:value={filterSelected} onValueChange={handleFilterChange}>
-                        <Select.Trigger>{filterLabel}</Select.Trigger>
-                        <Select.Content>
-                            <Select.Group>
-                                {#each filterOptions as option}
-                                    <Select.Item value={option.value}>{option.label}</Select.Item>
-                                {/each}
-                            </Select.Group>
-                        </Select.Content>
-                    </Select.Root>
+        <div class="content-sizing">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm py-2">
+                <div class="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                    <div class="min-w-[180px] sm:w-[210px]">
+                        <Select.Root type="single" bind:value={filterSelected} onValueChange={handleFilterChange}>
+                            <Select.Trigger>{filterLabel}</Select.Trigger>
+                            <Select.Content>
+                                <Select.Group>
+                                    {#each filterOptions as option}
+                                        <Select.Item value={option.value}>{option.label}</Select.Item>
+                                    {/each}
+                                </Select.Group>
+                            </Select.Content>
+                        </Select.Root>
+                    </div>
+
+                    <div class="min-w-[180px] sm:w-[210px]">
+                        <Select.Root type="single" bind:value={sortOrderSelected} onValueChange={handleSortOrderChange}>
+                            <Select.Trigger>{sortOrderLabel}</Select.Trigger>
+                            <Select.Content>
+                                <Select.Group>
+                                    {#each sortOrderOptions as option}
+                                        <Select.Item value={option.value}>{option.label}</Select.Item>
+                                    {/each}
+                                </Select.Group>
+                            </Select.Content>
+                        </Select.Root>
+                    </div>
                 </div>
 
-                <div class="min-w-[180px] sm:w-[210px]">
-                    <Select.Root type="single" bind:value={sortOrderSelected} onValueChange={handleSortOrderChange}>
-                        <Select.Trigger>{sortOrderLabel}</Select.Trigger>
-                        <Select.Content>
-                            <Select.Group>
-                                {#each sortOrderOptions as option}
-                                    <Select.Item value={option.value}>{option.label}</Select.Item>
-                                {/each}
-                            </Select.Group>
-                        </Select.Content>
-                    </Select.Root>
+                <div class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:text-right">
+                    <div class="min-w-[170px] sm:w-[190px]">
+                        <Select.Root type="single" bind:value={perPageSelected} onValueChange={handlePerPageChange}>
+                            <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
+                            <Select.Content>
+                                <Select.Group>
+                                    {#each perPageOptions as option}
+                                        <Select.Item value={option.toString()}>{option}</Select.Item>
+                                    {/each}
+                                </Select.Group>
+                            </Select.Content>
+                        </Select.Root>
+                    </div>
                 </div>
             </div>
-
-            <div class="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:text-right">
-                <div class="min-w-[170px] sm:w-[190px]">
-                    <Select.Root type="single" bind:value={perPageSelected} onValueChange={handlePerPageChange}>
-                        <Select.Trigger>{perPageLabel} items per page</Select.Trigger>
-                        <Select.Content>
-                            <Select.Group>
-                                {#each perPageOptions as option}
-                                    <Select.Item value={option.toString()}>{option}</Select.Item>
-                                {/each}
-                            </Select.Group>
-                        </Select.Content>
-                    </Select.Root>
-                </div>
-            </div>
-        </div>
         </div>
     </div>
 
     <div class="border-b border-border mb-4">
-        <div class="px-4 sm:px-6 lg:px-8 py-2">
-        <div class="max-w-5xl mx-auto w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm">
-            <div class="flex w-full flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-start">
+        <div class="content-sizing">
+            <div class="flex w-full flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-start py-2">
                 <div class="flex items-center gap-2">
                     <Switch
                         id="skill-filter-switch"
@@ -288,11 +285,9 @@
                 
             </div>
         </div>
-        </div>
     </div>
 
-    <div class="px-4 sm:px-6 lg:px-8">
-        <div class="max-w-5xl mx-auto w-full">
+    <div class="content-sizing">
         {#snippet pagination()}
             <div class="max-w-24 mx-auto">
                 <Pagination.Root class="item-page-pagination" bind:page={currentPage} count={totalItems} perPage={perPageValue}>
@@ -347,7 +342,6 @@
 
         <div class="mt-8">
             {@render pagination()}
-        </div>
         </div>
     </div>
 </div>

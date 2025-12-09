@@ -20,7 +20,7 @@
 
         <h1 class="rs-font-with-shadow dark:rs-font text-5xl md:text-6xl text-primary">ge-skiller</h1>
 
-        <div class="text-lg flex flex-col gap-1 z-20 max-w-md">
+        <div class="text-lg flex flex-col gap-1 z-20">
             <span>
                 Find the most profitable items to
                 <span

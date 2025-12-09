@@ -108,7 +108,7 @@
      */
     .content-sizing {
         width: 100%;
-        @apply w-full max-w-5xl py-3 px-8 mx-auto;
+        @apply w-full max-w-5xl px-8 mx-auto;
     }
 
     /*
