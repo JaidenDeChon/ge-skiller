@@ -84,6 +84,7 @@
     );
     let listAbort: AbortController | null = null;
     let lastSkillSlug: string | null = null;
+    const isMobile = $derived(typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
 
     $effect(() => {
         if ($filterItemsStore.filterItemsByPlayerLevels !== skillFilterChecked) {
@@ -293,7 +294,13 @@
                             <Pagination.Item>
                                 <Pagination.PrevButton />
                             </Pagination.Item>
-                            {#each pages as page (page.key)}
+                            {#each (isMobile ? pages.filter((p) => {
+                                    const last = pages[pages.length - 1];
+                                    const lastVal = last && last.type !== 'ellipsis' ? last.value : undefined;
+                                    if (p.type === 'ellipsis') return false;
+                                    const val = p.value;
+                                    return val === 1 || val === currentPage || (lastVal !== undefined && val === lastVal) || val === currentPage - 1 || val === currentPage + 1;
+                                }) : pages) as page (page.key)}
                                 {#if page.type === "ellipsis"}
                                     <Pagination.Item>
                                         <Pagination.Ellipsis />
