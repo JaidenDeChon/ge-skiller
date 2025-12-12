@@ -20,7 +20,20 @@
             });
         });
     });
+
+    const siteTitle = 'GE Skiller';
+    const siteDescription =
+        'Find profitable Old School RuneScape skilling and Grand Exchange items tailored to your skill levels.';
 </script>
+
+<svelte:head>
+    <title>{siteTitle}</title>
+    <meta name="description" content={siteDescription} />
+    <meta property="og:title" content={siteTitle} />
+    <meta property="og:description" content={siteDescription} />
+    <meta property="twitter:title" content={siteTitle} />
+    <meta property="twitter:description" content={siteDescription} />
+</svelte:head>
 
 <Toaster />
 
