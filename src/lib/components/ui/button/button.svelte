@@ -39,8 +39,7 @@
 
 <script lang="ts">
     /* eslint-disable svelte/no-navigation-without-resolve */
-    import { cn } from '$lib/utils.js';
-    import { resolve } from '$app/paths';
+    import { cn, resolvePath } from '$lib/utils.js';
 
     let {
         class: className,
@@ -60,7 +59,7 @@
     <a
         bind:this={ref}
         class={cn(buttonVariants({ variant, size }), className)}
-        href={typeof href === 'string' && !isExternalHref(href) ? resolve(href) : href}
+        href={typeof href === 'string' && !isExternalHref(href) ? resolvePath(href) : href}
         {...restProps}
     >
         {@render children?.()}

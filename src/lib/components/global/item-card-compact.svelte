@@ -5,7 +5,7 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
-    import { resolve } from '$app/paths';
+    import { resolvePath } from '$lib/utils.js';
 
     interface ItemCardCompactProps {
         gameItem: IOsrsboxItemWithMeta | null;
@@ -33,7 +33,7 @@
 
             <!-- Item name -->
             {#if linkToItem}
-                <a href={resolve(`/items/${gameItem.id}`)} class="hover:underline">{gameItem.name}</a>
+                <a href={resolvePath(`/items/${gameItem.id}`)} class="hover:underline">{gameItem.name}</a>
             {:else}
                 <p>{gameItem.name}</p>
             {/if}

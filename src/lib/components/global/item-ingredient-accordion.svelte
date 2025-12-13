@@ -4,7 +4,7 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
-    import { resolve } from '$app/paths';
+    import { resolvePath } from '$lib/utils.js';
 
     interface ItemIngredientAccordionProps {
         gameItem: IOsrsboxItemWithMeta | null;
@@ -34,7 +34,7 @@
 
                 <!-- Item name -->
                 {#if linkToItem}
-                    <a href={resolve(`/items/${gameItem?.id}`)} class="no-underline hover:underline cursor-pointer">
+                    <a href={resolvePath(`/items/${gameItem?.id}`)} class="no-underline hover:underline cursor-pointer">
                         {gameItem?.name}
                     </a>
                 {:else}

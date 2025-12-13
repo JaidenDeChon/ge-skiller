@@ -3,7 +3,7 @@
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
     import { untrack } from 'svelte';
-    import { resolve } from '$app/paths';
+    import { resolvePath } from '$lib/utils.js';
 
     interface GameItemCreationCostTableProps {
         gameItem: IOsrsboxItemWithMeta | null;
@@ -154,7 +154,7 @@
                     </Table.Cell>
                     <Table.Cell class="font-medium">
                         {#if row.item.id}
-                            <a class="text-primary hover:underline" href={resolve(`/items/${row.item.id}`)}>
+                            <a class="text-primary hover:underline" href={resolvePath(`/items/${row.item.id}`)}>
                                 {row.item.name}
                             </a>
                         {:else}

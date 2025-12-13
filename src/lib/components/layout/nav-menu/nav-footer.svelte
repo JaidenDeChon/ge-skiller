@@ -6,7 +6,7 @@
     import { Button, buttonVariants } from '$lib/components/ui/button';
     import { toggleMode } from 'mode-watcher';
     import { Moon, Sun, Info } from 'lucide-svelte';
-    import { resolve } from '$app/paths';
+    import { resolvePath } from '$lib/utils.js';
 
     const sidebar = Sidebar.useSidebar();
     const { showDevControls = false } = $props<{ showDevControls?: boolean }>();
@@ -63,7 +63,7 @@
                             }),
                         ]}
                     >
-                        <a href={resolve('/')} class="h-full w-full flex items-center justify-center">
+                        <a href={resolvePath('/')} class="h-full w-full flex items-center justify-center">
                             <Info />
                             <span class="sr-only">About</span>
                         </a>

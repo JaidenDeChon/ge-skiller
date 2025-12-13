@@ -5,7 +5,7 @@
     import { CanvasRenderer } from 'echarts/renderers';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
-    import { resolve } from '$app/paths';
+    import { resolvePath } from '$lib/utils.js';
     import type { ComposeOption, EChartsType } from 'echarts/core';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IngredientTreeNode } from '$lib/components/game-item-creation-card/types';
@@ -373,7 +373,7 @@
     function handleNodeClick(params: { data?: TreeDatum }) {
         const itemId = params?.data?.itemId;
         if (!itemId) return;
-        goto(resolve(`/items/${itemId}`));
+        goto(resolvePath(`/items/${itemId}`));
     }
 </script>
 

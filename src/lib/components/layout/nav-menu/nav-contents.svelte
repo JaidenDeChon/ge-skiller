@@ -5,7 +5,7 @@
     import { Home, Heart, Sword, EyeOff } from 'lucide-svelte';
     import { favoritesStore } from '$lib/stores/favorites-store';
     import { hiddenStore } from '$lib/stores/hidden-store';
-    import { resolve } from '$app/paths';
+    import { resolvePath } from '$lib/utils.js';
 
     interface Item {
         title: string;
@@ -66,7 +66,7 @@
                             {item.title}
                         {/snippet}
                         {#snippet child({ props })}
-                            <a href={resolve(item.url)} {...props}>
+                            <a href={resolvePath(item.url)} {...props}>
                                 <item.icon />
                                 <span>{item.title}</span>
                                 <span class="ml-auto inline-flex items-center gap-2">
@@ -108,7 +108,7 @@
                             {skill.title}
                         {/snippet}
                         {#snippet child({ props })}
-                            <a href={resolve(skill.url)} {...props}>
+                            <a href={resolvePath(skill.url)} {...props}>
                                 {#if skill.icon}
                                     <skill.icon />
                                 {:else if skill.iconString}

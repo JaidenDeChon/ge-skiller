@@ -1,7 +1,7 @@
 <script lang="ts">
     import { buttonVariants } from '$lib/components/ui/button';
     import CharacterStatsDialogButton from '../dialogs/character-stats-dialog.svelte';
-    import { resolve } from '$app/paths';
+    import { resolvePath } from '$lib/utils.js';
     const { bgUrl } = $props();
 </script>
 
@@ -53,7 +53,7 @@
                 {/snippet}
             </CharacterStatsDialogButton>
 
-            <a href={resolve('/items')} class={buttonVariants({ variant: 'outline' })}>
+            <a href={resolvePath('/items')} class={buttonVariants({ variant: 'outline' })}>
                 <img src="/other-images/inventory-backpack.png" alt="Inventory backpack" class="w-6 h-6" />
                 <span class="rs-font text-xl">Start browsing items</span>
             </a>
