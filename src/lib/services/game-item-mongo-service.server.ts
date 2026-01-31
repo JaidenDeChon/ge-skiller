@@ -72,7 +72,12 @@ export async function getPaginatedGameItems(params?: {
     const sortDirection = params?.sortOrder === 'asc' ? 1 : -1;
     const baseFilterQuery = getFilterQuery(filter);
     const skillQuery = getSkillMatchQuery(params?.skill);
-    const filterQuery = mergeQueries(baseFilterQuery, skillQuery, { placeholder: false, noted: false });
+    const filterQuery = mergeQueries(baseFilterQuery, skillQuery, {
+        placeholder: false,
+        noted: false,
+        stacked: null,
+        tradeable_on_ge: true,
+    });
     const skillLevels = normalizeSkillLevels(params?.skillLevels);
 
     if (!skillLevels) {
@@ -127,10 +132,16 @@ export async function searchGameItems(query: string, limit: number = 10): Promis
     const results: GameItemDoc[] = [];
     const seenIds = new Set<string>();
     const seenNames = new Set<string>();
+    const baseFilter = {
+        placeholder: false,
+        noted: false,
+        stacked: null,
+        tradeable_on_ge: true,
+    };
 
     async function fetchAndAppend(filter: Record<string, unknown>) {
         if (results.length >= limitCap) return;
-        const docs = await OsrsboxItemModel.find(filter)
+        const docs = await OsrsboxItemModel.find({ ...baseFilter, ...filter })
             .sort({ name: 1 })
             .limit(limitCap * 3)
             .lean<GameItemDoc[]>()
