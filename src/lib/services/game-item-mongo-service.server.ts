@@ -72,7 +72,7 @@ export async function getPaginatedGameItems(params?: {
     const sortDirection = params?.sortOrder === 'asc' ? 1 : -1;
     const baseFilterQuery = getFilterQuery(filter);
     const skillQuery = getSkillMatchQuery(params?.skill);
-    const filterQuery = mergeQueries(baseFilterQuery, skillQuery);
+    const filterQuery = mergeQueries(baseFilterQuery, skillQuery, { placeholder: false, noted: false });
     const skillLevels = normalizeSkillLevels(params?.skillLevels);
 
     if (!skillLevels) {
