@@ -14,7 +14,7 @@
         "grab-osrsbox-items": "bun run --env-file .env scripts/grab-osrsbox-items.ts",
         "backfill-missing-items": "bun run --env-file .env scripts/backfill-missing-items.ts",
         "populate-item-ingredient-trees": "bun run --env-file .env scripts/populate-ingredients.ts",
-        "update-item-prices": "bun run --env-file .env netlify/functions/update-item-prices.ts",
+        "update-item-prices": "bun run --env-file .env scripts/run-update-item-prices.ts",
         "format": "prettier --write ."
     },
     "devDependencies": {
