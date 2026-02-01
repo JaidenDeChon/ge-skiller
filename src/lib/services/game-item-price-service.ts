@@ -26,6 +26,8 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
             _id: 1,
             id: 1,
             tradeable_on_ge: 1,
+            highPrice: 1,
+            lowPrice: 1,
         },
     )
         .lean()
@@ -35,6 +37,7 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
     const missingData: number[] = [];
     let geEligibleCount = 0;
     let skippedNonGe = 0;
+    let clearedSentinelCount = 0;
 
     // Update the price of every game item in MongoDB.
     for (const item of gameItemsInMongo) {
@@ -50,31 +53,44 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
             continue;
         }
 
-        const priceUpdate: Record<string, number> = {};
+        const setUpdate: Record<string, number> = {};
+        const unsetUpdate: Record<string, ''> = {};
 
         if (isValidPrice(fullItemData.highPrice)) {
-            priceUpdate.highPrice = fullItemData.highPrice;
+            setUpdate.highPrice = fullItemData.highPrice;
             if (isValidTime(fullItemData.highTime)) {
-                priceUpdate.highTime = fullItemData.highTime;
+                setUpdate.highTime = fullItemData.highTime;
             }
+        } else if (item.highPrice === SENTINEL_PRICE) {
+            unsetUpdate.highPrice = '';
+            unsetUpdate.highTime = '';
+            clearedSentinelCount += 1;
         }
 
         if (isValidPrice(fullItemData.lowPrice)) {
-            priceUpdate.lowPrice = fullItemData.lowPrice;
+            setUpdate.lowPrice = fullItemData.lowPrice;
             if (isValidTime(fullItemData.lowTime)) {
-                priceUpdate.lowTime = fullItemData.lowTime;
+                setUpdate.lowTime = fullItemData.lowTime;
             }
+        } else if (item.lowPrice === SENTINEL_PRICE) {
+            unsetUpdate.lowPrice = '';
+            unsetUpdate.lowTime = '';
+            clearedSentinelCount += 1;
         }
 
-        if (!Object.keys(priceUpdate).length) {
+        if (!Object.keys(setUpdate).length && !Object.keys(unsetUpdate).length) {
             missingData.push(item.id);
             continue;
         }
 
+        const updateOps: Record<string, Record<string, unknown>> = {};
+        if (Object.keys(setUpdate).length) updateOps.$set = setUpdate;
+        if (Object.keys(unsetUpdate).length) updateOps.$unset = unsetUpdate;
+
         bulkOperations.push({
             updateOne: {
                 filter: { _id: item._id },
-                update: { $set: priceUpdate },
+                update: updateOps,
                 upsert: true,
             },
         });
@@ -85,6 +101,9 @@ export async function updateAllGameItemPricesInMongo(): Promise<void> {
     );
     if (skippedNonGe) {
         logger.info(`Skipped ${skippedNonGe} items not tradeable on GE.`);
+    }
+    if (clearedSentinelCount) {
+        logger.info(`Cleared sentinel price values on ${clearedSentinelCount} fields.`);
     }
 
     // Update the data to the database.
