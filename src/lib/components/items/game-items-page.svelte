@@ -4,9 +4,12 @@
     import * as Select from '$lib/components/ui/select';
     import { Label } from '$lib/components/ui/label';
     import { Switch } from '$lib/components/ui/switch';
+    import * as AlertDialog from '$lib/components/ui/alert-dialog';
+    import { onDestroy } from 'svelte';
     import { defaultSkillLevels } from '$lib/constants/default-skill-levels';
     import type { SkillTreePage } from '$lib/constants/skill-tree-pages';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
+    import { bankItemsStore } from '$lib/stores/bank-items-store';
     import { filterItemsStore } from '$lib/stores/filter-items-by-player-levels';
     import { itemsPagePreferences } from '$lib/stores/items-page-preferences';
     import type { IGameItem } from '$lib/models/game-item';
@@ -21,10 +24,6 @@
         { value: 'stackable', label: 'Stackable' },
         { value: 'quest', label: 'Quest items' },
         { value: 'nonquest', label: 'Non-quest items' },
-    ];
-    const sortOrderOptions = [
-        { value: 'desc', label: 'Price: high to low' },
-        { value: 'asc', label: 'Price: low to high' },
     ];
 
     function normalizeSkillLevels(skillLevels?: CharacterProfile['skillLevels'], hasCharacter = true) {
@@ -57,9 +56,6 @@
     let skillFilterChecked = $state($filterItemsStore.filterItemsByPlayerLevels);
     const skillFilterEnabled = $derived(Boolean(skillFilterChecked && activeSkillLevels));
     const skillLevelsForQuery = $derived(skillFilterEnabled ? activeSkillLevels : undefined);
-    const skillToggleLabel = $derived(
-        activeCharacter ? `Filter by my skill levels (${activeCharacter.name})` : 'Filter by my skill levels',
-    );
 
     const props = $props<{ heading?: string; skill?: SkillTreePage | null }>();
     const headingProp = $derived(props.heading ?? 'Browse items');
@@ -71,22 +67,70 @@
     let fetchedItems = $state([] as IGameItem[]);
     import { hiddenStore } from '$lib/stores/hidden-store';
     const hiddenIds = $derived($hiddenStore.hidden ?? []);
+    const bankItems = $derived($bankItemsStore.items ?? []);
     let totalItems = $state(0);
     let currentPage = $state(Number($itemsPagePreferences.page) || 1);
     let perPageSelected = $state($itemsPagePreferences.perPage || '12');
     let filterSelected = $state($itemsPagePreferences.filter || 'all');
     let sortOrderSelected = $state($itemsPagePreferences.sortOrder || 'desc');
+    let useSuppliesChecked = $state($itemsPagePreferences.useSupplies ?? false);
+    let profitModeChecked = $state($itemsPagePreferences.profitMode ?? false);
     const perPageValue = $derived(Number(perPageSelected) || 12);
     const perPageLabel = $derived(`${perPageValue}`);
     const filterLabel = $derived(
         filterOptions.find((option) => option.value === filterSelected)?.label ?? 'Filter items',
     );
-    const sortOrderLabel = $derived(
-        sortOrderOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Price order',
-    );
+    const profitModeEnabled = $derived(profitModeChecked);
+    const profitContextLabel = $derived(profitModeEnabled && useSuppliesChecked ? 'Profit (supplies)' : 'Profit');
+    const suppliesParam = $derived.by(() => {
+        if (!useSuppliesChecked) return null;
+        const entries: Array<[string, number]> = [];
+        for (const entry of bankItems) {
+            const id = entry?.id;
+            const quantity = Math.floor(Number(entry?.quantity ?? 0));
+            if (!Number.isFinite(quantity) || quantity <= 0) continue;
+            if (id === null || id === undefined) continue;
+            entries.push([String(id), quantity]);
+        }
+        if (!entries.length) return null;
+        entries.sort((a, b) => a[0].localeCompare(b[0]));
+        return JSON.stringify(Object.fromEntries(entries));
+    });
+    const suppliesActive = $derived(useSuppliesChecked);
+    const skillToggleDisabled = $derived(useSuppliesChecked);
     let listAbort: AbortController | null = null;
     let lastSkillSlug: string | null = null;
     const isMobile = $derived(typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
+    const cacheSkipKey = 'ge-skiller:items-cache:skip';
+    const longWaitSkipKey = 'ge-skiller:items-long-wait:skip';
+    let skipCacheOnce = $state(false);
+    let forceLoading = $state(false);
+    let longWaitDialogOpen = $state(false);
+    let pendingLongWaitToggle = $state<null | 'profit' | 'supplies'>(null);
+    let skipLongWaitDialog = $state(false);
+    let doNotAskAgainChecked = $state(false);
+    if (typeof window !== 'undefined') {
+        const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+        const navType = navEntry?.type;
+        const legacyNavType = (performance as Performance & { navigation?: { type?: number } }).navigation?.type;
+        const shouldSkipForReload = navType === 'reload' || legacyNavType === 1;
+        const skipFlag = sessionStorage.getItem(cacheSkipKey);
+        if (skipFlag) sessionStorage.removeItem(cacheSkipKey);
+        skipCacheOnce = shouldSkipForReload || Boolean(skipFlag);
+        skipLongWaitDialog = localStorage.getItem(longWaitSkipKey) === '1';
+
+        const markSkip = () => {
+            try {
+                sessionStorage.setItem(cacheSkipKey, '1');
+            } catch {
+                // ignore storage failures
+            }
+        };
+        window.addEventListener('beforeunload', markSkip);
+        onDestroy(() => {
+            window.removeEventListener('beforeunload', markSkip);
+        });
+    }
 
     $effect(() => {
         if ($filterItemsStore.filterItemsByPlayerLevels !== skillFilterChecked) {
@@ -99,11 +143,22 @@
         if ($itemsPagePreferences.filter !== filterSelected) {
             filterSelected = $itemsPagePreferences.filter || 'all';
         }
-        if ($itemsPagePreferences.sortOrder !== sortOrderSelected) {
-            sortOrderSelected = $itemsPagePreferences.sortOrder || 'desc';
+        const prefOrder = $itemsPagePreferences.sortOrder || 'desc';
+        const normalizedOrder = prefOrder === 'asc' ? 'asc' : 'desc';
+        if (normalizedOrder !== sortOrderSelected) {
+            sortOrderSelected = normalizedOrder;
+        }
+        if (normalizedOrder !== prefOrder) {
+            itemsPagePreferences.set({ ...$itemsPagePreferences, sortOrder: normalizedOrder });
         }
         if ($itemsPagePreferences.perPage !== perPageSelected) {
             perPageSelected = $itemsPagePreferences.perPage || '12';
+        }
+        if ($itemsPagePreferences.useSupplies !== useSuppliesChecked) {
+            useSuppliesChecked = $itemsPagePreferences.useSupplies ?? false;
+        }
+        if ($itemsPagePreferences.profitMode !== profitModeChecked) {
+            profitModeChecked = $itemsPagePreferences.profitMode ?? false;
         }
     });
 
@@ -126,11 +181,36 @@
         sortOrder: string,
         skillLevels?: Record<string, number>,
         skill?: string | null,
+        supplies?: string | null,
+        suppliesEnabled?: boolean,
+        profitMode?: boolean,
     ) {
         if (listAbort) listAbort.abort();
         const controller = new AbortController();
         listAbort = controller;
-        loading = true;
+        const shouldForceLoading = forceLoading;
+        const cacheKey = buildItemsCacheKey({
+            page,
+            perPageValue,
+            filter,
+            sortOrder,
+            skillLevels,
+            skill,
+            supplies,
+            suppliesEnabled,
+            profitMode,
+        });
+        const cached = !skipCacheOnce && !shouldForceLoading ? readItemsCache(cacheKey) : null;
+        skipCacheOnce = false;
+        if (shouldForceLoading) {
+            fetchedItems = [];
+            totalItems = 0;
+        }
+        if (cached) {
+            fetchedItems = cached.items;
+            totalItems = cached.total;
+        }
+        loading = !cached;
         try {
             // eslint-disable-next-line svelte/prefer-svelte-reactivity
             const searchParams = new URLSearchParams({
@@ -148,26 +228,62 @@
                 searchParams.set('skill', skill);
             }
 
+            if (supplies) {
+                searchParams.set('supplies', supplies);
+            }
+            if (suppliesEnabled) {
+                searchParams.set('suppliesActive', '1');
+            }
+            if (profitMode) {
+                searchParams.set('profitMode', '1');
+            }
+
             const response = await fetch(`/api/game-items?${searchParams.toString()}`, {
                 signal: controller.signal,
             });
-            const data: { items: IGameItem[]; total: number; page: number; perPage: number } = await response.json();
+            if (!response.ok) {
+                throw new Error(`Failed to fetch items (status ${response.status})`);
+            }
+            const data: { items?: IGameItem[]; total?: number; page?: number; perPage?: number } =
+                await response.json();
+            if (!Array.isArray(data.items)) {
+                throw new Error('Invalid items payload');
+            }
             if (controller.signal.aborted) return;
             fetchedItems = data.items;
-            totalItems = data.total;
+            totalItems = data.total ?? 0;
+            writeItemsCache(cacheKey, {
+                items: data.items,
+                total: data.total ?? 0,
+                page: data.page ?? page,
+                perPage: data.perPage ?? perPageValue,
+            });
         } catch (error) {
             if ((error as Error).name !== 'AbortError') {
                 console.error('Failed to fetch game items', error);
             }
         } finally {
-            if (listAbort === controller) listAbort = null;
-            loading = false;
+            if (listAbort === controller) {
+                listAbort = null;
+                if (shouldForceLoading) forceLoading = false;
+                loading = false;
+            }
         }
     }
 
     // Fetch whenever pagination inputs change.
     $effect(() => {
-        void loadPage(currentPage, perPageValue, filterSelected, sortOrderSelected, skillLevelsForQuery, skillSlug);
+        void loadPage(
+            currentPage,
+            perPageValue,
+            filterSelected,
+            sortOrderSelected,
+            skillLevelsForQuery,
+            skillSlug,
+            suppliesParam,
+            suppliesActive,
+            profitModeEnabled,
+        );
     });
 
     const gameItems = $derived.by(() => {
@@ -196,18 +312,151 @@
         itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
     }
 
-    function handleSortOrderChange(value: string) {
-        sortOrderSelected = value || 'desc';
-        itemsPagePreferences.set({ ...$itemsPagePreferences, sortOrder: sortOrderSelected });
-        currentPage = 1;
-        itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
-    }
-
-    function handleSkillFilterToggle(value: boolean) {
+    function applySkillFilterToggle(value: boolean) {
+        skillFilterChecked = value;
         filterItemsStore.set({ ...$filterItemsStore, filterItemsByPlayerLevels: value });
         // Reset pagination to trigger the reload.
         currentPage = 1;
         itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
+    }
+
+    function applySuppliesToggle(value: boolean) {
+        useSuppliesChecked = value;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, useSupplies: value });
+        skipCacheOnce = true;
+        forceLoading = true;
+        if (value && activeSkillLevels && !skillFilterChecked) {
+            skillFilterChecked = true;
+            filterItemsStore.set({ ...$filterItemsStore, filterItemsByPlayerLevels: true });
+        }
+        currentPage = 1;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
+    }
+
+    function requestLongWaitToggle(kind: 'profit' | 'supplies', value: boolean) {
+        if (!value) {
+            if (kind === 'profit') {
+                handleProfitModeToggle(false);
+            } else {
+                applySuppliesToggle(false);
+            }
+            return;
+        }
+
+        if (skipLongWaitDialog) {
+            pendingLongWaitToggle = kind;
+            confirmLongWait();
+            return;
+        }
+
+        pendingLongWaitToggle = kind;
+        doNotAskAgainChecked = false;
+        longWaitDialogOpen = true;
+    }
+
+    function confirmLongWait() {
+        if (doNotAskAgainChecked && typeof window !== 'undefined') {
+            try {
+                localStorage.setItem(longWaitSkipKey, '1');
+                skipLongWaitDialog = true;
+            } catch {
+                // ignore storage failures
+            }
+        }
+        if (pendingLongWaitToggle === 'profit') {
+            handleProfitModeToggle(true);
+        } else if (pendingLongWaitToggle === 'supplies') {
+            applySuppliesToggle(true);
+        }
+        pendingLongWaitToggle = null;
+        longWaitDialogOpen = false;
+    }
+
+    function cancelLongWait() {
+        pendingLongWaitToggle = null;
+        doNotAskAgainChecked = false;
+        longWaitDialogOpen = false;
+    }
+
+    function handleProfitModeToggle(value: boolean) {
+        profitModeChecked = value;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, profitMode: value });
+        skipCacheOnce = true;
+        forceLoading = true;
+        currentPage = 1;
+        itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
+    }
+
+    type ItemsCacheEntry = {
+        items: IGameItem[];
+        total: number;
+        page: number;
+        perPage: number;
+        cachedAt: number;
+    };
+
+    function normalizeRecord(record?: Record<string, number> | null): Record<string, number> | null {
+        if (!record) return null;
+        const entries = Object.entries(record)
+            .map(([key, value]) => [key, Math.floor(Number(value))] as const)
+            .filter(([, value]) => Number.isFinite(value));
+        if (!entries.length) return null;
+        entries.sort((a, b) => a[0].localeCompare(b[0]));
+        return Object.fromEntries(entries);
+    }
+
+    function buildItemsCacheKey(params: {
+        page: number;
+        perPageValue: number;
+        filter: string;
+        sortOrder: string;
+        skillLevels?: Record<string, number>;
+        skill?: string | null;
+        supplies?: string | null;
+        suppliesEnabled?: boolean;
+        profitMode?: boolean;
+    }) {
+        if (typeof window === 'undefined') return '';
+        const normalizedSkills = normalizeRecord(params.skillLevels);
+        const payload = {
+            page: params.page,
+            perPage: params.perPageValue,
+            filter: params.filter,
+            sortOrder: params.sortOrder,
+            skill: params.skill ?? null,
+            skillLevels: normalizedSkills,
+            supplies: params.supplies ?? null,
+            useSupplies: params.suppliesEnabled ?? useSuppliesChecked,
+            profitMode: params.profitMode ?? profitModeChecked,
+        };
+        return `ge-skiller:items-cache:${JSON.stringify(payload)}`;
+    }
+
+    function readItemsCache(cacheKey: string): ItemsCacheEntry | null {
+        if (!cacheKey || typeof window === 'undefined') return null;
+        try {
+            const raw = sessionStorage.getItem(cacheKey);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw) as ItemsCacheEntry;
+            if (!parsed || !Array.isArray(parsed.items)) return null;
+            return parsed;
+        } catch (error) {
+            console.warn('Failed to read items cache', error);
+            return null;
+        }
+    }
+
+    function writeItemsCache(
+        cacheKey: string,
+        data: { items: IGameItem[]; total: number; page: number; perPage: number },
+    ) {
+        if (!cacheKey || typeof window === 'undefined') return;
+        try {
+            const entry: ItemsCacheEntry = { ...data, cachedAt: Date.now() };
+            sessionStorage.setItem(cacheKey, JSON.stringify(entry));
+        } catch (error) {
+            console.warn('Failed to write items cache', error);
+        }
     }
 </script>
 
@@ -231,19 +480,6 @@
                             <Select.Content>
                                 <Select.Group>
                                     {#each filterOptions as option (option.value)}
-                                        <Select.Item value={option.value}>{option.label}</Select.Item>
-                                    {/each}
-                                </Select.Group>
-                            </Select.Content>
-                        </Select.Root>
-                    </div>
-
-                    <div class="min-w-[180px] sm:w-[210px]">
-                        <Select.Root type="single" bind:value={sortOrderSelected} onValueChange={handleSortOrderChange}>
-                            <Select.Trigger>{sortOrderLabel}</Select.Trigger>
-                            <Select.Content>
-                                <Select.Group>
-                                    {#each sortOrderOptions as option (option.value)}
                                         <Select.Item value={option.value}>{option.label}</Select.Item>
                                     {/each}
                                 </Select.Group>
@@ -274,21 +510,74 @@
 
     <div class="border-b border-border mb-4">
         <div class="content-sizing">
-            <div class="flex w-full flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-start py-2">
+            <div class="flex w-full flex-col items-start gap-2 py-2">
                 <div class="flex items-center gap-2">
                     <Switch
                         id="skill-filter-switch"
-                        bind:checked={skillFilterChecked}
-                        onCheckedChange={handleSkillFilterToggle}
+                        checked={skillFilterChecked}
+                        onCheckedChange={applySkillFilterToggle}
                         aria-label="Filter by my skill levels"
+                        disabled={skillToggleDisabled}
                     />
-                    <Label for="skill-filter-switch" class="cursor-pointer select-none text-sm">
+                    <Label
+                        for="skill-filter-switch"
+                        class={`cursor-pointer select-none text-sm ${skillToggleDisabled ? 'opacity-60' : ''}`}
+                    >
                         Filter by my skill levels
+                    </Label>
+                </div>
+                <p class="text-xs text-muted-foreground">Longer wait times:</p>
+                <div class="flex items-center gap-2">
+                    <Switch
+                        id="profit-mode-switch"
+                        checked={profitModeEnabled}
+                        onCheckedChange={(value) => requestLongWaitToggle('profit', value)}
+                        aria-label="Enable profit mode"
+                    />
+                    <Label for="profit-mode-switch" class="cursor-pointer select-none text-sm">
+                        Show profit
+                    </Label>
+                </div>
+                <div class="flex items-center gap-2">
+                    <Switch
+                        id="supplies-profit-switch"
+                        checked={useSuppliesChecked}
+                        onCheckedChange={(value) => requestLongWaitToggle('supplies', value)}
+                        aria-label="Filter by my supplies"
+                    />
+                    <Label for="supplies-profit-switch" class="cursor-pointer select-none text-sm">
+                        Filter by my supplies
                     </Label>
                 </div>
             </div>
         </div>
     </div>
+
+    <AlertDialog.Root bind:open={longWaitDialogOpen}>
+        <AlertDialog.Content>
+            <AlertDialog.Header>
+                <AlertDialog.Title>Longer wait time</AlertDialog.Title>
+                <AlertDialog.Description>
+                    This filter can take 20–60 seconds to process. Do you want to continue?
+                </AlertDialog.Description>
+            </AlertDialog.Header>
+            <AlertDialog.Footer class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 mr-auto">
+                    <input
+                        id="long-wait-skip"
+                        type="checkbox"
+                        class="h-4 w-4 rounded border border-input"
+                        bind:checked={doNotAskAgainChecked}
+                    />
+                    <Label for="long-wait-skip" class="cursor-pointer select-none text-sm">
+                        Do not ask again
+                    </Label>
+                </div>
+                <AlertDialog.Cancel onclick={cancelLongWait}>Cancel</AlertDialog.Cancel>
+                <AlertDialog.Action onclick={confirmLongWait}>Yes, continue</AlertDialog.Action>
+            </AlertDialog.Footer>
+        </AlertDialog.Content>
+    </AlertDialog.Root>
 
     <div class="content-sizing">
         {#snippet pagination()}
@@ -343,7 +632,14 @@
                 {/each}
             {:else}
                 {#each gameItems as item (item.id)}
-                    <ItemCard {item} linkToItemPage allowHide={true} allowFavorite={true} />
+                    <ItemCard
+                        {item}
+                        linkToItemPage
+                        allowHide={true}
+                        allowFavorite={true}
+                        showProfit={profitModeEnabled}
+                        profitContext={profitContextLabel}
+                    />
                 {/each}
             {/if}
         </div>

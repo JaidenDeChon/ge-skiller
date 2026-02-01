@@ -4,6 +4,7 @@ import {
     getPaginatedGameItems,
     type GameItemFilter,
     type GameItemSortOrder,
+    type PlayerSupplies,
     type PlayerSkillLevels,
 } from '$lib/services/game-item-mongo-service.server';
 
@@ -21,10 +22,18 @@ export const GET: RequestHandler = async ({ url }) => {
     const perPage = Number(url.searchParams.get('perPage')) || 50;
     const filter = (url.searchParams.get('filter') ?? undefined) as GameItemFilter | undefined;
     const orderParam = url.searchParams.get('order');
-    const sortOrder: GameItemSortOrder = orderParam === 'asc' ? 'asc' : 'desc';
+    const normalizedOrder = orderParam === 'profit-asc' ? 'profit-desc' : orderParam;
+    const sortOrder: GameItemSortOrder =
+        normalizedOrder === 'asc' || normalizedOrder === 'desc' || normalizedOrder === 'profit-desc'
+            ? normalizedOrder
+            : 'desc';
     const skill = url.searchParams.get('skill');
     const skillLevelsParam = url.searchParams.get('skillLevels');
     let skillLevels: PlayerSkillLevels | undefined;
+    const suppliesParam = url.searchParams.get('supplies');
+    let supplies: PlayerSupplies | undefined;
+    const suppliesActive = url.searchParams.get('suppliesActive') === '1';
+    const profitMode = url.searchParams.get('profitMode') === '1';
 
     if (skillLevelsParam) {
         try {
@@ -41,6 +50,30 @@ export const GET: RequestHandler = async ({ url }) => {
         }
     }
 
-    const paginated = await getPaginatedGameItems({ page, perPage, filter, sortOrder, skillLevels, skill });
+    if (suppliesParam) {
+        try {
+            const parsed = JSON.parse(suppliesParam) as PlayerSupplies;
+            if (parsed && typeof parsed === 'object') {
+                const entries = Object.entries(parsed)
+                    .map(([id, quantity]) => [String(id), Math.floor(Number(quantity))])
+                    .filter(([, quantity]) => Number.isFinite(quantity) && quantity > 0);
+                if (entries.length) supplies = Object.fromEntries(entries);
+            }
+        } catch (error) {
+            console.warn('Failed to parse supplies query param', error);
+        }
+    }
+
+    const paginated = await getPaginatedGameItems({
+        page,
+        perPage,
+        filter,
+        sortOrder,
+        skillLevels,
+        skill,
+        supplies,
+        suppliesActive,
+        profitMode,
+    });
     return new Response(JSON.stringify(paginated));
 };

@@ -36,12 +36,16 @@
         linkToItemPage = false,
         allowFavorite = true,
         allowHide = true,
+        showProfit = false,
+        profitContext = 'Profit',
     } = $props<{
         item?: IGameItem;
         loading?: boolean;
         linkToItemPage?: boolean;
         allowFavorite?: boolean;
         allowHide?: boolean;
+        showProfit?: boolean;
+        profitContext?: string;
     }>();
 
     let timeSincePriceTime = $state('Calculating...');
@@ -50,6 +54,13 @@
     const hasPrice = $derived(priceValue !== null);
     const formattedPrice = $derived(hasPrice ? formatWithCommas(priceValue!) : '—');
     const priceTime = $derived(resolveDisplayTime(item));
+    const profitValue = $derived(resolveProfit(item));
+    const hasProfit = $derived(typeof profitValue === 'number' && Number.isFinite(profitValue));
+    const formattedProfit = $derived(
+        hasProfit ? `${profitValue! >= 0 ? '+' : ''}${formatWithCommas(Math.round(profitValue!))}` : '—',
+    );
+    const profitPercent = $derived(resolveProfitPercent(item));
+    const formattedProfitPercent = $derived(formatProfitPercent(profitPercent));
 
     $effect(() => {
         if (priceTime) timeSincePriceTime = timeSince(priceTime);
@@ -76,6 +87,26 @@
         }
 
         return null;
+    }
+
+    function resolveProfit(item: IGameItem): number | null {
+        const profit = item.creationProfit;
+        if (typeof profit !== 'number' || !Number.isFinite(profit)) return null;
+        return profit;
+    }
+
+    function resolveProfitPercent(item: IGameItem): number | null {
+        const profit = item.creationProfit;
+        const cost = item.creationCost;
+        if (typeof profit !== 'number' || !Number.isFinite(profit)) return null;
+        if (typeof cost !== 'number' || !Number.isFinite(cost) || cost <= 0) return null;
+        return (profit / cost) * 100;
+    }
+
+    function formatProfitPercent(value: number | null): string | null {
+        if (value === null) return null;
+        const sign = value > 0 ? '+' : '';
+        return `${sign}${value.toFixed(1)}%`;
     }
 </script>
 
@@ -127,6 +158,17 @@
                 {#if priceTime}
                     <p class="text-muted-foreground text-xs animate-fade-in">
                         {timeSincePriceTime}
+                    </p>
+                {/if}
+                {#if showProfit && hasProfit}
+                    <p class="text-xs animate-fade-in">
+                        <span class="text-muted-foreground">{profitContext}:</span>
+                        <span class={profitValue! >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                            {formattedProfit} gp
+                            {#if formattedProfitPercent}
+                                <span class="text-muted-foreground">({formattedProfitPercent})</span>
+                            {/if}
+                        </span>
                     </p>
                 {/if}
             {/if}

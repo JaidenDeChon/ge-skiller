@@ -3,12 +3,17 @@ import { skillTreeSlugs } from '$lib/constants/skill-tree-pages';
 import { OsrsboxItemModel, type OsrsboxItemDocument } from '$lib/models/mongo-schemas/osrsbox-db-item-schema';
 import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
-type GameItemDoc = OsrsboxItemDocument & { _id: Types.ObjectId };
+type GameItemDoc = OsrsboxItemDocument & {
+    _id: Types.ObjectId;
+    creationCost?: number | null;
+    creationProfit?: number | null;
+};
 const MAX_INGREDIENT_DEPTH = 5;
 
 export type GameItemFilter = 'all' | 'members' | 'f2p' | 'equipable' | 'stackable' | 'quest' | 'nonquest';
-export type GameItemSortOrder = 'asc' | 'desc';
+export type GameItemSortOrder = 'asc' | 'desc' | 'profit-desc';
 export type PlayerSkillLevels = Record<string, number>;
+export type PlayerSupplies = Record<string, number>;
 
 export type PaginatedGameItems = {
     items: GameItemDoc[];
@@ -64,12 +69,18 @@ export async function getPaginatedGameItems(params?: {
     sortOrder?: GameItemSortOrder;
     skillLevels?: PlayerSkillLevels | null;
     skill?: string | null;
+    supplies?: PlayerSupplies | null;
+    suppliesActive?: boolean;
+    profitMode?: boolean;
 }): Promise<PaginatedGameItems> {
     const page = Math.max(1, params?.page ?? 1);
     const perPage = Math.max(1, Math.min(200, params?.perPage ?? 12));
     const skip = (page - 1) * perPage;
     const filter = normalizeFilter(params?.filter);
-    const sortDirection = params?.sortOrder === 'asc' ? 1 : -1;
+    const sortOrder = normalizeSortOrder(params?.sortOrder);
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    const profitSort = sortOrder === 'profit-desc';
+    const profitMode = Boolean(params?.profitMode);
     const baseFilterQuery = getFilterQuery(filter);
     const skillQuery = getSkillMatchQuery(params?.skill);
     const filterQuery = mergeQueries(baseFilterQuery, skillQuery, {
@@ -80,8 +91,11 @@ export async function getPaginatedGameItems(params?: {
         ...getValidPriceQuery(),
     });
     const skillLevels = normalizeSkillLevels(params?.skillLevels);
+    const suppliesActive = Boolean(params?.suppliesActive);
+    const supplies = normalizeSupplies(params?.supplies);
+    const supplyMap = supplies ?? (suppliesActive ? {} : null);
 
-    if (!skillLevels) {
+    if (!skillLevels && !profitSort && !profitMode && !suppliesActive && !supplies) {
         const [items, total] = await Promise.all([
             OsrsboxItemModel.find(filterQuery)
                 .sort({ highPrice: sortDirection, cost: sortDirection, name: 1 })
@@ -95,13 +109,25 @@ export async function getPaginatedGameItems(params?: {
         return { items, total, page, perPage };
     }
 
+    const suppliesFilterActive = suppliesActive || Boolean(supplyMap);
+    const shouldComputeProfit = profitSort || profitMode;
+    const profitStages = shouldComputeProfit
+        ? buildProfitPipeline(supplyMap, profitSort, profitSort && suppliesFilterActive)
+        : [];
+    const supplyStages = !profitSort && suppliesFilterActive ? buildSuppliesFilterPipeline(supplyMap) : [];
+    const sortStage = profitSort
+        ? { creationProfit: sortDirection, highPrice: -1, cost: -1, name: 1 }
+        : { highPrice: sortDirection, cost: sortDirection, name: 1 };
+
     const [{ items, total = 0 } = { items: [], total: 0 }] = await OsrsboxItemModel.aggregate<{
         items: GameItemDoc[];
         total: number;
     }>([
         { $match: filterQuery },
-        { $match: { $expr: buildPlayerSkillMatchExpression(skillLevels) } },
-        { $sort: { highPrice: sortDirection, cost: sortDirection, name: 1 } },
+        ...(skillLevels ? [{ $match: { $expr: buildPlayerSkillMatchExpression(skillLevels) } }] : []),
+        ...supplyStages,
+        ...profitStages,
+        { $sort: sortStage },
         {
             $facet: {
                 items: [{ $skip: skip }, { $limit: perPage }],
@@ -178,6 +204,12 @@ function escapeRegex(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function normalizeSortOrder(sortOrder?: GameItemSortOrder): GameItemSortOrder {
+    const allowed: GameItemSortOrder[] = ['asc', 'desc', 'profit-desc'];
+    if (!sortOrder) return 'desc';
+    return allowed.includes(sortOrder) ? sortOrder : 'desc';
+}
+
 function normalizeFilter(filter?: GameItemFilter): GameItemFilter {
     const allowed: GameItemFilter[] = ['all', 'members', 'f2p', 'equipable', 'stackable', 'quest', 'nonquest'];
     if (!filter) return 'all';
@@ -209,6 +241,313 @@ function getFilterQuery(filter: GameItemFilter): Record<string, unknown> {
         default:
             return base;
     }
+}
+
+function normalizeSupplies(supplies?: PlayerSupplies | null): PlayerSupplies | null {
+    if (!supplies || typeof supplies !== 'object') return null;
+
+    const entries = Object.entries(supplies)
+        .map(([id, quantity]) => [String(id), Math.floor(Number(quantity))] as const)
+        .filter(([, quantity]) => Number.isFinite(quantity) && quantity > 0);
+
+    if (!entries.length) return null;
+    return Object.fromEntries(entries);
+}
+
+function buildProfitPipeline(
+    supplies?: PlayerSupplies | null,
+    filterMissingProfit: boolean = false,
+    enforceSupplies: boolean = false,
+): Record<string, unknown>[] {
+    const supplyMap = supplies ?? normalizeSupplies(supplies);
+    const hasSupplies = enforceSupplies || Boolean(supplyMap);
+    const primarySpecExpr = buildPrimarySpecExpression();
+    const supplyQtyExpr = hasSupplies
+        ? {
+              $ifNull: [
+                  {
+                      $getField: {
+                          field: { $toString: '$$matched.id' },
+                          input: { $literal: supplyMap },
+                      },
+                  },
+                  0,
+              ],
+          }
+        : 0;
+    const neededExpr = hasSupplies
+        ? { $max: [0, { $subtract: ['$$amount', '$$supplyQty'] }] }
+        : '$$amount';
+    const unitPriceExpr = { $ifNull: ['$$matched.highPrice', { $ifNull: ['$$matched.lowPrice', '$$matched.cost'] }] };
+    const outputPriceExpr = { $ifNull: ['$highPrice', { $ifNull: ['$lowPrice', '$cost'] }] };
+    const ingredientCostRowsExpr = {
+        $map: {
+            input: '$consumedIngredients',
+            as: 'ing',
+            in: {
+                $let: {
+                    vars: {
+                        matched: {
+                            $first: {
+                                $filter: {
+                                    input: '$ingredientItems',
+                                    as: 'item',
+                                    cond: { $eq: ['$$item._id', '$$ing.item'] },
+                                },
+                            },
+                        },
+                        amount: { $ifNull: ['$$ing.amount', 1] },
+                    },
+                    in: {
+                        $let: {
+                            vars: {
+                                unitPrice: unitPriceExpr,
+                                supplyQty: supplyQtyExpr,
+                            },
+                            in: {
+                                itemId: '$$matched.id',
+                                amount: '$$amount',
+                                unitPrice: '$$unitPrice',
+                                supplyQty: '$$supplyQty',
+                                needed: neededExpr,
+                                total: {
+                                    $let: {
+                                        vars: { needed: neededExpr },
+                                        in: {
+                                            $cond: [
+                                                { $lte: ['$$needed', 0] },
+                                                0,
+                                                {
+                                                    $cond: [
+                                                        { $gt: ['$$unitPrice', 0] },
+                                                        { $multiply: ['$$unitPrice', '$$needed'] },
+                                                        null,
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    };
+
+    const costKnownExpr = {
+        $allElementsTrue: {
+            $map: {
+                input: '$ingredientCostRows',
+                as: 'row',
+                in: { $ne: ['$$row.total', null] },
+            },
+        },
+    };
+    const suppliesSatisfiedExpr = hasSupplies
+        ? {
+              $eq: [
+                  {
+                      $size: {
+                          $filter: {
+                              input: '$ingredientCostRows',
+                              as: 'row',
+                              cond: { $gt: ['$$row.needed', 0] },
+                          },
+                      },
+                  },
+                  0,
+              ],
+          }
+        : true;
+
+    const pipeline: Record<string, unknown>[] = [
+        { $set: { primarySpec: primarySpecExpr } },
+        {
+            $set: {
+                consumedIngredients: {
+                    $filter: {
+                        input: { $ifNull: ['$primarySpec.ingredients', []] },
+                        as: 'ing',
+                        cond: { $ne: ['$$ing.consumedDuringCreation', false] },
+                    },
+                },
+            },
+        },
+        {
+            $lookup: {
+                from: 'items',
+                let: {
+                    ingredientIds: {
+                        $map: { input: '$consumedIngredients', as: 'ing', in: '$$ing.item' },
+                    },
+                },
+                pipeline: [
+                    { $match: { $expr: { $in: ['$_id', '$$ingredientIds'] } } },
+                    { $project: { _id: 1, id: 1, highPrice: 1, lowPrice: 1, cost: 1 } },
+                ],
+                as: 'ingredientItems',
+            },
+        },
+        { $set: { ingredientCostRows: ingredientCostRowsExpr } },
+        { $set: { costKnown: costKnownExpr, outputPrice: outputPriceExpr } },
+        {
+            $set: {
+                creationCost: {
+                    $cond: ['$costKnown', { $sum: '$ingredientCostRows.total' }, null],
+                },
+            },
+        },
+        {
+            $set: {
+                creationProfit: {
+                    $cond: [
+                        {
+                            $and: [
+                                { $gt: ['$outputPrice', 0] },
+                                { $ne: ['$creationCost', null] },
+                            ],
+                        },
+                        { $subtract: ['$outputPrice', '$creationCost'] },
+                        null,
+                    ],
+                },
+            },
+        },
+    ];
+
+    if (filterMissingProfit) {
+        pipeline.push({ $match: { creationProfit: { $ne: null } } });
+    }
+
+    if (enforceSupplies && hasSupplies) {
+        pipeline.push({ $match: { $expr: suppliesSatisfiedExpr } });
+    }
+
+    pipeline.push({
+        $unset: [
+            'primarySpec',
+            'consumedIngredients',
+            'ingredientItems',
+            'ingredientCostRows',
+            'costKnown',
+            'outputPrice',
+        ],
+    });
+
+    return pipeline;
+}
+
+function buildSuppliesFilterPipeline(supplies?: PlayerSupplies | null): Record<string, unknown>[] {
+    const supplyMap = supplies ?? normalizeSupplies(supplies) ?? {};
+
+    const primarySpecExpr = buildPrimarySpecExpression();
+    const supplyQtyExpr = {
+        $ifNull: [
+            {
+                $getField: {
+                    field: { $toString: { $ifNull: ['$$matched.id', ''] } },
+                    input: { $literal: supplyMap },
+                },
+            },
+            0,
+        ],
+    };
+
+    const requiredSuppliesExpr = {
+        $map: {
+            input: '$requiredIngredients',
+            as: 'ing',
+            in: {
+                $let: {
+                    vars: {
+                        matched: {
+                            $first: {
+                                $filter: {
+                                    input: '$ingredientItems',
+                                    as: 'item',
+                                    cond: { $eq: ['$$item._id', '$$ing.item'] },
+                                },
+                            },
+                        },
+                        amount: { $ifNull: ['$$ing.amount', 1] },
+                    },
+                    in: {
+                        $let: {
+                            vars: { supplyQty: supplyQtyExpr },
+                            in: {
+                                supplyQty: '$$supplyQty',
+                                amount: '$$amount',
+                                sufficient: { $gte: ['$$supplyQty', '$$amount'] },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    };
+
+    return [
+        { $set: { primarySpec: primarySpecExpr } },
+        { $set: { requiredIngredients: { $ifNull: ['$primarySpec.ingredients', []] } } },
+        { $match: { $expr: { $gt: [{ $size: '$requiredIngredients' }, 0] } } },
+        {
+            $lookup: {
+                from: 'items',
+                let: {
+                    ingredientIds: {
+                        $map: { input: '$requiredIngredients', as: 'ing', in: '$$ing.item' },
+                    },
+                },
+                pipeline: [
+                    { $match: { $expr: { $in: ['$_id', '$$ingredientIds'] } } },
+                    { $project: { _id: 1, id: 1 } },
+                ],
+                as: 'ingredientItems',
+            },
+        },
+        { $set: { supplyRows: requiredSuppliesExpr } },
+        {
+            $set: {
+                suppliesSatisfied: {
+                    $allElementsTrue: {
+                        $map: {
+                            input: '$supplyRows',
+                            as: 'row',
+                            in: '$$row.sufficient',
+                        },
+                    },
+                },
+            },
+        },
+        { $match: { suppliesSatisfied: true } },
+        { $unset: ['primarySpec', 'requiredIngredients', 'ingredientItems', 'supplyRows', 'suppliesSatisfied'] },
+    ];
+}
+
+function buildPrimarySpecExpression() {
+    return {
+        $let: {
+            vars: { specs: { $ifNull: ['$creationSpecs', []] } },
+            in: {
+                $let: {
+                    vars: {
+                        withIngredients: {
+                            $filter: {
+                                input: '$$specs',
+                                as: 'spec',
+                                cond: {
+                                    $gt: [{ $size: { $ifNull: ['$$spec.ingredients', []] } }, 0],
+                                },
+                            },
+                        },
+                    },
+                    in: { $ifNull: [{ $first: '$$withIngredients' }, { $first: '$$specs' }] },
+                },
+            },
+        },
+    };
 }
 
 function getSkillMatchQuery(skill?: string | null): Record<string, unknown> | null {
@@ -271,50 +610,103 @@ function buildPlayerSkillMatchExpression(skillLevels: PlayerSkillLevels) {
                         cond: {
                             $and: [
                                 {
-                                    // Require that the spec has either skill requirements or XP information.
+                                    // Require that the spec has either skill requirements, XP information, or tree requirements.
                                     $gt: [
                                         {
                                             $add: [
                                                 { $size: { $ifNull: ['$$spec.requiredSkills', []] } },
                                                 { $size: { $ifNull: ['$$spec.experienceGranted', []] } },
+                                                {
+                                                    $size: {
+                                                        $objectToArray: { $ifNull: ['$$spec.treeMinSkills', {}] },
+                                                    },
+                                                },
                                             ],
                                         },
                                         0,
                                     ],
                                 },
                                 {
-                                    // Ensure no required skills exceed the player's levels.
-                                    $eq: [
-                                        {
-                                            $size: {
-                                                $filter: {
-                                                    input: { $ifNull: ['$$spec.requiredSkills', []] },
-                                                    as: 'req',
-                                                    cond: {
-                                                        $gt: [
-                                                            { $ifNull: ['$$req.skillLevel', 0] },
-                                                            {
-                                                                $ifNull: [
-                                                                    {
-                                                                        $getField: {
-                                                                            field: {
-                                                                                $toLower: {
-                                                                                    $ifNull: ['$$req.skillName', ''],
-                                                                                },
-                                                                            },
-                                                                            input: { $literal: skillLevels },
-                                                                        },
-                                                                    },
-                                                                    0,
-                                                                ],
-                                                            },
-                                                        ],
-                                                    },
-                                                },
+                                    // Prefer treeMinSkills if available; otherwise fall back to direct requiredSkills.
+                                    $let: {
+                                        vars: {
+                                            treeEntries: {
+                                                $objectToArray: { $ifNull: ['$$spec.treeMinSkills', {}] },
                                             },
                                         },
-                                        0,
-                                    ],
+                                        in: {
+                                            $cond: [
+                                                { $gt: [{ $size: '$$treeEntries' }, 0] },
+                                                {
+                                                    $eq: [
+                                                        {
+                                                            $size: {
+                                                                $filter: {
+                                                                    input: '$$treeEntries',
+                                                                    as: 'req',
+                                                                    cond: {
+                                                                        $gt: [
+                                                                            '$$req.v',
+                                                                            {
+                                                                                $ifNull: [
+                                                                                    {
+                                                                                        $getField: {
+                                                                                            field: {
+                                                                                                $toLower: '$$req.k',
+                                                                                            },
+                                                                                            input: { $literal: skillLevels },
+                                                                                        },
+                                                                                    },
+                                                                                    0,
+                                                                                ],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                        0,
+                                                    ],
+                                                },
+                                                {
+                                                    $eq: [
+                                                        {
+                                                            $size: {
+                                                                $filter: {
+                                                                    input: { $ifNull: ['$$spec.requiredSkills', []] },
+                                                                    as: 'req',
+                                                                    cond: {
+                                                                        $gt: [
+                                                                            { $ifNull: ['$$req.skillLevel', 0] },
+                                                                            {
+                                                                                $ifNull: [
+                                                                                    {
+                                                                                        $getField: {
+                                                                                            field: {
+                                                                                                $toLower: {
+                                                                                                    $ifNull: [
+                                                                                                        '$$req.skillName',
+                                                                                                        '',
+                                                                                                    ],
+                                                                                                },
+                                                                                            },
+                                                                                            input: { $literal: skillLevels },
+                                                                                        },
+                                                                                    },
+                                                                                    0,
+                                                                                ],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                        0,
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    },
                                 },
                             ],
                         },

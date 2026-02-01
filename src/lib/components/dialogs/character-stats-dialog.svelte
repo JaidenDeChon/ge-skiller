@@ -44,7 +44,7 @@
                 return;
             }
 
-            populatedStats.set({ ...found });
+            populatedStats.set(cloneProfile(found));
         }
     });
 
@@ -60,6 +60,10 @@
     const characters = $derived(getCharacters());
 
     const populatedStats = writable(new CharacterProfile(''));
+
+    function cloneProfile(profile: CharacterProfile) {
+        return new CharacterProfile(profile.name, { ...profile.skillLevels }, profile.id);
+    }
 
     // Controls whether the buttons in the footer are disabled.
     const footerDisabled = $derived($isLoading || !$populatedStats.name);
@@ -103,7 +107,7 @@
 
         try {
             const character = await fetchCharacterDetailsFromWOM($populatedStats.name);
-            populatedStats.set(character);
+            populatedStats.set(cloneProfile(character));
         } catch (e) {
             toast.error(`Failed to import character "${$populatedStats.name}". Please check the name and try again.`);
             console.error(e);
@@ -114,8 +118,9 @@
 
     function handleSkillChange(skill: keyof CharacterProfile['skillLevels'], value: number) {
         populatedStats.update((current) => {
-            current.skillLevels[skill] = value;
-            return current;
+            const next = cloneProfile(current);
+            next.skillLevels[skill] = value;
+            return next;
         });
     }
 </script>
