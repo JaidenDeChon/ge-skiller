@@ -270,7 +270,7 @@
             return { ...current, items: nextItems };
         });
 
-        quantityById = { ...quantityById, [String(item.id)]: '1' };
+        quantityById = { ...quantityById, [String(item.id)]: String(quantity) };
         toast.success(`Added ${quantity}x ${item.name} to your supplies.`);
     }
 
@@ -540,6 +540,15 @@
                                                         item.id,
                                                         (event.currentTarget as HTMLInputElement).value,
                                                     )}
+                                                onkeydown={(event) => {
+                                                    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                                                        event.stopPropagation();
+                                                    }
+                                                    if (event.key === 'Enter') {
+                                                        event.preventDefault();
+                                                        addToBank(item);
+                                                    }
+                                                }}
                                             />
                                             <Button
                                                 type="button"

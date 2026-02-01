@@ -212,6 +212,12 @@
                         step="1"
                         inputmode="numeric"
                         bind:value={bankQuantityInput}
+                        onkeydown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                confirmAddToBank();
+                            }
+                        }}
                     />
                 </div>
                 <Dialog.Footer>
