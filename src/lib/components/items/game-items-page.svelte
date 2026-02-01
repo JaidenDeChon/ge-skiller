@@ -280,10 +280,10 @@
                         id="skill-filter-switch"
                         bind:checked={skillFilterChecked}
                         onCheckedChange={handleSkillFilterToggle}
-                        aria-label={skillToggleLabel}
+                        aria-label="Filter by my skill levels"
                     />
                     <Label for="skill-filter-switch" class="cursor-pointer select-none text-sm">
-                        {skillToggleLabel}
+                        Filter by my skill levels
                     </Label>
                 </div>
             </div>
