@@ -3,6 +3,7 @@
     import { Skeleton } from '$lib/components/ui/skeleton';
     import * as Avatar from '$lib/components/ui/avatar';
     import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+    import * as Dialog from '$lib/components/ui/dialog';
     import * as Table from '$lib/components/ui/table';
     import IconBadge from '$lib/components/global/icon-badge.svelte';
     import FavoriteButton from '$lib/components/global/favorite-button.svelte';
@@ -12,7 +13,10 @@
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
     import Button from '$lib/components/ui/button/button.svelte';
+    import { Input } from '$lib/components/ui/input';
+    import { Label } from '$lib/components/ui/label';
     import OsrsboxItemUploadDialog from '$lib/components/dialogs/osrsbox-item-upload-dialog.svelte';
+    import { bankItemsStore } from '$lib/stores/bank-items-store';
     import { toast } from 'svelte-sonner';
 
     const { data }: { data: { gameItem: IOsrsboxItemWithMeta | null; showDevControls?: boolean } } = $props();
@@ -125,9 +129,109 @@
 
     const primaryCreationSpec = $derived(getPrimaryCreationSpec(gameItem));
     const renderChart = $derived(!!primaryCreationSpec?.ingredients?.length);
+
+    const bankItems = $derived($bankItemsStore.items ?? []);
+    const bankEntry = $derived.by(() => {
+        const itemId = Number(gameItem?.id);
+        if (!Number.isFinite(itemId)) return undefined;
+        return bankItems.find((entry) => Number(entry.id) === itemId);
+    });
+    const isInBank = $derived(Boolean(bankEntry));
+    const bankQuantity = $derived(bankEntry?.quantity ?? 0);
+
+    let bankDialogOpen = $state(false);
+    let bankDialogMode = $state<'add' | 'remove'>('add');
+    let bankQuantityInput = $state('1');
+
+    function openAddToBank() {
+        bankDialogMode = 'add';
+        bankQuantityInput = '1';
+        bankDialogOpen = true;
+    }
+
+    function openRemoveFromBank() {
+        bankDialogMode = 'remove';
+        bankDialogOpen = true;
+    }
+
+    function parseQuantity(value: string | undefined) {
+        const numeric = Math.floor(Number(value ?? ''));
+        if (!Number.isFinite(numeric) || numeric <= 0) return 1;
+        return numeric;
+    }
+
+    function confirmAddToBank() {
+        const itemId = Number(gameItem?.id);
+        if (!Number.isFinite(itemId) || !gameItem) return;
+        const quantity = parseQuantity(bankQuantityInput);
+
+        bankItemsStore.update((current) => {
+            const items = current?.items ?? [];
+            const existing = items.find((entry) => Number(entry.id) === itemId);
+            const nextItems = existing
+                ? items.map((entry) =>
+                      Number(entry.id) === itemId
+                          ? { ...entry, quantity: Math.max(1, entry.quantity + quantity) }
+                          : entry,
+                  )
+                : [...items, { id: itemId, quantity }];
+            return { ...current, items: nextItems };
+        });
+
+        toast.success(`Added ${quantity}x ${gameItem.name} to your supplies.`);
+        bankDialogOpen = false;
+    }
+
+    function confirmRemoveFromBank() {
+        const itemId = Number(gameItem?.id);
+        if (!Number.isFinite(itemId) || !gameItem) return;
+        bankItemsStore.update((current) => {
+            const items = current?.items ?? [];
+            const nextItems = items.filter((entry) => Number(entry.id) !== itemId);
+            return { ...current, items: nextItems };
+        });
+        toast.success(`Removed ${gameItem.name} from your supplies.`);
+        bankDialogOpen = false;
+    }
 </script>
 
 <div class="content-sizing pt-6">
+    <Dialog.Root bind:open={bankDialogOpen}>
+        <Dialog.Content>
+            {#if bankDialogMode === 'add'}
+                <Dialog.Header>
+                    <Dialog.Title>Add to supplies</Dialog.Title>
+                    <Dialog.Description>How many would you like to add?</Dialog.Description>
+                </Dialog.Header>
+                <div class="space-y-2 py-4">
+                    <Label for="supplies-quantity">Quantity</Label>
+                    <Input
+                        id="supplies-quantity"
+                        type="number"
+                        min="1"
+                        step="1"
+                        inputmode="numeric"
+                        bind:value={bankQuantityInput}
+                    />
+                </div>
+                <Dialog.Footer>
+                    <Button variant="ghost" onclick={() => (bankDialogOpen = false)}>Cancel</Button>
+                    <Button onclick={confirmAddToBank}>Add to supplies</Button>
+                </Dialog.Footer>
+            {:else}
+                <Dialog.Header>
+                    <Dialog.Title>Remove from supplies</Dialog.Title>
+                    <Dialog.Description>
+                        You have {bankQuantity} of these in your supplies. Remove this item?
+                    </Dialog.Description>
+                </Dialog.Header>
+                <Dialog.Footer>
+                    <Button variant="ghost" onclick={() => (bankDialogOpen = false)}>Cancel</Button>
+                    <Button variant="critical" onclick={confirmRemoveFromBank}>Remove from supplies</Button>
+                </Dialog.Footer>
+            {/if}
+        </Dialog.Content>
+    </Dialog.Root>
     <!-- Header -->
     <header>
         <div class="flex justify-between items-center w-full">
@@ -180,6 +284,11 @@
                                 </Button>
                             {/snippet}
                         </OsrsboxItemUploadDialog>
+                    {/if}
+                    {#if isInBank}
+                        <Button variant="outline" onclick={openRemoveFromBank}>Remove from supplies</Button>
+                    {:else}
+                        <Button variant="outline" onclick={openAddToBank}>Add to supplies</Button>
                     {/if}
                     <FavoriteButton {gameItem} />
                 </div>

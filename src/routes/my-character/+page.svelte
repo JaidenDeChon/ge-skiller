@@ -8,6 +8,7 @@
     import { Button } from '$lib/components/ui/button';
     import { Input } from '$lib/components/ui/input';
     import { Label } from '$lib/components/ui/label';
+    import * as Accordion from '$lib/components/ui/accordion';
     import SkillsGrid from '$lib/components/global/skills-grid.svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { CharacterProfile, type ICharacterProfile } from '$lib/models/player-stats';
@@ -178,7 +179,7 @@
             })
             .catch((error) => {
                 if ((error as Error).name !== 'AbortError') {
-                    console.error('Failed to load bank items', error);
+                    console.error('Failed to load supplies', error);
                 }
             })
             .finally(() => {
@@ -266,7 +267,7 @@
         });
 
         quantityById = { ...quantityById, [String(item.id)]: '1' };
-        toast.success(`Added ${quantity}x ${item.name} to your bank.`);
+        toast.success(`Added ${quantity}x ${item.name} to your supplies.`);
     }
 
     function updateBankEditQuantity(itemId: IGameItem['id'], value: string) {
@@ -318,155 +319,168 @@
         </p>
     </header>
 
-    <section class="custom-card space-y-6">
-        <div class="space-y-2">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <h2 class="text-xl font-semibold">Skills</h2>
-                <span class="text-sm text-muted-foreground">Active: {activeCharacterLabel}</span>
-            </div>
-            <p class="text-sm text-muted-foreground">
-                Enter your skill levels manually or import them from Wise Old Man.
-            </p>
-        </div>
-
-        <form class="space-y-6" onsubmit={saveCharacter}>
-            <div>
-                <Label class="capitalize text-xs" for="my-character-name">Character name</Label>
-                <Input
-                    id="my-character-name"
-                    type="text"
-                    required
-                    aria-required
-                    bind:value={draft.name}
-                />
-            </div>
-
-            <SkillsGrid skillLevels={draft.skillLevels} idPrefix="my-character" />
-
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-xs text-muted-foreground">
-                    {#if activeCharacter}
-                        Editing {activeCharacter.name}.
-                    {:else}
-                        No character selected yet. Saving will create one and set it as active.
-                    {/if}
-                </p>
-                <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    <Button type="button" variant="ghost" disabled={!canImport} onclick={handleImportClick}>
-                        {#if importLoading}
-                            <Loader2Icon class="animate-spin" />
-                            Importing, please wait...
-                        {:else}
-                            Import {trimmedName ? `"${trimmedName}"` : ''}
-                        {/if}
-                    </Button>
-                    <Button type="submit" disabled={!canSave}>Save changes</Button>
+    <Accordion.Root type="multiple" class="rounded-lg border">
+        <Accordion.Item value="skills">
+            <Accordion.Trigger class="px-6">
+                <div class="flex w-full flex-col gap-2 text-left pr-4 sm:flex-row sm:items-center sm:justify-between">
+                    <span class="text-xl font-semibold">Skills</span>
+                    <span class="text-sm text-muted-foreground">Active: {activeCharacterLabel}</span>
                 </div>
-            </div>
-        </form>
-    </section>
+            </Accordion.Trigger>
+            <Accordion.Content class="px-6">
+                <div class="space-y-6 pt-2">
+                    <p class="text-sm text-muted-foreground">
+                        Enter your skill levels manually or import them from Wise Old Man.
+                    </p>
 
-    <section class="custom-card space-y-4 border-dashed">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div class="space-y-1">
-                <h2 class="text-xl font-semibold">Banking</h2>
-                <p class="text-sm text-muted-foreground">
-                    Add items from the Grand Exchange to build your local bank snapshot.
-                </p>
-            </div>
-            <Button onclick={() => (bankDialogOpen = true)}>Add bank items</Button>
-        </div>
+                    <form class="space-y-6" onsubmit={saveCharacter}>
+                        <div>
+                            <Label class="capitalize text-xs" for="my-character-name">Character name</Label>
+                            <Input
+                                id="my-character-name"
+                                type="text"
+                                required
+                                aria-required
+                                bind:value={draft.name}
+                            />
+                        </div>
 
-        {#if !bankItemsReady}
-            <p class="text-xs text-muted-foreground">Loading bank items…</p>
-        {:else if bankItemsLoading}
-            <p class="text-xs text-muted-foreground">Loading bank items…</p>
-        {:else if bankItemDetails.length === 0}
-            <div class="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No bank items added yet.
-            </div>
-        {:else}
-            <div class="overflow-hidden rounded-lg border bg-card">
-                <Table.Root>
-                    <Table.Header>
-                        <Table.Row>
-                            <Table.Head>Item</Table.Head>
-                            <Table.Head class="text-right">Quantity</Table.Head>
-                            <Table.Head class="text-right">Actions</Table.Head>
-                        </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                        {#each bankItemDetails as item (item.id)}
-                            <Table.Row>
-                                <Table.Cell class="font-medium">
-                                    <div class="flex items-center gap-3">
-                                        <span
-                                            class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border"
-                                        >
-                                            {#if item.icon}
-                                                <img
-                                                    src={iconToDataUri(item.icon)}
-                                                    alt={item.name}
-                                                    class="h-6 w-6 object-contain"
-                                                />
-                                            {:else}
-                                                <span class="text-xs text-muted-foreground">
-                                                    {item.name.slice(0, 2)}
-                                                </span>
-                                            {/if}
-                                        </span>
-                                        <div class="flex min-w-0 flex-col text-left">
-                                            <span class="truncate text-sm font-medium">{item.name}</span>
-                                            {#if item.examine}
-                                                <span class="line-clamp-1 text-xs text-muted-foreground">
-                                                    {item.examine}
-                                                </span>
-                                            {/if}
-                                        </div>
-                                    </div>
-                                </Table.Cell>
-                                <Table.Cell class="text-end">
-                                    <div class="flex justify-end">
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            step="1"
-                                            inputmode="numeric"
-                                            class="h-8 w-24 text-right"
-                                            value={bankEditQuantityById[String(item.id)] ?? '1'}
-                                            oninput={(event) =>
-                                                updateBankEditQuantity(
-                                                    item.id,
-                                                    (event.currentTarget as HTMLInputElement).value,
-                                                )}
-                                            onblur={() => commitBankQuantity(item.id)}
-                                            onkeydown={(event) => {
-                                                if (event.key === 'Enter') {
-                                                    event.preventDefault();
-                                                    commitBankQuantity(item.id);
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                </Table.Cell>
-                                <Table.Cell class="text-end">
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="critical"
-                                        onclick={() => removeBankItem(item.id)}
-                                        aria-label={`Remove ${item.name}`}
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                    </Button>
-                                </Table.Cell>
-                            </Table.Row>
-                        {/each}
-                    </Table.Body>
-                </Table.Root>
-            </div>
-        {/if}
-    </section>
+                        <SkillsGrid skillLevels={draft.skillLevels} idPrefix="my-character" />
+
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-xs text-muted-foreground">
+                                {#if activeCharacter}
+                                    Editing {activeCharacter.name}.
+                                {:else}
+                                    No character selected yet. Saving will create one and set it as active.
+                                {/if}
+                            </p>
+                            <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                <Button type="button" variant="ghost" disabled={!canImport} onclick={handleImportClick}>
+                                    {#if importLoading}
+                                        <Loader2Icon class="animate-spin" />
+                                        Importing, please wait...
+                                    {:else}
+                                        Import {trimmedName ? `"${trimmedName}"` : ''}
+                                    {/if}
+                                </Button>
+                                <Button type="submit" disabled={!canSave}>Save changes</Button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </Accordion.Content>
+        </Accordion.Item>
+
+        <Accordion.Item value="supplies">
+            <Accordion.Trigger class="px-6">
+                <div class="flex w-full flex-col gap-2 text-left pr-4 sm:flex-row sm:items-center sm:justify-between">
+                    <span class="text-xl font-semibold">Supplies</span>
+                    <span class="text-sm text-muted-foreground">Local supplies snapshot</span>
+                </div>
+            </Accordion.Trigger>
+            <Accordion.Content class="px-6">
+                <div class="space-y-4 pt-2">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-sm text-muted-foreground">
+                            Add items to your supplies.
+                        </p>
+                        <Button onclick={() => (bankDialogOpen = true)}>Add supplies</Button>
+                    </div>
+
+                    {#if !bankItemsReady}
+                        <p class="text-xs text-muted-foreground">Loading supplies…</p>
+                    {:else if bankItemsLoading}
+                        <p class="text-xs text-muted-foreground">Loading supplies…</p>
+                    {:else if bankItemDetails.length === 0}
+                        <div class="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                            No supplies added yet.
+                        </div>
+                    {:else}
+                        <div class="overflow-hidden rounded-lg border bg-card">
+                            <Table.Root>
+                                <Table.Header>
+                                    <Table.Row>
+                                        <Table.Head>Item</Table.Head>
+                                        <Table.Head class="text-right">Quantity</Table.Head>
+                                        <Table.Head class="text-right">Actions</Table.Head>
+                                    </Table.Row>
+                                </Table.Header>
+                                <Table.Body>
+                                    {#each bankItemDetails as item (item.id)}
+                                        <Table.Row>
+                                            <Table.Cell class="font-medium">
+                                                <div class="flex items-center gap-3">
+                                                    <span
+                                                        class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border"
+                                                    >
+                                                        {#if item.icon}
+                                                            <img
+                                                                src={iconToDataUri(item.icon)}
+                                                                alt={item.name}
+                                                                class="h-6 w-6 object-contain"
+                                                            />
+                                                        {:else}
+                                                            <span class="text-xs text-muted-foreground">
+                                                                {item.name.slice(0, 2)}
+                                                            </span>
+                                                        {/if}
+                                                    </span>
+                                                    <div class="flex min-w-0 flex-col text-left">
+                                                        <span class="truncate text-sm font-medium">{item.name}</span>
+                                                        {#if item.examine}
+                                                            <span class="line-clamp-1 text-xs text-muted-foreground">
+                                                                {item.examine}
+                                                            </span>
+                                                        {/if}
+                                                    </div>
+                                                </div>
+                                            </Table.Cell>
+                                            <Table.Cell class="text-end">
+                                                <div class="flex justify-end">
+                                                    <Input
+                                                        type="number"
+                                                        min="1"
+                                                        step="1"
+                                                        inputmode="numeric"
+                                                        class="h-8 w-24 text-right"
+                                                        value={bankEditQuantityById[String(item.id)] ?? '1'}
+                                                        oninput={(event) =>
+                                                            updateBankEditQuantity(
+                                                                item.id,
+                                                                (event.currentTarget as HTMLInputElement).value,
+                                                            )}
+                                                        onblur={() => commitBankQuantity(item.id)}
+                                                        onkeydown={(event) => {
+                                                            if (event.key === 'Enter') {
+                                                                event.preventDefault();
+                                                                commitBankQuantity(item.id);
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                            </Table.Cell>
+                                            <Table.Cell class="text-end">
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="critical"
+                                                    onclick={() => removeBankItem(item.id)}
+                                                    aria-label={`Remove ${item.name}`}
+                                                >
+                                                    <Trash2 class="h-4 w-4" />
+                                                </Button>
+                                            </Table.Cell>
+                                        </Table.Row>
+                                    {/each}
+                                </Table.Body>
+                            </Table.Root>
+                        </div>
+                    {/if}
+                </div>
+            </Accordion.Content>
+        </Accordion.Item>
+    </Accordion.Root>
 
     <Dialog.Root bind:open={bankDialogOpen}>
         <Dialog.Content class="p-0">
