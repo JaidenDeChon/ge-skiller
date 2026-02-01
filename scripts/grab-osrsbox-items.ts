@@ -72,6 +72,8 @@ const MAX_CONSECUTIVE_404 = 500;
 const BATCH_SIZE = 12;
 const MONGODB_REQUEST_POLITENESS_DELAY_MS = 0;
 const LOCAL_ITEMS_DIR = new URL('./osrsbox-db/docs/items-json/', import.meta.url);
+const SKIP_UNTRADEABLE = process.env.OSRSBOX_SKIP_UNTRADEABLE === 'true';
+const SKIP_NOTED = process.env.OSRSBOX_SKIP_NOTED === 'true';
 
 const user = process.env.VITE_MONGO_USERNAME;
 const pw = process.env.VITE_MONGO_PASSWORD;
@@ -228,8 +230,8 @@ async function importItemsFrom(params: { baseUrl: URL; sourceName: string; start
                 fetchedCount += 1;
                 consecutive404 = 0;
 
-                // Skip untradeable and noted items.
-                if (!item.tradeable || item.noted) {
+                // Optional filters (default is to import everything).
+                if ((SKIP_UNTRADEABLE && !item.tradeable) || (SKIP_NOTED && item.noted)) {
                     skippedTotal += 1;
                     continue;
                 }

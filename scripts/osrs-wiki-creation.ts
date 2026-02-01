@@ -468,16 +468,24 @@ export function parseCreationSectionToMethods(pageTitle: string, creationHtml: s
     return [single];
 }
 
-export async function getCreationMethodsForItem(pageTitle: string): Promise<CreationMethod[]> {
+export async function getCreationMethodsForItem(
+    pageTitle: string,
+    options: { silent?: boolean } = { silent: true },
+): Promise<CreationMethod[]> {
+    const silent = options.silent ?? true;
     const sectionIndex = await getCreationSectionIndex(pageTitle);
     if (sectionIndex == null) {
-        console.log(`⚠️ [creation-importer] No creation section found for page "${pageTitle}".`);
+        if (!silent) {
+            console.log(`⚠️ [creation-importer] No creation section found for page "${pageTitle}".`);
+        }
         return [];
     }
 
     const html = await getCreationSectionHtml(pageTitle, sectionIndex);
     if (!html) {
-        console.log(`⚠️ [creation-importer] No creation HTML found for page "${pageTitle}".`);
+        if (!silent) {
+            console.log(`⚠️ [creation-importer] No creation HTML found for page "${pageTitle}".`);
+        }
         return [];
     }
 

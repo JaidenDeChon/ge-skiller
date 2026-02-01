@@ -39,6 +39,7 @@ const progressState = {
     processedOffset: 0,
     recentRequests: [] as number[],
 };
+let itemIdLookupMap: Map<string, mongoose.Types.ObjectId> | null = null;
 let isShuttingDown = false;
 const originalConsole = {
     log: console.log.bind(console),
@@ -277,6 +278,32 @@ function isCursorNotFoundError(err: unknown): boolean {
     );
 }
 
+function normalizeLookupKey(value: string): string {
+    return value.trim().toLowerCase();
+}
+
+async function buildItemIdLookupMap(): Promise<Map<string, mongoose.Types.ObjectId>> {
+    const map = new Map<string, mongoose.Types.ObjectId>();
+    const docs = await OsrsboxItemModel.find({}, { _id: 1, name: 1, wiki_name: 1 })
+        .sort({ _id: 1 })
+        .lean<{ _id: mongoose.Types.ObjectId; name?: string; wiki_name?: string }[]>()
+        .exec();
+    recordAtlasRequest();
+
+    for (const doc of docs) {
+        if (doc.name) {
+            const key = normalizeLookupKey(doc.name);
+            if (!map.has(key)) map.set(key, doc._id);
+        }
+        if (doc.wiki_name) {
+            const key = normalizeLookupKey(doc.wiki_name);
+            if (!map.has(key)) map.set(key, doc._id);
+        }
+    }
+
+    return map;
+}
+
 type ImportOptions = {
     /**
      * When true, items that already have creationSpecs will be skipped.
@@ -347,11 +374,20 @@ async function resolveItemIdForName(
             return { itemId: owner._id, ignored: false };
         }
 
-        const doc = await findItemByDisplayName(candidateKey);
-        if (doc) {
-            cache.set(candidateKey, doc._id);
-            cache.set(rawKey, doc._id);
-            return { itemId: doc._id, ignored: false };
+        if (itemIdLookupMap) {
+            const found = itemIdLookupMap.get(normalizeLookupKey(candidateKey));
+            if (found) {
+                cache.set(candidateKey, found);
+                cache.set(rawKey, found);
+                return { itemId: found, ignored: false };
+            }
+        } else {
+            const doc = await findItemByDisplayName(candidateKey);
+            if (doc) {
+                cache.set(candidateKey, doc._id);
+                cache.set(rawKey, doc._id);
+                return { itemId: doc._id, ignored: false };
+            }
         }
     }
 
@@ -599,6 +635,15 @@ export async function importCreationForAllItems(options: ImportOptions = {}): Pr
     const resumeIdFound = resumeObjectId ? Boolean(await OsrsboxItemModel.exists({ _id: resumeObjectId })) : false;
 
     const baseFilter: Record<string, unknown> = {};
+
+    if (!itemIdLookupMap) {
+        logWithProgress('log', '[creation-importer] Building item name lookup map...');
+        itemIdLookupMap = await buildItemIdLookupMap();
+        logWithProgress(
+            'log',
+            `[creation-importer] Item lookup map ready (${itemIdLookupMap.size} keys).`,
+        );
+    }
 
     if (options.skipExisting) {
         baseFilter.$or = [{ creationSpecs: { $exists: false } }, { creationSpecs: { $size: 0 } }];
