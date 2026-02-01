@@ -2,6 +2,7 @@
     import * as Table from '$lib/components/ui/table';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+    import { bankItemsStore } from '$lib/stores/bank-items-store';
     import { untrack } from 'svelte';
     import { resolve } from '$app/paths';
 
@@ -22,12 +23,46 @@
 
     const rootSpec = $derived(creationSpec ?? getPrimaryCreationSpec(gameItem) ?? null);
     const costRows = $derived(buildCostRows(rootSpec));
+    const bankItems = $derived($bankItemsStore.items ?? []);
+    const suppliesOwned = $derived.by(() => {
+        const owned = new Set<string>();
+        for (const entry of bankItems) {
+            const id = entry?.id;
+            const quantity = Math.floor(Number(entry?.quantity ?? 0));
+            if (!Number.isFinite(quantity) || quantity <= 0) continue;
+            if (id === null || id === undefined) continue;
+            owned.add(String(id));
+        }
+        return owned;
+    });
+    const suppliesExpandedOwned = $derived.by(() => {
+        const expanded = new Set<string>();
+        for (const row of costRows) {
+            const itemId = row.item?.id;
+            if (itemId === null || itemId === undefined) continue;
+            const key = String(itemId);
+            if (!suppliesOwned.has(key)) continue;
+            const spec = getPrimaryCreationSpec(row.item);
+            collectIngredientIds(spec, expanded);
+        }
+        return expanded;
+    });
     // Owned map: checked = already have it, so we should exclude its cost
     let ownedMap = $state<Record<string | number, boolean>>({});
 
     $effect(() => {
         const prev = untrack(() => ownedMap);
-        ownedMap = Object.fromEntries(costRows.map((row) => [row.key, prev[row.key] ?? false]));
+        const next = costRows.map((row) => {
+            const existing = prev[row.key];
+            if (existing !== undefined) return [row.key, existing];
+            const itemId = row.item?.id;
+            const supplyKey = itemId === null || itemId === undefined ? null : String(itemId);
+            const defaultOwned = supplyKey
+                ? suppliesOwned.has(supplyKey) || suppliesExpandedOwned.has(supplyKey)
+                : false;
+            return [row.key, defaultOwned];
+        });
+        ownedMap = Object.fromEntries(next);
     });
 
     const allChecked = $derived(Object.values(ownedMap).every(Boolean));
@@ -100,6 +135,28 @@
             }
 
             if (childId !== null) visited.delete(childId);
+        }
+    }
+
+    function collectIngredientIds(spec: GameItemCreationSpecs | null, sink: Set<string>, visited = new Set<string>()) {
+        if (!spec) return;
+        for (const ing of spec.ingredients ?? []) {
+            if (!ing?.item) continue;
+            if (ing.consumedDuringCreation === false) continue;
+
+            const item = ing.item as IOsrsboxItemWithMeta;
+            const itemId = item.id;
+            if (itemId === null || itemId === undefined) continue;
+            const key = String(itemId);
+            sink.add(key);
+
+            if (visited.has(key)) continue;
+            visited.add(key);
+            const childSpec = getPrimaryCreationSpec(item);
+            if (childSpec) {
+                collectIngredientIds(childSpec, sink, visited);
+            }
+            visited.delete(key);
         }
     }
 
