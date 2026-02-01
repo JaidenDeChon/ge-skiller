@@ -17,6 +17,9 @@
         "update-item-prices": "bun run --env-file .env scripts/run-update-item-prices.ts",
         "remove-duplicate-items": "bun run --env-file .env scripts/remove-duplicate-items.ts",
         "remove-cyclic-ingredients": "bun run --env-file .env scripts/remove-cyclic-ingredients.ts",
+        "backup-items-master": "bun run --env-file .env scripts/backup-items-master.ts",
+        "copy-osrsbox-to-dev": "OSRSBOX_SOURCE_DB=osrsbox OSRSBOX_TARGET_DB=osrsbox-dev bun run --env-file .env scripts/copy-osrsbox-db.ts",
+        "copy-osrsbox-dev-to-prod": "OSRSBOX_SOURCE_DB=osrsbox-dev OSRSBOX_TARGET_DB=osrsbox-prod bun run --env-file .env scripts/copy-osrsbox-db.ts",
         "compute-creation-tree-skills": "bun run --env-file .env scripts/compute-creation-tree-skills.ts",
         "format": "prettier --write ."
     },
