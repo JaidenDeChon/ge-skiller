@@ -16,6 +16,7 @@
         "populate-item-ingredient-trees": "bun run --env-file .env scripts/populate-ingredients.ts",
         "update-item-prices": "bun run --env-file .env scripts/run-update-item-prices.ts",
         "remove-duplicate-items": "bun run --env-file .env scripts/remove-duplicate-items.ts",
+        "remove-cyclic-ingredients": "bun run --env-file .env scripts/remove-cyclic-ingredients.ts",
         "format": "prettier --write ."
     },
     "devDependencies": {
