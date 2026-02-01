@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { toast } from 'svelte-sonner';
     import { Loader2Icon, Plus, Trash2 } from 'lucide-svelte';
     import * as Dialog from '$lib/components/ui/dialog';
@@ -61,10 +62,16 @@
     let bankItemsLoading = $state(false);
     let bankItemDetails = $state([] as IGameItem[]);
     let bankEditQuantityById = $state<Record<string, string>>({});
+    let bankItemIdsKey = $state('');
+    let bankItemsReady = $state(false);
 
     let debounceId: ReturnType<typeof setTimeout> | null = null;
     let abortController: AbortController | null = null;
     let bankAbort: AbortController | null = null;
+
+    onMount(() => {
+        bankItemsReady = true;
+    });
 
     $effect(() => {
         if (activeCharacter) {
@@ -142,6 +149,9 @@
     $effect(() => {
         if (typeof window === 'undefined') return;
         const ids = bankItems.map((entry) => String(entry.id)).filter(Boolean);
+        const nextIdsKey = ids.join('|');
+        if (nextIdsKey === bankItemIdsKey) return;
+        bankItemIdsKey = nextIdsKey;
         if (!ids.length) {
             if (bankAbort) bankAbort.abort();
             bankItemDetails = [];
@@ -152,7 +162,7 @@
         if (bankAbort) bankAbort.abort();
         const controller = new AbortController();
         bankAbort = controller;
-        bankItemsLoading = true;
+        bankItemsLoading = bankItemDetails.length === 0;
 
         const orderMap = new Map(ids.map((id, index) => [Number(id), index]));
 
@@ -367,7 +377,9 @@
             <Button onclick={() => (bankDialogOpen = true)}>Add bank items</Button>
         </div>
 
-        {#if bankItemsLoading}
+        {#if !bankItemsReady}
+            <p class="text-xs text-muted-foreground">Loading bank items…</p>
+        {:else if bankItemsLoading}
             <p class="text-xs text-muted-foreground">Loading bank items…</p>
         {:else if bankItemDetails.length === 0}
             <div class="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
