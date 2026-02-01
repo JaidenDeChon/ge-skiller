@@ -2,9 +2,10 @@
     import { page } from '$app/state';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import { skillTreePages } from '$lib/constants/skill-tree-pages';
-    import { Home, Heart, Sword, EyeOff } from 'lucide-svelte';
+    import { Home, Heart, Sword, EyeOff, User } from 'lucide-svelte';
     import { favoritesStore } from '$lib/stores/favorites-store';
     import { hiddenStore } from '$lib/stores/hidden-store';
+    import { getStoreRoot } from '$lib/stores/character-store.svelte';
     import { resolve } from '$app/paths';
 
     interface Item {
@@ -30,6 +31,11 @@
             icon: Sword,
         },
         {
+            title: 'My character',
+            url: '/my-character',
+            icon: User,
+        },
+        {
             title: 'Favorites',
             url: '/favorites',
             icon: Heart,
@@ -50,6 +56,12 @@
     const currentPath = $derived(page.url.pathname || '');
     const favoritesCount = $derived(($favoritesStore.favorites || []).length);
     const hiddenCount = $derived(($hiddenStore.hidden || []).length);
+    const characterStore = $derived(getStoreRoot());
+    const activeCharacterLabel = $derived.by(() => {
+        const activeId = characterStore?.activeCharacter;
+        const active = characterStore?.characters?.find((c) => c.id === activeId);
+        return active?.name || 'My character';
+    });
 </script>
 
 {#snippet activeRouteIndicator()}
@@ -63,12 +75,12 @@
                 <Sidebar.MenuItem>
                     <Sidebar.MenuButton>
                         {#snippet tooltipContent()}
-                            {item.title}
+                            {item.url === '/my-character' ? activeCharacterLabel : item.title}
                         {/snippet}
                         {#snippet child({ props })}
                             <a href={resolve(item.url)} {...props}>
                                 <item.icon />
-                                <span>{item.title}</span>
+                                <span>{item.url === '/my-character' ? activeCharacterLabel : item.title}</span>
                                 <span class="ml-auto inline-flex items-center gap-2">
                                     {#if currentPath === item.url}
                                         {@render activeRouteIndicator()}

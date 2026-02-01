@@ -20,7 +20,7 @@
 
     const activeCharacterName = $derived.by(() => {
         const activeId = store.activeCharacter;
-        return store.characters.find((c) => activeId === c.id)?.name || 'None selected';
+        return store.characters.find((c) => activeId === c.id)?.name || 'My character';
     });
 
     /**
