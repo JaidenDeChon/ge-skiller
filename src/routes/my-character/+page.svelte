@@ -238,6 +238,10 @@
         }
     }
 
+    function handleSkillChange(skill: keyof ICharacterProfile['skillLevels'], value: number) {
+        draft.skillLevels[skill] = value;
+    }
+
     function updateQuantity(itemId: IGameItem['id'], value: string) {
         quantityById = { ...quantityById, [String(itemId)]: value };
     }
@@ -345,7 +349,11 @@
                             />
                         </div>
 
-                        <SkillsGrid skillLevels={draft.skillLevels} idPrefix="my-character" />
+                        <SkillsGrid
+                            skillLevels={draft.skillLevels}
+                            idPrefix="my-character"
+                            onSkillChange={handleSkillChange}
+                        />
 
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <p class="text-xs text-muted-foreground">

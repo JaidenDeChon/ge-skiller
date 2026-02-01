@@ -111,6 +111,13 @@
             isLoading.set(false);
         }
     }
+
+    function handleSkillChange(skill: keyof CharacterProfile['skillLevels'], value: number) {
+        populatedStats.update((current) => {
+            current.skillLevels[skill] = value;
+            return current;
+        });
+    }
 </script>
 
 <Dialog.Root bind:open={$open}>
@@ -135,7 +142,11 @@
                     <Label class="capitalize text-xs" for="character-name">Character name</Label>
                     <Input id="character-name" type="text" required aria-required bind:value={$populatedStats.name} />
                 </div>
-                <SkillsGrid skillLevels={$populatedStats.skillLevels} idPrefix="character-dialog" />
+                <SkillsGrid
+                    skillLevels={$populatedStats.skillLevels}
+                    idPrefix="character-dialog"
+                    onSkillChange={handleSkillChange}
+                />
             </div>
             <Footer class={padding}>
                 <Button

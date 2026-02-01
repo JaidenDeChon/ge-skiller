@@ -3,8 +3,25 @@
     import { Label } from '$lib/components/ui/label';
     import type { ICharacterProfile } from '$lib/models/player-stats';
 
-    const { skillLevels, idPrefix = '' }: { skillLevels: ICharacterProfile['skillLevels']; idPrefix?: string } = $props();
+    type SkillKey = keyof ICharacterProfile['skillLevels'];
+
+    const {
+        skillLevels,
+        idPrefix = '',
+        onSkillChange = () => {},
+    }: {
+        skillLevels: ICharacterProfile['skillLevels'];
+        idPrefix?: string;
+        onSkillChange?: (skill: SkillKey, value: number) => void;
+    } = $props();
     const prefix = $derived(idPrefix ? `${idPrefix}-` : '');
+
+    function handleInput(skill: SkillKey, event: Event) {
+        const input = event.currentTarget as HTMLInputElement;
+        const numeric = Number(input.value);
+        const nextValue = Number.isFinite(numeric) ? numeric : 0;
+        onSkillChange(skill, nextValue);
+    }
 </script>
 
 <div class="grid grid-cols-3 gap-6">
@@ -13,10 +30,11 @@
         <Input
             id={`${prefix}agility`}
             type="number"
-            bind:value={skillLevels.agility}
+            value={skillLevels.agility}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('agility', event)}
         />
     </div>
     <div>
@@ -24,10 +42,11 @@
         <Input
             id={`${prefix}attack`}
             type="number"
-            bind:value={skillLevels.attack}
+            value={skillLevels.attack}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('attack', event)}
         />
     </div>
     <div>
@@ -35,10 +54,11 @@
         <Input
             id={`${prefix}construction`}
             type="number"
-            bind:value={skillLevels.construction}
+            value={skillLevels.construction}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('construction', event)}
         />
     </div>
     <div>
@@ -46,10 +66,11 @@
         <Input
             id={`${prefix}cooking`}
             type="number"
-            bind:value={skillLevels.cooking}
+            value={skillLevels.cooking}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('cooking', event)}
         />
     </div>
     <div>
@@ -57,10 +78,11 @@
         <Input
             id={`${prefix}crafting`}
             type="number"
-            bind:value={skillLevels.crafting}
+            value={skillLevels.crafting}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('crafting', event)}
         />
     </div>
     <div>
@@ -68,10 +90,11 @@
         <Input
             id={`${prefix}defence`}
             type="number"
-            bind:value={skillLevels.defence}
+            value={skillLevels.defence}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('defence', event)}
         />
     </div>
     <div>
@@ -79,10 +102,11 @@
         <Input
             id={`${prefix}farming`}
             type="number"
-            bind:value={skillLevels.farming}
+            value={skillLevels.farming}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('farming', event)}
         />
     </div>
     <div>
@@ -90,10 +114,11 @@
         <Input
             id={`${prefix}firemaking`}
             type="number"
-            bind:value={skillLevels.firemaking}
+            value={skillLevels.firemaking}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('firemaking', event)}
         />
     </div>
     <div>
@@ -101,10 +126,11 @@
         <Input
             id={`${prefix}fishing`}
             type="number"
-            bind:value={skillLevels.fishing}
+            value={skillLevels.fishing}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('fishing', event)}
         />
     </div>
     <div>
@@ -112,10 +138,11 @@
         <Input
             id={`${prefix}fletching`}
             type="number"
-            bind:value={skillLevels.fletching}
+            value={skillLevels.fletching}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('fletching', event)}
         />
     </div>
     <div>
@@ -123,10 +150,11 @@
         <Input
             id={`${prefix}herblore`}
             type="number"
-            bind:value={skillLevels.herblore}
+            value={skillLevels.herblore}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('herblore', event)}
         />
     </div>
     <div>
@@ -134,10 +162,11 @@
         <Input
             id={`${prefix}hitpoints`}
             type="number"
-            bind:value={skillLevels.hitpoints}
+            value={skillLevels.hitpoints}
             min={10}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('hitpoints', event)}
         />
     </div>
     <div>
@@ -145,10 +174,11 @@
         <Input
             id={`${prefix}hunter`}
             type="number"
-            bind:value={skillLevels.hunter}
+            value={skillLevels.hunter}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('hunter', event)}
         />
     </div>
     <div>
@@ -156,10 +186,11 @@
         <Input
             id={`${prefix}magic`}
             type="number"
-            bind:value={skillLevels.magic}
+            value={skillLevels.magic}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('magic', event)}
         />
     </div>
     <div>
@@ -167,10 +198,11 @@
         <Input
             id={`${prefix}mining`}
             type="number"
-            bind:value={skillLevels.mining}
+            value={skillLevels.mining}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('mining', event)}
         />
     </div>
     <div>
@@ -178,10 +210,11 @@
         <Input
             id={`${prefix}prayer`}
             type="number"
-            bind:value={skillLevels.prayer}
+            value={skillLevels.prayer}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('prayer', event)}
         />
     </div>
     <div>
@@ -189,10 +222,11 @@
         <Input
             id={`${prefix}ranged`}
             type="number"
-            bind:value={skillLevels.ranged}
+            value={skillLevels.ranged}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('ranged', event)}
         />
     </div>
     <div>
@@ -200,10 +234,11 @@
         <Input
             id={`${prefix}runecrafting`}
             type="number"
-            bind:value={skillLevels.runecrafting}
+            value={skillLevels.runecrafting}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('runecrafting', event)}
         />
     </div>
     <div>
@@ -211,10 +246,11 @@
         <Input
             id={`${prefix}slayer`}
             type="number"
-            bind:value={skillLevels.slayer}
+            value={skillLevels.slayer}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('slayer', event)}
         />
     </div>
     <div>
@@ -222,10 +258,11 @@
         <Input
             id={`${prefix}smithing`}
             type="number"
-            bind:value={skillLevels.smithing}
+            value={skillLevels.smithing}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('smithing', event)}
         />
     </div>
     <div>
@@ -233,10 +270,11 @@
         <Input
             id={`${prefix}strength`}
             type="number"
-            bind:value={skillLevels.strength}
+            value={skillLevels.strength}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('strength', event)}
         />
     </div>
     <div>
@@ -244,10 +282,11 @@
         <Input
             id={`${prefix}thieving`}
             type="number"
-            bind:value={skillLevels.thieving}
+            value={skillLevels.thieving}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('thieving', event)}
         />
     </div>
     <div>
@@ -255,10 +294,11 @@
         <Input
             id={`${prefix}woodcutting`}
             type="number"
-            bind:value={skillLevels.woodcutting}
+            value={skillLevels.woodcutting}
             min={1}
             max="99"
             inputmode="numeric"
+            oninput={(event) => handleInput('woodcutting', event)}
         />
     </div>
 </div>
