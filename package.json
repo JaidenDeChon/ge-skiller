@@ -17,6 +17,7 @@
         "update-item-prices": "bun run --env-file .env scripts/run-update-item-prices.ts",
         "remove-duplicate-items": "bun run --env-file .env scripts/remove-duplicate-items.ts",
         "remove-cyclic-ingredients": "bun run --env-file .env scripts/remove-cyclic-ingredients.ts",
+        "compute-creation-tree-skills": "bun run --env-file .env scripts/compute-creation-tree-skills.ts",
         "format": "prettier --write ."
     },
     "devDependencies": {

@@ -72,6 +72,7 @@ const creationSpecsSchema = new Schema<GameItemCreationSpecs>(
         experienceGranted: { type: [creationExperienceSchema], default: [] },
         requiredSkills: { type: [creationRequiredSkillSchema], default: [] },
         ingredients: { type: [creationIngredientSchema], default: [] },
+        treeMinSkills: { type: Schema.Types.Mixed, default: null },
     },
     { _id: false },
 );

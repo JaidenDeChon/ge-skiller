@@ -42,6 +42,7 @@ export type GameItemCreationSpecs = {
     experienceGranted: GameItemCreationExperienceGranted[];
     requiredSkills: SkillLevelDesignation[];
     ingredients: GameItemCreationIngredient[];
+    treeMinSkills?: Record<string, number> | null;
 };
 
 /**
