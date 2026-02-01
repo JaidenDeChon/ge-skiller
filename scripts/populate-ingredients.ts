@@ -202,12 +202,21 @@ function writeErrorReport() {
  */
 
 function normalizeTitleForLookup(title: string): string {
+    let normalized = title.trim();
+
     // Strip dose-style suffixes: "Prayer potion(4)" -> "Prayer potion"
-    const doseMatch = title.match(/^(.*?)(\(\d+\))$/);
+    const doseMatch = normalized.match(/^(.*?)(\(\d+\))$/);
     if (doseMatch) {
-        return doseMatch[1].trim();
+        normalized = doseMatch[1].trim();
     }
-    return title.trim();
+
+    // Strip "(Unpoisoned)" suffixes that don't exist as real wiki pages.
+    const unpoisonedMatch = normalized.match(/^(.*)\s+\(unpoisoned\)$/i);
+    if (unpoisonedMatch) {
+        normalized = unpoisonedMatch[1].trim();
+    }
+
+    return normalized;
 }
 
 function escapeRegex(value: string): string {
@@ -314,6 +323,10 @@ type ImportOptions = {
      * Resume after the given Mongo ObjectId (string). Any items before or matching this id will be skipped.
      */
     resumeFromId?: string;
+    /**
+     * Only process items whose name or wiki_name contains this string (case-insensitive).
+     */
+    nameContains?: string;
 };
 
 /**
@@ -649,6 +662,17 @@ export async function importCreationForAllItems(options: ImportOptions = {}): Pr
         baseFilter.$or = [{ creationSpecs: { $exists: false } }, { creationSpecs: { $size: 0 } }];
     }
 
+    if (options.nameContains) {
+        const needle = options.nameContains.trim();
+        if (needle) {
+            const regex = new RegExp(escapeRegex(needle), 'i');
+            baseFilter.$and = [
+                ...(Array.isArray(baseFilter.$and) ? baseFilter.$and : []),
+                { $or: [{ name: { $regex: regex } }, { wiki_name: { $regex: regex } }] },
+            ];
+        }
+    }
+
     const totalToProcess = await OsrsboxItemModel.countDocuments(baseFilter).exec();
     recordAtlasRequest();
 
@@ -758,6 +782,7 @@ async function main() {
     const args = process.argv.slice(2);
     let skipExisting = false;
     let resumeFromId: string | undefined;
+    let nameContains: string | undefined;
     const positionalArgs: string[] = [];
     lastProcessedIdForResume = null;
     progressState.startedAt = null;
@@ -780,6 +805,22 @@ async function main() {
 
         if (arg.startsWith('--resume-from=')) {
             resumeFromId = arg.split('=')[1];
+            continue;
+        }
+
+        if (arg === '--name-contains' || arg === '--filter') {
+            nameContains = args[i + 1];
+            i++; // skip value
+            continue;
+        }
+
+        if (arg.startsWith('--name-contains=')) {
+            nameContains = arg.split('=')[1];
+            continue;
+        }
+
+        if (arg.startsWith('--filter=')) {
+            nameContains = arg.split('=')[1];
             continue;
         }
 
@@ -817,8 +858,14 @@ async function main() {
         }
 
         if (!arg || arg === '--all') {
+            if (nameContains?.trim()) {
+                logWithProgress(
+                    'log',
+                    `[creation-importer] Limiting batch to items whose name/wiki_name contains "${nameContains.trim()}".`,
+                );
+            }
             logWithProgress('log', '[creation-importer] Running in batch mode over all items...');
-            await importCreationForAllItems({ skipExisting, resumeFromId });
+            await importCreationForAllItems({ skipExisting, resumeFromId, nameContains });
         } else {
             logWithProgress('log', `[creation-importer] Importing creation specs for "${arg}"...`);
             await importCreationForItemTitle(arg, { skipExisting });

@@ -155,6 +155,10 @@ type CaptionTable = {
     $table: cheerio.Cheerio;
 };
 
+function normalizeWhitespace(text: string): string {
+    return text.replace(/\s+/g, ' ').trim();
+}
+
 function extractCaptionTables($: cheerio.CheerioAPI, root?: cheerio.Cheerio): CaptionTable[] {
     const result: CaptionTable[] = [];
     const scope = root ?? $.root();
@@ -168,6 +172,139 @@ function extractCaptionTables($: cheerio.CheerioAPI, root?: cheerio.Cheerio): Ca
     });
 
     return result;
+}
+
+function buildMethodsFromSwitchInfoboxes(
+    $: cheerio.CheerioAPI,
+    pageTitle: string,
+    scope: cheerio.Cheerio,
+    methodNamePrefix?: string,
+    options?: { ignoreWithinSelectors?: string[] },
+): CreationMethod[] {
+    const methods: CreationMethod[] = [];
+
+    const $switches = scope.find('.switch-infobox');
+    if ($switches.length === 0) return methods;
+
+    $switches.each((_, el) => {
+        const $switch = $(el);
+        if (
+            options?.ignoreWithinSelectors?.some((selector) => $switch.closest(selector).length > 0)
+        ) {
+            return;
+        }
+        const triggerLabels = new Map<string, string>();
+
+        $switch.find('.switch-infobox-triggers .trigger').each((_, triggerEl) => {
+            const $trigger = $(triggerEl);
+            const id = $trigger.attr('data-id')?.trim();
+            if (!id) return;
+
+            const label = normalizeWhitespace($trigger.text());
+            triggerLabels.set(id, label || id);
+        });
+
+        $switch.find('div.item').each((_, itemEl) => {
+            const $item = $(itemEl);
+            const dataId = $item.attr('data-id')?.trim();
+            const label = dataId ? triggerLabels.get(dataId) : undefined;
+            const methodName = label && methodNamePrefix ? `${methodNamePrefix}: ${label}` : label ?? methodNamePrefix;
+
+            const captionTables = extractCaptionTables($, $item);
+            if (captionTables.length === 0) return;
+
+            const method = buildMethodFromCaptionTables($, pageTitle, captionTables, methodName);
+            methods.push(method);
+        });
+    });
+
+    return methods;
+}
+
+function buildMethodsFromRecipeTables(
+    $: cheerio.CheerioAPI,
+    pageTitle: string,
+    scope: cheerio.Cheerio,
+    options?: { ignoreWithinSelectors?: string[] },
+): CreationMethod[] {
+    const methods: CreationMethod[] = [];
+
+    const $recipes = scope.find('.recipe-table');
+    if ($recipes.length === 0) return methods;
+
+    $recipes.each((_, el) => {
+        const $recipe = $(el);
+        if (
+            options?.ignoreWithinSelectors?.some((selector) => $recipe.closest(selector).length > 0)
+        ) {
+            return;
+        }
+
+        const captionTables = extractCaptionTables($, $recipe);
+        if (captionTables.length === 0) return;
+
+        const method = buildMethodFromCaptionTables($, pageTitle, captionTables);
+        methods.push(method);
+    });
+
+    return methods;
+}
+
+function buildMethodsFromTabbers(
+    $: cheerio.CheerioAPI,
+    pageTitle: string,
+    scope: cheerio.Cheerio,
+): CreationMethod[] {
+    const methods: CreationMethod[] = [];
+
+    const pushTabMethods = ($tab: cheerio.Cheerio, rawMethodName?: string) => {
+        const methodName = rawMethodName ? normalizeWhitespace(rawMethodName) : undefined;
+
+        const switchMethods = buildMethodsFromSwitchInfoboxes($, pageTitle, $tab, methodName);
+        if (switchMethods.length > 0) {
+            methods.push(...switchMethods);
+            return;
+        }
+
+        const captionTables = extractCaptionTables($, $tab);
+        if (captionTables.length === 0) return;
+
+        const method = buildMethodFromCaptionTables($, pageTitle, captionTables, methodName);
+        methods.push(method);
+    };
+
+    const $tabbers = scope.find('.tabber');
+    if ($tabbers.length > 0) {
+        $tabbers.each((_, tabberEl) => {
+            const $tabber = $(tabberEl);
+            let $tabs = $tabber.find('> .tabbertab');
+
+            if ($tabs.length === 0) {
+                $tabs = $tabber.children(
+                    'div[data-title], div[title], div[data-hash], section[data-title], section[title], section[data-hash]',
+                );
+            }
+
+            $tabs.each((_, tabEl) => {
+                const $tab = $(tabEl);
+                const methodName = $tab.attr('data-title') || $tab.attr('title') || $tab.attr('data-hash') || undefined;
+                pushTabMethods($tab, methodName);
+            });
+        });
+
+        return methods;
+    }
+
+    const $tabs = scope.find('.tabbertab');
+    if ($tabs.length === 0) return methods;
+
+    $tabs.each((_, tabEl) => {
+        const $tab = $(tabEl);
+        const methodName = $tab.attr('data-title') || $tab.attr('title') || $tab.attr('data-hash') || undefined;
+        pushTabMethods($tab, methodName);
+    });
+
+    return methods;
 }
 
 /**
@@ -441,24 +578,25 @@ export function parseCreationSectionToMethods(pageTitle: string, creationHtml: s
 
     const methods: CreationMethod[] = [];
 
-    const $tabs = $('.tabbertab');
-    if ($tabs.length > 0) {
-        // Multi-method case: one method per tab (Needle / Costume needle, etc.)
-        $tabs.each((_, el) => {
-            const $tab = $(el);
-            const methodName = $tab.attr('data-title') || $tab.attr('data-hash') || undefined; // e.g. "Needle", "Costume needle"
+    methods.push(...buildMethodsFromTabbers($, pageTitle, $.root()));
 
-            const captionTables = extractCaptionTables($, $tab);
-            if (captionTables.length === 0) return;
+    methods.push(
+        ...buildMethodsFromSwitchInfoboxes($, pageTitle, $.root(), undefined, {
+            ignoreWithinSelectors: ['.tabber'],
+        }),
+    );
 
-            const method = buildMethodFromCaptionTables($, pageTitle, captionTables, methodName);
-            methods.push(method);
-        });
+    methods.push(
+        ...buildMethodsFromRecipeTables($, pageTitle, $.root(), {
+            ignoreWithinSelectors: ['.tabber', '.switch-infobox'],
+        }),
+    );
 
+    if (methods.length > 0) {
         return methods;
     }
 
-    // Single-method case (no tabber; e.g. rune platebody, prayer potion...)
+    // Single-method fallback (no structured containers; e.g. rune platebody, prayer potion...)
     const captionTables = extractCaptionTables($);
     if (captionTables.length === 0) {
         return [];
