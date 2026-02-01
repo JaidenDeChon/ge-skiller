@@ -319,7 +319,7 @@
         </p>
     </header>
 
-    <Accordion.Root type="multiple" class="rounded-lg border">
+    <Accordion.Root type="multiple" class="rounded-lg border" value={['supplies']}>
         <Accordion.Item value="skills">
             <Accordion.Trigger class="px-6">
                 <div class="flex w-full flex-col gap-2 text-left pr-4 sm:flex-row sm:items-center sm:justify-between">
@@ -410,7 +410,10 @@
                                     {#each bankItemDetails as item (item.id)}
                                         <Table.Row>
                                             <Table.Cell class="font-medium">
-                                                <div class="flex items-center gap-3">
+                                                <a
+                                                    href={`/items/${item.id}`}
+                                                    class="inline-flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:underline"
+                                                >
                                                     <span
                                                         class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border"
                                                     >
@@ -434,7 +437,7 @@
                                                             </span>
                                                         {/if}
                                                     </div>
-                                                </div>
+                                                </a>
                                             </Table.Cell>
                                             <Table.Cell class="text-end">
                                                 <div class="flex justify-end">
