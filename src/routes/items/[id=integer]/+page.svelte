@@ -26,21 +26,21 @@
         return `https://oldschool.runescape.wiki/w/${encodeURIComponent(slug.replaceAll(' ', '_'))}`;
     });
     const geSpread = $derived(() => {
-        const high = gameItem?.highPrice;
-        const low = gameItem?.lowPrice;
-        if (high === null || high === undefined || low === null || low === undefined) return null;
+        const high = normalizePrice(gameItem?.highPrice);
+        const low = normalizePrice(gameItem?.lowPrice);
+        if (high === null || low === null) return null;
         return high - low;
     });
     const highAlchProfit = $derived(() => {
         const alch = gameItem?.highalch;
-        const price = gameItem?.highPrice;
-        if (alch === null || alch === undefined || price === null || price === undefined) return null;
+        const price = normalizePrice(gameItem?.highPrice);
+        if (alch === null || alch === undefined || price === null) return null;
         return alch - price;
     });
     const lowAlchProfit = $derived(() => {
         const alch = gameItem?.lowalch;
-        const price = gameItem?.lowPrice;
-        if (alch === null || alch === undefined || price === null || price === undefined) return null;
+        const price = normalizePrice(gameItem?.lowPrice);
+        if (alch === null || alch === undefined || price === null) return null;
         return alch - price;
     });
     const devControlsEnabled = Boolean(data.showDevControls);
@@ -50,10 +50,23 @@
         return `${formatWithCommas(Math.round(value))}${suffix}`;
     }
 
+    function formatPrice(value: number | null | undefined) {
+        const normalized = normalizePrice(value);
+        if (normalized === null) return '—';
+        return `${formatWithCommas(Math.round(normalized))} gp`;
+    }
+
     function formatDelta(value: number | null | undefined) {
         if (value === null || value === undefined) return '—';
         const sign = value > 0 ? '+' : '';
         return `${sign}${formatWithCommas(Math.round(value))} gp`;
+    }
+
+    function normalizePrice(value: number | null | undefined): number | null {
+        if (value === null || value === undefined) return null;
+        if (!Number.isFinite(value)) return null;
+        if (value <= 0) return null;
+        return value;
     }
 
     let editLoading = $state(false);
@@ -249,7 +262,7 @@
                                     <span>High price</span>
                                 </div>
                             </Table.Cell>
-                            <Table.Cell class="text-end">{formatValue(gameItem?.highPrice)}</Table.Cell>
+                            <Table.Cell class="text-end">{formatPrice(gameItem?.highPrice)}</Table.Cell>
                         </Table.Row>
                         <Table.Row>
                             <Table.Cell class="font-medium">
@@ -262,7 +275,7 @@
                                     <span>Low price</span>
                                 </div>
                             </Table.Cell>
-                            <Table.Cell class="text-end">{formatValue(gameItem?.lowPrice)}</Table.Cell>
+                            <Table.Cell class="text-end">{formatPrice(gameItem?.lowPrice)}</Table.Cell>
                         </Table.Row>
                         <Table.Row>
                             <Table.Cell class="font-medium">

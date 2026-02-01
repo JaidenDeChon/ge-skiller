@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
     import FavoriteButton from './favorite-button.svelte';
     import HideButton from './hide-button.svelte';
     import * as Avatar from '$lib/components/ui/avatar';
@@ -45,15 +44,39 @@
         allowHide?: boolean;
     }>();
 
-    let timeSinceHighTime = $state('Calculating...');
+    let timeSincePriceTime = $state('Calculating...');
     const iconSrc = $derived(iconToDataUri(item.icon));
-    const highPrice = $derived(Math.max(0, item.highPrice ?? 0));
-    const formattedHighPrice = $derived(formatWithCommas(highPrice));
+    const priceValue = $derived(resolveDisplayPrice(item));
+    const hasPrice = $derived(priceValue !== null);
+    const formattedPrice = $derived(hasPrice ? formatWithCommas(priceValue!) : '—');
+    const priceTime = $derived(resolveDisplayTime(item));
 
-    onMount(() => {
-        if (item.highTime) timeSinceHighTime = timeSince(item.highTime);
-        else timeSinceHighTime = '';
+    $effect(() => {
+        if (priceTime) timeSincePriceTime = timeSince(priceTime);
+        else timeSincePriceTime = '';
     });
+
+    function resolveDisplayPrice(item: IGameItem): number | null {
+        const price = item.highPrice ?? item.lowPrice ?? null;
+        if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return null;
+        return price;
+    }
+
+    function resolveDisplayTime(item: IGameItem): number | null {
+        const high = item.highPrice;
+        if (typeof high === 'number' && Number.isFinite(high) && high > 0) {
+            const highTime = item.highTime;
+            if (typeof highTime === 'number' && Number.isFinite(highTime) && highTime > 0) return highTime;
+        }
+
+        const low = item.lowPrice;
+        if (typeof low === 'number' && Number.isFinite(low) && low > 0) {
+            const lowTime = item.lowTime;
+            if (typeof lowTime === 'number' && Number.isFinite(lowTime) && lowTime > 0) return lowTime;
+        }
+
+        return null;
+    }
 </script>
 
 {#snippet itemCardHeaderContent()}
@@ -99,11 +122,11 @@
                 <Skeleton class="h-2 w-12" />
             {:else}
                 <p class="text-2xl font-bold animate-fade-in">
-                    <span class="text-primary">{formattedHighPrice}</span>gp
+                    <span class="text-primary">{formattedPrice}</span>{#if hasPrice}gp{/if}
                 </p>
-                {#if item.highTime}
+                {#if priceTime}
                     <p class="text-muted-foreground text-xs animate-fade-in">
-                        {timeSinceHighTime}
+                        {timeSincePriceTime}
                     </p>
                 {/if}
             {/if}

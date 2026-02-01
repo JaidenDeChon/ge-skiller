@@ -77,6 +77,7 @@ export async function getPaginatedGameItems(params?: {
         noted: false,
         stacked: null,
         tradeable_on_ge: true,
+        ...getValidPriceQuery(),
     });
     const skillLevels = normalizeSkillLevels(params?.skillLevels);
 
@@ -137,6 +138,7 @@ export async function searchGameItems(query: string, limit: number = 10): Promis
         noted: false,
         stacked: null,
         tradeable_on_ge: true,
+        ...getValidPriceQuery(),
     };
 
     async function fetchAndAppend(filter: Record<string, unknown>) {
@@ -180,6 +182,12 @@ function normalizeFilter(filter?: GameItemFilter): GameItemFilter {
     const allowed: GameItemFilter[] = ['all', 'members', 'f2p', 'equipable', 'stackable', 'quest', 'nonquest'];
     if (!filter) return 'all';
     return allowed.includes(filter) ? filter : 'all';
+}
+
+function getValidPriceQuery(): Record<string, unknown> {
+    return {
+        $or: [{ highPrice: { $gt: 0 } }, { lowPrice: { $gt: 0 } }],
+    };
 }
 
 function getFilterQuery(filter: GameItemFilter): Record<string, unknown> {
