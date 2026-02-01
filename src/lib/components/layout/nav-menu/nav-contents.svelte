@@ -5,7 +5,6 @@
     import { Home, Heart, Sword, EyeOff, User } from 'lucide-svelte';
     import { favoritesStore } from '$lib/stores/favorites-store';
     import { hiddenStore } from '$lib/stores/hidden-store';
-    import { getStoreRoot } from '$lib/stores/character-store.svelte';
     import { resolve } from '$app/paths';
 
     interface Item {
@@ -56,12 +55,6 @@
     const currentPath = $derived(page.url.pathname || '');
     const favoritesCount = $derived(($favoritesStore.favorites || []).length);
     const hiddenCount = $derived(($hiddenStore.hidden || []).length);
-    const characterStore = $derived(getStoreRoot());
-    const activeCharacterLabel = $derived.by(() => {
-        const activeId = characterStore?.activeCharacter;
-        const active = characterStore?.characters?.find((c) => c.id === activeId);
-        return active?.name || 'My character';
-    });
 </script>
 
 {#snippet activeRouteIndicator()}
@@ -75,12 +68,12 @@
                 <Sidebar.MenuItem>
                     <Sidebar.MenuButton>
                         {#snippet tooltipContent()}
-                            {item.url === '/my-character' ? activeCharacterLabel : item.title}
+                            {item.title}
                         {/snippet}
                         {#snippet child({ props })}
                             <a href={resolve(item.url)} {...props}>
                                 <item.icon />
-                                <span>{item.url === '/my-character' ? activeCharacterLabel : item.title}</span>
+                                <span>{item.title}</span>
                                 <span class="ml-auto inline-flex items-center gap-2">
                                     {#if currentPath === item.url}
                                         {@render activeRouteIndicator()}
