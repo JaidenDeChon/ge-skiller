@@ -2,7 +2,8 @@
     import * as Table from '$lib/components/ui/table';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import type { GameItemCreationSpecs, IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
-    import { bankItemsStore } from '$lib/stores/bank-items-store';
+    import { bankItemsStore, ensureSuppliesForCharacter, getSuppliesForCharacter } from '$lib/stores/bank-items-store';
+    import { getStoreRoot } from '$lib/stores/character-store.svelte';
     import { untrack } from 'svelte';
     import { resolve } from '$app/paths';
 
@@ -23,7 +24,14 @@
 
     const rootSpec = $derived(creationSpec ?? getPrimaryCreationSpec(gameItem) ?? null);
     const costRows = $derived(buildCostRows(rootSpec));
-    const bankItems = $derived($bankItemsStore.items ?? []);
+    const characterStore = $derived(getStoreRoot());
+    const activeCharacterId = $derived(characterStore?.activeCharacter ?? null);
+
+    $effect(() => {
+        ensureSuppliesForCharacter(activeCharacterId);
+    });
+
+    const bankItems = $derived(getSuppliesForCharacter($bankItemsStore, activeCharacterId));
     const suppliesOwned = $derived.by(() => {
         const owned = new Set<string>();
         for (const entry of bankItems) {

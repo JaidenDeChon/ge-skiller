@@ -45,9 +45,10 @@
 
     let themeColors = $state<ThemeColors>(DEFAULT_THEME_COLORS);
     let renderTools = $state(true);
+    let collapseNodesOnClick = $state(false);
     let isMobile = $state(false);
     const rootNode = $derived(buildRootNode(gameItem, creationSpecOverride, renderTools));
-    const chartOption = $derived(buildChartOption(rootNode, themeColors, isMobile));
+    const chartOption = $derived(buildChartOption(rootNode, themeColors, isMobile, collapseNodesOnClick));
 
     let chartContainer = $state<HTMLDivElement | null>(null);
     let chartInstance = $state<EChartsType | null>(null);
@@ -147,7 +148,12 @@
         };
     }
 
-    function buildChartOption(node: IngredientTreeNode | null, colors: ThemeColors, mobile: boolean): ECOption | null {
+    function buildChartOption(
+        node: IngredientTreeNode | null,
+        colors: ThemeColors,
+        mobile: boolean,
+        allowCollapse: boolean,
+    ): ECOption | null {
         if (!node) return null;
 
         const orient = mobile ? 'TB' : 'LR';
@@ -178,9 +184,9 @@
                     roam: true,
                     symbol: undefined,
                     symbolSize: NODE_SYMBOL_SIZE,
-                    initialTreeDepth: 3,
+                    initialTreeDepth: allowCollapse ? -1 : 3,
                     animationDurationUpdate: 400,
-                    expandAndCollapse: false,
+                    expandAndCollapse: allowCollapse,
                     lineStyle: {
                         color: withAlpha(colors.border || DEFAULT_THEME_COLORS.border, 0.92),
                         width: 1.6,
@@ -370,9 +376,19 @@
         chartInstance.setOption(chartOption, true);
     });
 
-    function handleNodeClick(params: { data?: TreeDatum }) {
+    function handleNodeClick(params: { data?: TreeDatum; event?: { event?: MouseEvent } }) {
         const itemId = params?.data?.itemId;
         if (!itemId) return;
+
+        const hasChildren = Array.isArray(params?.data?.children) && params.data.children.length > 0;
+        if (collapseNodesOnClick && hasChildren) {
+            const nativeEvent = params?.event?.event;
+            if (nativeEvent?.altKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey || nativeEvent?.shiftKey) {
+                goto(resolve(`/items/${itemId}`));
+            }
+            return;
+        }
+
         goto(resolve(`/items/${itemId}`));
     }
 </script>
@@ -380,16 +396,34 @@
 {#if rootNode}
     <div class="game-item-tree-shell">
         <div class="chart-controls">
-            <div class="flex items-center gap-2">
-                <Switch
-                    id="show-tools-switch"
-                    bind:checked={renderTools}
-                    aria-label="Toggle showing creation tools"
-                    class="scale-75"
-                />
-                <Label for="show-tools-switch" class="cursor-pointer select-none text-xs font-medium">
-                    Show tools (Hammer, Needle, etc)
-                </Label>
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                    <Switch
+                        id="show-tools-switch"
+                        bind:checked={renderTools}
+                        aria-label="Toggle showing creation tools"
+                        class="scale-75"
+                    />
+                    <Label for="show-tools-switch" class="cursor-pointer select-none text-xs font-medium">
+                        Show tools (Hammer, Needle, etc)
+                    </Label>
+                </div>
+                <div class="flex items-center gap-2">
+                    <Switch
+                        id="collapse-nodes-switch"
+                        bind:checked={collapseNodesOnClick}
+                        aria-label="Toggle collapsing ingredient branches"
+                        class="scale-75"
+                    />
+                    <Label for="collapse-nodes-switch" class="cursor-pointer select-none text-xs font-medium">
+                        Collapse ingredients on click
+                    </Label>
+                </div>
+                {#if collapseNodesOnClick}
+                    <p class="text-[0.65rem] text-muted-foreground">
+                        Tip: hold Alt/Option (or Shift) to open an item page.
+                    </p>
+                {/if}
             </div>
         </div>
         <div class="game-item-tree-chart" bind:this={chartContainer}></div>

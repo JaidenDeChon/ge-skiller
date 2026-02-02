@@ -16,7 +16,13 @@
     import { Input } from '$lib/components/ui/input';
     import { Label } from '$lib/components/ui/label';
     import OsrsboxItemUploadDialog from '$lib/components/dialogs/osrsbox-item-upload-dialog.svelte';
-    import { bankItemsStore } from '$lib/stores/bank-items-store';
+    import {
+        bankItemsStore,
+        ensureSuppliesForCharacter,
+        getSuppliesForCharacter,
+        updateSuppliesForCharacter,
+    } from '$lib/stores/bank-items-store';
+    import { getStoreRoot } from '$lib/stores/character-store.svelte';
     import { toast } from 'svelte-sonner';
 
     const { data }: { data: { gameItem: IOsrsboxItemWithMeta | null; showDevControls?: boolean } } = $props();
@@ -48,6 +54,16 @@
         return alch - price;
     });
     const devControlsEnabled = Boolean(data.showDevControls);
+
+    const characterStore = $derived(getStoreRoot());
+    const activeCharacterId = $derived(characterStore?.activeCharacter ?? null);
+    const suppliesActionsDisabled = $derived(!activeCharacterId);
+
+    function ensureActiveCharacter(): boolean {
+        if (activeCharacterId) return true;
+        toast.error('Select a character to manage supplies.');
+        return false;
+    }
 
     function formatValue(value: number | null | undefined, suffix = ' gp') {
         if (value === null || value === undefined) return '—';
@@ -130,7 +146,11 @@
     const primaryCreationSpec = $derived(getPrimaryCreationSpec(gameItem));
     const renderChart = $derived(!!primaryCreationSpec?.ingredients?.length);
 
-    const bankItems = $derived($bankItemsStore.items ?? []);
+    $effect(() => {
+        ensureSuppliesForCharacter(activeCharacterId);
+    });
+
+    const bankItems = $derived(getSuppliesForCharacter($bankItemsStore, activeCharacterId));
     const bankEntry = $derived.by(() => {
         const itemId = Number(gameItem?.id);
         if (!Number.isFinite(itemId)) return undefined;
@@ -144,12 +164,14 @@
     let bankQuantityInput = $state('1');
 
     function openAddToBank() {
+        if (!ensureActiveCharacter()) return;
         bankDialogMode = 'add';
         bankQuantityInput = '1';
         bankDialogOpen = true;
     }
 
     function openRemoveFromBank() {
+        if (!ensureActiveCharacter()) return;
         bankDialogMode = 'remove';
         bankDialogOpen = true;
     }
@@ -161,21 +183,20 @@
     }
 
     function confirmAddToBank() {
+        if (!ensureActiveCharacter()) return;
         const itemId = Number(gameItem?.id);
         if (!Number.isFinite(itemId) || !gameItem) return;
         const quantity = parseQuantity(bankQuantityInput);
 
-        bankItemsStore.update((current) => {
-            const items = current?.items ?? [];
+        updateSuppliesForCharacter(activeCharacterId, (items) => {
             const existing = items.find((entry) => Number(entry.id) === itemId);
-            const nextItems = existing
+            return existing
                 ? items.map((entry) =>
                       Number(entry.id) === itemId
                           ? { ...entry, quantity: Math.max(1, entry.quantity + quantity) }
                           : entry,
                   )
                 : [...items, { id: itemId, quantity }];
-            return { ...current, items: nextItems };
         });
 
         toast.success(`Added ${quantity}x ${gameItem.name} to your supplies.`);
@@ -183,13 +204,12 @@
     }
 
     function confirmRemoveFromBank() {
+        if (!ensureActiveCharacter()) return;
         const itemId = Number(gameItem?.id);
         if (!Number.isFinite(itemId) || !gameItem) return;
-        bankItemsStore.update((current) => {
-            const items = current?.items ?? [];
-            const nextItems = items.filter((entry) => Number(entry.id) !== itemId);
-            return { ...current, items: nextItems };
-        });
+        updateSuppliesForCharacter(activeCharacterId, (items) =>
+            items.filter((entry) => Number(entry.id) !== itemId),
+        );
         toast.success(`Removed ${gameItem.name} from your supplies.`);
         bankDialogOpen = false;
     }
@@ -292,9 +312,23 @@
                         </OsrsboxItemUploadDialog>
                     {/if}
                     {#if isInBank}
-                        <Button variant="outline" onclick={openRemoveFromBank}>Remove from supplies</Button>
+                        <Button
+                            variant="outline"
+                            onclick={openRemoveFromBank}
+                            aria-disabled={suppliesActionsDisabled}
+                            class={suppliesActionsDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+                        >
+                            Remove from supplies
+                        </Button>
                     {:else}
-                        <Button variant="outline" onclick={openAddToBank}>Add to supplies</Button>
+                        <Button
+                            variant="outline"
+                            onclick={openAddToBank}
+                            aria-disabled={suppliesActionsDisabled}
+                            class={suppliesActionsDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+                        >
+                            Add to supplies
+                        </Button>
                     {/if}
                     <FavoriteButton {gameItem} />
                 </div>

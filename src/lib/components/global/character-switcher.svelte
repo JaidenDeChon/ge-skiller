@@ -4,6 +4,7 @@
     import { User, ChevronsUpDown, Plus, X, Pencil } from 'lucide-svelte';
     import { buttonVariants } from '$lib/components/ui/button';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
+    import { removeSuppliesForCharacter } from '$lib/stores/bank-items-store';
     import { Button } from '$lib/components/ui/button';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -32,6 +33,7 @@
         // Compute next list and persist it.
         const next = store.characters.filter((c) => c.id !== character.id);
         store.characters = next;
+        removeSuppliesForCharacter(character.id);
 
         toast.info(`Character "${character.name}" has been removed.`);
 

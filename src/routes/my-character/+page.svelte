@@ -14,7 +14,12 @@
     import { CharacterProfile, type ICharacterProfile } from '$lib/models/player-stats';
     import type { IGameItem } from '$lib/models/game-item';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
-    import { bankItemsStore } from '$lib/stores/bank-items-store';
+    import {
+        bankItemsStore,
+        ensureSuppliesForCharacter,
+        getSuppliesForCharacter,
+        updateSuppliesForCharacter,
+    } from '$lib/stores/bank-items-store';
     import { fetchCharacterDetailsFromWOM } from '$lib/services/wise-old-man-service';
     import { defaultSkillLevels } from '$lib/constants/default-skill-levels';
 
@@ -29,6 +34,14 @@
         return characters.find((c) => String(c.id) === String(targetId));
     });
     const activeCharacterLabel = $derived(activeCharacter?.name ?? 'None selected');
+    const activeCharacterId = $derived(activeCharacter?.id ?? null);
+    const hasActiveCharacter = $derived(Boolean(activeCharacterId));
+
+    function ensureActiveCharacter(): boolean {
+        if (activeCharacterId) return true;
+        toast.error('Select a character to manage supplies.');
+        return false;
+    }
 
     const createDraft = (
         name = '',
@@ -50,7 +63,11 @@
     let searchResults = $state([] as IGameItem[]);
     let searchLoading = $state(false);
     let quantityById = $state<Record<string, string>>({});
-    const bankItems = $derived($bankItemsStore.items ?? []);
+    $effect(() => {
+        ensureSuppliesForCharacter(activeCharacterId);
+    });
+
+    const bankItems = $derived(getSuppliesForCharacter($bankItemsStore, activeCharacterId));
     const bankQuantityById = $derived.by(() => {
         const map: Record<number, number> = {};
         bankItems.forEach((entry) => {
@@ -252,22 +269,26 @@
         return numeric;
     }
 
+    function openSuppliesDialog() {
+        if (!ensureActiveCharacter()) return;
+        bankDialogOpen = true;
+    }
+
     function addToBank(item: IGameItem) {
+        if (!ensureActiveCharacter()) return;
         const quantity = parseQuantity(quantityById[String(item.id)]);
         const itemId = Number(item.id);
         if (!Number.isFinite(itemId)) return;
 
-        bankItemsStore.update((current) => {
-            const items = current?.items ?? [];
+        updateSuppliesForCharacter(activeCharacterId, (items) => {
             const existing = items.find((entry) => Number(entry.id) === itemId);
-            const nextItems = existing
+            return existing
                 ? items.map((entry) =>
                       Number(entry.id) === itemId
                           ? { ...entry, quantity: Math.max(1, entry.quantity + quantity) }
                           : entry,
                   )
                 : [...items, { id: itemId, quantity }];
-            return { ...current, items: nextItems };
         });
 
         quantityById = { ...quantityById, [String(item.id)]: String(quantity) };
@@ -279,6 +300,14 @@
     }
 
     function commitBankQuantity(itemId: IGameItem['id']) {
+        if (!ensureActiveCharacter()) {
+            const id = Number(itemId);
+            if (!Number.isFinite(id)) return;
+            const currentQuantity = bankQuantityById[id] ?? 1;
+            bankEditQuantityById = { ...bankEditQuantityById, [String(itemId)]: String(currentQuantity) };
+            return;
+        }
+
         const id = Number(itemId);
         if (!Number.isFinite(id)) return;
         const currentQuantity = bankQuantityById[id] ?? 1;
@@ -295,23 +324,18 @@
             return;
         }
 
-        bankItemsStore.update((current) => {
-            const items = current?.items ?? [];
-            const nextItems = items.map((entry) =>
-                Number(entry.id) === id ? { ...entry, quantity: parsed } : entry,
-            );
-            return { ...current, items: nextItems };
-        });
+        updateSuppliesForCharacter(activeCharacterId, (items) =>
+            items.map((entry) => (Number(entry.id) === id ? { ...entry, quantity: parsed } : entry)),
+        );
     }
 
     function removeBankItem(itemId: IGameItem['id']) {
+        if (!ensureActiveCharacter()) return;
         const id = Number(itemId);
         if (!Number.isFinite(id)) return;
-        bankItemsStore.update((current) => {
-            const items = current?.items ?? [];
-            const nextItems = items.filter((entry) => Number(entry.id) !== id);
-            return { ...current, items: nextItems };
-        });
+        updateSuppliesForCharacter(activeCharacterId, (items) =>
+            items.filter((entry) => Number(entry.id) !== id),
+        );
     }
 </script>
 
@@ -393,7 +417,13 @@
                         <p class="text-sm text-muted-foreground">
                             Add items to your supplies.
                         </p>
-                        <Button onclick={() => (bankDialogOpen = true)}>Add supplies</Button>
+                        <Button
+                            onclick={openSuppliesDialog}
+                            aria-disabled={!hasActiveCharacter}
+                            class={!hasActiveCharacter ? 'opacity-50 cursor-not-allowed' : ''}
+                        >
+                            Add supplies
+                        </Button>
                     </div>
 
                     {#if !bankItemsReady}

@@ -9,7 +9,11 @@
     import { defaultSkillLevels } from '$lib/constants/default-skill-levels';
     import type { SkillTreePage } from '$lib/constants/skill-tree-pages';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
-    import { bankItemsStore } from '$lib/stores/bank-items-store';
+    import {
+        bankItemsStore,
+        ensureSuppliesForCharacter,
+        getSuppliesForCharacter,
+    } from '$lib/stores/bank-items-store';
     import { filterItemsStore } from '$lib/stores/filter-items-by-player-levels';
     import { itemsPagePreferences } from '$lib/stores/items-page-preferences';
     import type { IGameItem } from '$lib/models/game-item';
@@ -67,7 +71,11 @@
     let fetchedItems = $state([] as IGameItem[]);
     import { hiddenStore } from '$lib/stores/hidden-store';
     const hiddenIds = $derived($hiddenStore.hidden ?? []);
-    const bankItems = $derived($bankItemsStore.items ?? []);
+    $effect(() => {
+        ensureSuppliesForCharacter(activeCharacter?.id ?? null);
+    });
+
+    const bankItems = $derived(getSuppliesForCharacter($bankItemsStore, activeCharacter?.id ?? null));
     let totalItems = $state(0);
     let currentPage = $state(Number($itemsPagePreferences.page) || 1);
     let perPageSelected = $state($itemsPagePreferences.perPage || '12');
