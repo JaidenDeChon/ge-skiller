@@ -29,6 +29,10 @@
         { value: 'quest', label: 'Quest items' },
         { value: 'nonquest', label: 'Non-quest items' },
     ];
+    const sortOptions = [
+        { value: 'desc', label: 'Sort by value' },
+        { value: 'profit-desc', label: 'Sort by profit' },
+    ];
 
     function normalizeSkillLevels(skillLevels?: CharacterProfile['skillLevels'], hasCharacter = true) {
         if (!hasCharacter) return undefined;
@@ -80,13 +84,20 @@
     let currentPage = $state(Number($itemsPagePreferences.page) || 1);
     let perPageSelected = $state($itemsPagePreferences.perPage || '12');
     let filterSelected = $state($itemsPagePreferences.filter || 'all');
-    let sortOrderSelected = $state($itemsPagePreferences.sortOrder || 'desc');
+    let sortOrderSelected = $state(
+        $itemsPagePreferences.sortOrder === 'profit-desc' && $itemsPagePreferences.profitMode
+            ? 'profit-desc'
+            : 'desc',
+    );
     let useSuppliesChecked = $state($itemsPagePreferences.useSupplies ?? false);
     let profitModeChecked = $state($itemsPagePreferences.profitMode ?? false);
     const perPageValue = $derived(Number(perPageSelected) || 12);
     const perPageLabel = $derived(`${perPageValue}`);
     const filterLabel = $derived(
         filterOptions.find((option) => option.value === filterSelected)?.label ?? 'Filter items',
+    );
+    const sortLabel = $derived(
+        sortOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Sort items',
     );
     const profitModeEnabled = $derived(profitModeChecked);
     const profitContextLabel = $derived(profitModeEnabled && useSuppliesChecked ? 'Profit (supplies)' : 'Profit');
@@ -152,7 +163,8 @@
             filterSelected = $itemsPagePreferences.filter || 'all';
         }
         const prefOrder = $itemsPagePreferences.sortOrder || 'desc';
-        const normalizedOrder = prefOrder === 'asc' ? 'asc' : 'desc';
+        const profitPrefEnabled = $itemsPagePreferences.profitMode ?? false;
+        const normalizedOrder = normalizeSortSelection(prefOrder, profitPrefEnabled);
         if (normalizedOrder !== sortOrderSelected) {
             sortOrderSelected = normalizedOrder;
         }
@@ -320,6 +332,21 @@
         itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
     }
 
+    function normalizeSortSelection(value?: string | null, profitEnabled = profitModeChecked) {
+        if (value === 'profit-desc') {
+            return profitEnabled ? 'profit-desc' : 'desc';
+        }
+        return 'desc';
+    }
+
+    function handleSortChange(value: string) {
+        const normalized = normalizeSortSelection(value, profitModeEnabled);
+        sortOrderSelected = normalized;
+        itemsPagePreferences.update((prefs) => ({ ...prefs, sortOrder: normalized }));
+        currentPage = 1;
+        itemsPagePreferences.update((prefs) => ({ ...prefs, page: 1 }));
+    }
+
     function applySkillFilterToggle(value: boolean) {
         skillFilterChecked = value;
         filterItemsStore.set({ ...$filterItemsStore, filterItemsByPlayerLevels: value });
@@ -387,12 +414,20 @@
     }
 
     function handleProfitModeToggle(value: boolean) {
+        const nextSortOrder = !value && sortOrderSelected === 'profit-desc' ? 'desc' : sortOrderSelected;
+        if (nextSortOrder !== sortOrderSelected) {
+            sortOrderSelected = nextSortOrder;
+        }
         profitModeChecked = value;
-        itemsPagePreferences.set({ ...$itemsPagePreferences, profitMode: value });
+        itemsPagePreferences.update((prefs) => ({
+            ...prefs,
+            profitMode: value,
+            sortOrder: nextSortOrder,
+        }));
         skipCacheOnce = true;
         forceLoading = true;
         currentPage = 1;
-        itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
+        itemsPagePreferences.update((prefs) => ({ ...prefs, page: 1 }));
     }
 
     type ItemsCacheEntry = {
@@ -494,6 +529,23 @@
                             </Select.Content>
                         </Select.Root>
                     </div>
+                    <div class="min-w-[180px] sm:w-[210px]">
+                        <Select.Root type="single" bind:value={sortOrderSelected} onValueChange={handleSortChange}>
+                            <Select.Trigger>{sortLabel}</Select.Trigger>
+                            <Select.Content>
+                                <Select.Group>
+                                    {#each sortOptions as option (option.value)}
+                                        <Select.Item
+                                            value={option.value}
+                                            disabled={option.value === 'profit-desc' && !profitModeEnabled}
+                                        >
+                                            {option.label}
+                                        </Select.Item>
+                                    {/each}
+                                </Select.Group>
+                            </Select.Content>
+                        </Select.Root>
+                    </div>
                 </div>
 
                 <div
@@ -537,17 +589,6 @@
                 <p class="text-xs text-muted-foreground">Longer wait times:</p>
                 <div class="flex items-center gap-2">
                     <Switch
-                        id="profit-mode-switch"
-                        checked={profitModeEnabled}
-                        onCheckedChange={(value) => requestLongWaitToggle('profit', value)}
-                        aria-label="Enable profit mode"
-                    />
-                    <Label for="profit-mode-switch" class="cursor-pointer select-none text-sm">
-                        Show profit
-                    </Label>
-                </div>
-                <div class="flex items-center gap-2">
-                    <Switch
                         id="supplies-profit-switch"
                         checked={useSuppliesChecked}
                         onCheckedChange={(value) => requestLongWaitToggle('supplies', value)}
@@ -555,6 +596,17 @@
                     />
                     <Label for="supplies-profit-switch" class="cursor-pointer select-none text-sm">
                         Filter by my supplies
+                    </Label>
+                </div>
+                <div class="flex items-center gap-2">
+                    <Switch
+                        id="profit-mode-switch"
+                        checked={profitModeEnabled}
+                        onCheckedChange={(value) => requestLongWaitToggle('profit', value)}
+                        aria-label="Enable profit mode"
+                    />
+                    <Label for="profit-mode-switch" class="cursor-pointer select-none text-sm">
+                        Show profit <span class="text-xs text-muted-foreground">(enables profit sorting)</span>
                     </Label>
                 </div>
             </div>
