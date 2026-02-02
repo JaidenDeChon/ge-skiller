@@ -97,7 +97,7 @@ function buildMethodFromCaptionTables(
 }
 
 /**
- * Step 1: fetch the list of sections for a page and find the "Creation" section index.
+ * Step 1: fetch the list of sections for a page and find the "Creation" (or "Recipe") section index.
  */
 async function getCreationSectionIndex(title: string): Promise<number | null> {
     const data = await wikiApi({
@@ -108,7 +108,10 @@ async function getCreationSectionIndex(title: string): Promise<number | null> {
 
     const sections: { index: string; line: string }[] = data?.parse?.sections ?? [];
 
-    const creationSection = sections.find((s) => s.line.toLowerCase().trim() === 'creation');
+    const creationSection = sections.find((s) => {
+        const line = s.line.toLowerCase().trim();
+        return line === 'creation' || line === 'recipe';
+    });
 
     if (!creationSection) return null;
 
@@ -481,15 +484,17 @@ function parseMaterialsAndInlineProducts(
         const nameLower = normalizedName.toLowerCase();
         const titleLower = normalizedTitle.toLowerCase();
 
+        let isNumericParenVariant = false;
+        if (nameLower.startsWith(titleLower)) {
+            const remainder = nameLower.slice(titleLower.length).trim();
+            isNumericParenVariant = /^\(\d+\)$/.test(remainder);
+        }
+
         // Treat as product if:
         // - it's the selflink (same page), OR
         // - exact match, OR
-        // - it's a dose/variant that starts with the page title, e.g. "prayer potion(3)"
-        const isProductRow =
-            selfLink.length > 0 ||
-            nameLower === titleLower ||
-            nameLower.startsWith(titleLower + ' (') || // e.g. "item (something)"
-            nameLower.startsWith(titleLower + '('); // e.g. "prayer potion(3)"
+        // - it's a numeric dose/charge variant like "prayer potion(3)" or "ring of recoil (8)"
+        const isProductRow = selfLink.length > 0 || nameLower === titleLower || isNumericParenVariant;
 
         if (isProductRow) {
             products.push({

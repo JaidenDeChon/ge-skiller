@@ -90,13 +90,11 @@ async function main() {
         }
 
         console.log(`[db-copy] Found ${sourceCollections.length} collection(s): ${sourceCollections.join(', ')}`);
-        console.log(`[db-copy] Replacing target db "${targetDbName}"...`);
+        console.log(`[db-copy] Copying into target db "${targetDbName}"...`);
 
         const targetConn = mongoose.connection.useDb(targetDbName, { useCache: true });
         const targetDb = targetConn.db;
         if (!targetDb) throw new Error(`Target db "${targetDbName}" is not available.`);
-
-        await withRetry(`${targetDbName} dropDatabase`, async () => targetDb.dropDatabase());
 
         for (const collectionName of sourceCollections) {
             console.log(`[db-copy]  - ${collectionName}`);
