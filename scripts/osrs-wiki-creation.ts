@@ -485,16 +485,19 @@ function parseMaterialsAndInlineProducts(
         const titleLower = normalizedTitle.toLowerCase();
 
         let isNumericParenVariant = false;
+        let isUnstrungVariant = false;
         if (nameLower.startsWith(titleLower)) {
             const remainder = nameLower.slice(titleLower.length).trim();
-            isNumericParenVariant = /^\(\d+\)$/.test(remainder);
+            isUnstrungVariant = remainder === '(u)' || remainder === '(unstrung)';
+            isNumericParenVariant = /^\(\d+(?:\s*\/\s*\d+)?\)$/.test(remainder);
         }
 
         // Treat as product if:
         // - it's the selflink (same page), OR
         // - exact match, OR
         // - it's a numeric dose/charge variant like "prayer potion(3)" or "ring of recoil (8)"
-        const isProductRow = selfLink.length > 0 || nameLower === titleLower || isNumericParenVariant;
+        const isProductRow =
+            selfLink.length > 0 || nameLower === titleLower || (isNumericParenVariant && !isUnstrungVariant);
 
         if (isProductRow) {
             products.push({
