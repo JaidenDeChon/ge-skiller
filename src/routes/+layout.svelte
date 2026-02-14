@@ -1,7 +1,5 @@
 <script lang="ts">
     import { onNavigate } from '$app/navigation';
-    import { page } from '$app/stores';
-    import { PUBLIC_SITE_URL } from '$env/static/public';
     import '../app.css';
     import * as Sidebar from '$lib/components/ui/sidebar';
     import { Toaster } from '$lib/components/ui/sonner';
@@ -10,9 +8,6 @@
     import { ModeWatcher } from 'mode-watcher';
 
     let { children, data } = $props();
-
-    const shareImagePath = '/other-images/share-thumb.png';
-    const normalizedPublicUrl = PUBLIC_SITE_URL?.replace(/\/$/, '');
 
     onNavigate((navigation) => {
         // Bail early if the browser doesn't support view transitions.
@@ -26,14 +21,6 @@
         });
     });
 </script>
-
-<svelte:head>
-    <meta property="og:image" content={`${normalizedPublicUrl ?? $page.url.origin}${shareImagePath}`} />
-    <meta property="og:image:alt" content="GE Skiller share thumbnail" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content={`${normalizedPublicUrl ?? $page.url.origin}${shareImagePath}`} />
-    <meta name="twitter:image:alt" content="GE Skiller share thumbnail" />
-</svelte:head>
 
 <Toaster />
 
