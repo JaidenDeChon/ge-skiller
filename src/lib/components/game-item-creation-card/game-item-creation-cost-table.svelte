@@ -219,7 +219,11 @@
                     </Table.Cell>
                     <Table.Cell class="font-medium">
                         {#if row.item.id}
-                            <a class="text-primary hover:underline" href={resolve(`/items/${row.item.id}`)}>
+                            <a
+                                class="text-primary hover:underline"
+                                href={resolve(`/items/${row.item.id}`)}
+                                data-sveltekit-preload-data="hover"
+                            >
                                 {row.item.name}
                             </a>
                         {:else}

@@ -33,7 +33,9 @@
 
             <!-- Item name -->
             {#if linkToItem}
-                <a href={resolve(`/items/${gameItem.id}`)} class="hover:underline">{gameItem.name}</a>
+                <a href={resolve(`/items/${gameItem.id}`)} class="hover:underline" data-sveltekit-preload-data="hover"
+                    >{gameItem.name}</a
+                >
             {:else}
                 <p>{gameItem.name}</p>
             {/if}

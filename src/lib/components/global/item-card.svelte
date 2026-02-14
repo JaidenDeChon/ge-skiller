@@ -125,7 +125,11 @@
             </div>
             <Skeleton class="rounded-full size-12" />
         {:else if linkToItemPage}
-            <a href={resolve(`/items/${item.id}`)} class="flex justify-between gap-6 w-full items-start">
+            <a
+                href={resolve(`/items/${item.id}`)}
+                class="flex justify-between gap-6 w-full items-start"
+                data-sveltekit-preload-data="hover"
+            >
                 <div class="group-hover/header:underline {headerTextDivClasses}">
                     {@render itemCardHeaderContent()}
                 </div>

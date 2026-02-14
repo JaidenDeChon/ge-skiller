@@ -592,10 +592,10 @@
                         id="supplies-profit-switch"
                         checked={useSuppliesChecked}
                         onCheckedChange={(value) => requestLongWaitToggle('supplies', value)}
-                        aria-label="Filter by my supplies"
+                        aria-label="Only show what I have supplies for"
                     />
                     <Label for="supplies-profit-switch" class="cursor-pointer select-none text-sm">
-                        Filter by my supplies
+                        Only show what I have supplies for
                     </Label>
                 </div>
                 <div class="flex items-center gap-2">

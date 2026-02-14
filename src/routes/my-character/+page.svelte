@@ -451,6 +451,7 @@
                                                 <a
                                                     href={`/items/${item.id}`}
                                                     class="inline-flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:underline"
+                                                    data-sveltekit-preload-data="hover"
                                                 >
                                                     <span
                                                         class="inline-flex h-8 w-8 items-center justify-center rounded bg-muted border"

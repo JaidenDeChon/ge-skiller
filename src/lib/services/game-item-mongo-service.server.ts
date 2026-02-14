@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { skillTreeSlugs } from '$lib/constants/skill-tree-pages';
+import { MAX_ITEM_TREE_DEPTH } from '$lib/constants/item-tree';
 import { OsrsboxItemModel, type OsrsboxItemDocument } from '$lib/models/mongo-schemas/osrsbox-db-item-schema';
 import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
@@ -8,7 +9,7 @@ type GameItemDoc = OsrsboxItemDocument & {
     creationCost?: number | null;
     creationProfit?: number | null;
 };
-const MAX_INGREDIENT_DEPTH = 5;
+const MAX_INGREDIENT_DEPTH = MAX_ITEM_TREE_DEPTH;
 
 export type GameItemFilter = 'all' | 'members' | 'f2p' | 'equipable' | 'stackable' | 'quest' | 'nonquest';
 export type GameItemSortOrder = 'asc' | 'desc' | 'profit-desc';
@@ -26,10 +27,21 @@ export type PaginatedGameItems = {
  * Populates nested ingredient trees so the frontend can render a full org chart.
  */
 export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxItemWithMeta | null> {
-    const numericId = Number(itemId);
-    const id = Number.isNaN(numericId) ? itemId : numericId;
+    const trimmedId = itemId.trim();
+    const numericId = Number(trimmedId);
+    const query: Record<string, unknown> = {};
 
-    const root = await OsrsboxItemModel.findOne({ id }).lean<IOsrsboxItemWithMeta & { _id: Types.ObjectId }>().exec();
+    if (Number.isFinite(numericId)) {
+        query.id = numericId;
+    } else if (Types.ObjectId.isValid(trimmedId)) {
+        query._id = new Types.ObjectId(trimmedId);
+    } else {
+        query.id = trimmedId;
+    }
+
+    const root = await OsrsboxItemModel.findOne(query)
+        .lean<IOsrsboxItemWithMeta & { _id: Types.ObjectId }>()
+        .exec();
     if (!root) return null;
 
     // Cache results so we don't refetch the same ingredient multiple times
@@ -37,6 +49,35 @@ export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxI
     await populateIngredientsRecursive(root, cache, 0);
 
     return root;
+}
+
+/**
+ * Returns a lightweight item document for item details pages.
+ */
+export async function getGameItemById(itemId: string): Promise<IOsrsboxItemWithMeta | null> {
+    const numericId = Number(itemId);
+    const id = Number.isNaN(numericId) ? itemId : numericId;
+
+    return OsrsboxItemModel.findOne({ id })
+        .select({
+            id: 1,
+            name: 1,
+            icon: 1,
+            examine: 1,
+            members: 1,
+            highPrice: 1,
+            highTime: 1,
+            lowPrice: 1,
+            lowTime: 1,
+            highalch: 1,
+            lowalch: 1,
+            cost: 1,
+            buy_limit: 1,
+            wiki_name: 1,
+            wiki_url: 1,
+        })
+        .lean<IOsrsboxItemWithMeta>()
+        .exec();
 }
 
 /**

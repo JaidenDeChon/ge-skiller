@@ -106,6 +106,7 @@
                                     <Command.LinkItem
                                         href={`/items/${item.id}`}
                                         class="cursor-pointer"
+                                        data-sveltekit-preload-data="hover"
                                         onclick={() => handleSearchResultSelect(item)}
                                     >
                                         <div
@@ -151,6 +152,7 @@
                                     <Command.LinkItem
                                         href={`/items/${entry.item.id}`}
                                         class="cursor-pointer"
+                                        data-sveltekit-preload-data="hover"
                                         onclick={() => handleRecentSearchSelect(entry)}
                                     >
                                         <div

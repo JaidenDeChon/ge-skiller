@@ -29,6 +29,12 @@
 
     let loading = $state(false);
     let gameItem = $state<IOsrsboxItemWithMeta | null>(data.gameItem ?? null);
+    let treeItem = $state<IOsrsboxItemWithMeta | null>(null);
+    let treeLoading = $state(false);
+    let treeError = $state<string | null>(null);
+    let treeAbort: AbortController | null = null;
+    const treeCacheKeyPrefix = 'ge-skiller:item-tree:';
+    const treeCacheTtlMs = 5 * 60 * 1000;
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
     const wikiUrl = $derived(() => {
         const slug = gameItem?.wiki_name ?? gameItem?.name ?? gameItem?.wikiName;
@@ -121,12 +127,83 @@
             }
             const updated = (await resp.json()) as IOsrsboxItemWithMeta;
             gameItem = updated;
+            if (updated?.id !== null && updated?.id !== undefined) {
+                void loadItemTree(updated.id);
+            }
             toast.success('Item updated.');
         } catch (error) {
             console.error(error);
             toast.error(error instanceof Error ? error.message : 'Failed to refresh item.');
         } finally {
             loading = false;
+        }
+    }
+
+    type TreeCacheEntry = { cachedAt: number; payload: IOsrsboxItemWithMeta | null };
+
+    function readTreeCache(key: string): IOsrsboxItemWithMeta | null | undefined {
+        if (typeof window === 'undefined') return undefined;
+        try {
+            const raw = sessionStorage.getItem(key);
+            if (!raw) return undefined;
+            const parsed = JSON.parse(raw) as TreeCacheEntry;
+            if (!parsed || typeof parsed !== 'object') return undefined;
+            if (!parsed.cachedAt || Date.now() - parsed.cachedAt > treeCacheTtlMs) {
+                sessionStorage.removeItem(key);
+                return undefined;
+            }
+            return parsed.payload ?? null;
+        } catch {
+            return undefined;
+        }
+    }
+
+    function writeTreeCache(key: string, payload: IOsrsboxItemWithMeta | null) {
+        if (typeof window === 'undefined') return;
+        try {
+            const entry: TreeCacheEntry = { cachedAt: Date.now(), payload };
+            sessionStorage.setItem(key, JSON.stringify(entry));
+        } catch {
+            // ignore storage failures
+        }
+    }
+
+    async function loadItemTree(itemId: string | number) {
+        if (treeAbort) treeAbort.abort();
+        const controller = new AbortController();
+        treeAbort = controller;
+        treeLoading = true;
+        treeError = null;
+        try {
+            const cacheKey = `${treeCacheKeyPrefix}${String(itemId)}`;
+            const cached = readTreeCache(cacheKey);
+            if (cached !== undefined) {
+                treeItem = cached;
+                treeLoading = false;
+                treeAbort = null;
+                return;
+            }
+
+            const resp = await fetch(`/api/game-item-full-tree/?id=${encodeURIComponent(String(itemId))}`, {
+                signal: controller.signal,
+            });
+            if (!resp.ok) {
+                throw new Error(`Failed to load item tree (status ${resp.status})`);
+            }
+            const tree = (await resp.json()) as IOsrsboxItemWithMeta | null;
+            if (controller.signal.aborted) return;
+            treeItem = tree;
+            writeTreeCache(cacheKey, tree);
+        } catch (error) {
+            if ((error as Error).name !== 'AbortError') {
+                treeError = error instanceof Error ? error.message : 'Failed to load item tree.';
+                console.error('Failed to load item tree', error);
+            }
+        } finally {
+            if (treeAbort === controller) {
+                treeAbort = null;
+                treeLoading = false;
+            }
         }
     }
 
@@ -140,10 +217,21 @@
 
         lastDataItemId = incomingId;
         gameItem = incoming;
+        treeItem = null;
+        treeError = null;
+        if (treeAbort) {
+            treeAbort.abort();
+            treeAbort = null;
+        }
+        if (incomingId !== null && incomingId !== undefined) {
+            void loadItemTree(incomingId);
+        } else {
+            treeLoading = false;
+        }
         loading = false;
     });
 
-    const primaryCreationSpec = $derived(getPrimaryCreationSpec(gameItem));
+    const primaryCreationSpec = $derived(getPrimaryCreationSpec(treeItem));
     const renderChart = $derived(!!primaryCreationSpec?.ingredients?.length);
 
     $effect(() => {
@@ -386,7 +474,10 @@
     </div>
 
     <!-- Item tree card -->
-    <GameItemTreeCard rootClass="mt-4 pb-5" {gameItem} {loading} {renderChart} />
+    {#if treeError}
+        <p class="text-sm text-rose-500 mt-4">Failed to load ingredient data.</p>
+    {/if}
+    <GameItemTreeCard rootClass="mt-4 pb-5" gameItem={treeItem} loading={treeLoading} {renderChart} />
 
     <!-- Pricing tables -->
     <div class="grid gap-4 lg:grid-cols-2 mt-6">
