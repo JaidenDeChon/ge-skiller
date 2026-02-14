@@ -11,6 +11,7 @@
     import * as Accordion from '$lib/components/ui/accordion';
     import SkillsGrid from '$lib/components/global/skills-grid.svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
+    import { resolve } from '$app/paths';
     import { CharacterProfile, type ICharacterProfile } from '$lib/models/player-stats';
     import type { IGameItem } from '$lib/models/game-item';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
@@ -449,7 +450,7 @@
                                         <Table.Row>
                                             <Table.Cell class="font-medium">
                                                 <a
-                                                    href={`/items/${item.id}`}
+                                                    href={resolve(`/items/${item.id}`)}
                                                     class="inline-flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:underline"
                                                     data-sveltekit-preload-data="hover"
                                                 >
