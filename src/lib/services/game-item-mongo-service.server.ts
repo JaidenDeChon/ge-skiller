@@ -44,11 +44,79 @@ export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxI
         .exec();
     if (!root) return null;
 
-    // Cache results so we don't refetch the same ingredient multiple times
+    // Fetch each unique ingredient exactly once, batching one query per tree level
+    // instead of issuing a round-trip per ingredient document.
     const cache = new Map<string, IOsrsboxItemWithMeta>();
-    await populateIngredientsRecursive(root, cache, 0);
+    let frontier = collectIngredientIds(root);
+    for (let depth = 0; depth < MAX_INGREDIENT_DEPTH && frontier.length; depth += 1) {
+        const missing = Array.from(new Set(frontier)).filter((id) => !cache.has(id));
+        if (!missing.length) break;
+
+        const docs = await OsrsboxItemModel.find({ _id: { $in: missing.map((id) => new Types.ObjectId(id)) } })
+            .lean<(IOsrsboxItemWithMeta & { _id: Types.ObjectId })[]>()
+            .exec();
+
+        frontier = [];
+        for (const doc of docs) {
+            cache.set(doc._id.toString(), doc);
+            frontier.push(...collectIngredientIds(doc));
+        }
+    }
+
+    attachIngredientsFromCache(root, root, cache, 0);
 
     return root;
+}
+
+/**
+ * Returns the ObjectId keys of all ingredient references on an unpopulated (raw) item document.
+ */
+function collectIngredientIds(item: IOsrsboxItemWithMeta): string[] {
+    const ids: string[] = [];
+    for (const spec of item.creationSpecs ?? []) {
+        for (const ingredient of spec.ingredients ?? []) {
+            const raw = ingredient.item as unknown;
+            if (raw instanceof Types.ObjectId) ids.push(raw.toString());
+        }
+    }
+    return ids;
+}
+
+/**
+ * Replaces ingredient ObjectId references with materialized copies of the cached documents.
+ * Walks the raw `source` doc for ingredient ids (structuredClone strips the ObjectId prototype
+ * from `target`) and gives every occurrence its own clone so the tree has no shared object
+ * graphs, which JSON.stringify would otherwise duplicate or treat as circular. The depth
+ * budget also bounds cyclic ingredient data.
+ */
+function attachIngredientsFromCache(
+    target: IOsrsboxItemWithMeta,
+    source: IOsrsboxItemWithMeta,
+    cache: Map<string, IOsrsboxItemWithMeta>,
+    depth: number,
+): void {
+    if (depth >= MAX_INGREDIENT_DEPTH) return;
+
+    const targetSpecs = target.creationSpecs ?? [];
+    const sourceSpecs = source.creationSpecs ?? [];
+
+    for (let specIndex = 0; specIndex < sourceSpecs.length; specIndex += 1) {
+        const sourceIngredients = sourceSpecs[specIndex]?.ingredients ?? [];
+        const targetIngredients = targetSpecs[specIndex]?.ingredients ?? [];
+
+        for (let i = 0; i < sourceIngredients.length; i += 1) {
+            const raw = sourceIngredients[i]?.item as unknown;
+            const targetIngredient = targetIngredients[i];
+            if (!(raw instanceof Types.ObjectId) || !targetIngredient) continue;
+
+            const cached = cache.get(raw.toString());
+            if (!cached) continue;
+
+            const copy = structuredClone(cached);
+            targetIngredient.item = copy as unknown as (typeof targetIngredient)['item'];
+            attachIngredientsFromCache(copy, cached, cache, depth + 1);
+        }
+    }
 }
 
 /**
@@ -156,6 +224,10 @@ export async function getPaginatedGameItems(params?: {
         ? buildProfitPipeline(supplyMap, profitSort, profitSort && suppliesFilterActive)
         : [];
     const supplyStages = !profitSort && suppliesFilterActive ? buildSuppliesFilterPipeline(supplyMap) : [];
+    // Profit only needs to be computed for every candidate when it drives the sort order;
+    // otherwise it can wait until after pagination and run for just the returned page.
+    const profitStagesBeforeSort = profitSort ? profitStages : [];
+    const profitStagesAfterPagination = profitSort ? [] : profitStages;
     const sortStage = profitSort
         ? { creationProfit: sortDirection, highPrice: -1, cost: -1, name: 1 }
         : { highPrice: sortDirection, cost: sortDirection, name: 1 };
@@ -166,12 +238,14 @@ export async function getPaginatedGameItems(params?: {
     }>([
         { $match: filterQuery },
         ...(skillLevels ? [{ $match: { $expr: buildPlayerSkillMatchExpression(skillLevels) } }] : []),
+        // Drop heavy fields the browse page never renders before docs hit the blocking $sort.
+        { $unset: ['equipment', 'weapon'] },
         ...supplyStages,
-        ...profitStages,
+        ...profitStagesBeforeSort,
         { $sort: sortStage },
         {
             $facet: {
-                items: [{ $skip: skip }, { $limit: perPage }],
+                items: [{ $skip: skip }, { $limit: perPage }, ...profitStagesAfterPagination],
                 totalDocs: [{ $count: 'count' }],
             },
         },
@@ -417,17 +491,20 @@ function buildProfitPipeline(
             },
         },
         {
+            $set: {
+                consumedIngredientIds: {
+                    $map: { input: '$consumedIngredients', as: 'ing', in: '$$ing.item' },
+                },
+            },
+        },
+        {
+            // localField/foreignField joins use the _id index; an $expr $in match cannot,
+            // which made this lookup a full collection scan per candidate document.
             $lookup: {
                 from: 'items',
-                let: {
-                    ingredientIds: {
-                        $map: { input: '$consumedIngredients', as: 'ing', in: '$$ing.item' },
-                    },
-                },
-                pipeline: [
-                    { $match: { $expr: { $in: ['$_id', '$$ingredientIds'] } } },
-                    { $project: { _id: 1, id: 1, highPrice: 1, lowPrice: 1, cost: 1 } },
-                ],
+                localField: 'consumedIngredientIds',
+                foreignField: '_id',
+                pipeline: [{ $project: { _id: 1, id: 1, highPrice: 1, lowPrice: 1, cost: 1 } }],
                 as: 'ingredientItems',
             },
         },
@@ -470,6 +547,7 @@ function buildProfitPipeline(
         $unset: [
             'primarySpec',
             'consumedIngredients',
+            'consumedIngredientIds',
             'ingredientItems',
             'ingredientCostRows',
             'costKnown',
@@ -534,17 +612,20 @@ function buildSuppliesFilterPipeline(supplies?: PlayerSupplies | null): Record<s
         { $set: { requiredIngredients: { $ifNull: ['$primarySpec.ingredients', []] } } },
         { $match: { $expr: { $gt: [{ $size: '$requiredIngredients' }, 0] } } },
         {
+            $set: {
+                requiredIngredientIds: {
+                    $map: { input: '$requiredIngredients', as: 'ing', in: '$$ing.item' },
+                },
+            },
+        },
+        {
+            // localField/foreignField joins use the _id index; an $expr $in match cannot,
+            // which made this lookup a full collection scan per candidate document.
             $lookup: {
                 from: 'items',
-                let: {
-                    ingredientIds: {
-                        $map: { input: '$requiredIngredients', as: 'ing', in: '$$ing.item' },
-                    },
-                },
-                pipeline: [
-                    { $match: { $expr: { $in: ['$_id', '$$ingredientIds'] } } },
-                    { $project: { _id: 1, id: 1 } },
-                ],
+                localField: 'requiredIngredientIds',
+                foreignField: '_id',
+                pipeline: [{ $project: { _id: 1, id: 1 } }],
                 as: 'ingredientItems',
             },
         },
@@ -563,7 +644,16 @@ function buildSuppliesFilterPipeline(supplies?: PlayerSupplies | null): Record<s
             },
         },
         { $match: { suppliesSatisfied: true } },
-        { $unset: ['primarySpec', 'requiredIngredients', 'ingredientItems', 'supplyRows', 'suppliesSatisfied'] },
+        {
+            $unset: [
+                'primarySpec',
+                'requiredIngredients',
+                'requiredIngredientIds',
+                'ingredientItems',
+                'supplyRows',
+                'suppliesSatisfied',
+            ],
+        },
     ];
 }
 
@@ -757,44 +847,4 @@ function buildPlayerSkillMatchExpression(skillLevels: PlayerSkillLevels) {
             0,
         ],
     };
-}
-
-async function populateIngredientsRecursive(
-    item: IOsrsboxItemWithMeta & { _id?: Types.ObjectId },
-    cache: Map<string, IOsrsboxItemWithMeta>,
-    depth: number,
-): Promise<void> {
-    if (depth >= MAX_INGREDIENT_DEPTH) return;
-    const specs = Array.isArray(item.creationSpecs) ? item.creationSpecs : [];
-    if (!specs.length) return;
-
-    await Promise.all(
-        specs.map(async (spec) => {
-            if (!spec.ingredients?.length) return;
-
-            await Promise.all(
-                spec.ingredients.map(async (ingredient) => {
-                    const ingredientId = ingredient.item as unknown as Types.ObjectId | undefined;
-                    if (!ingredientId) return;
-
-                    const key = ingredientId.toString();
-                    if (!cache.has(key)) {
-                        const populated = await OsrsboxItemModel.findById(ingredientId)
-                            .lean<IOsrsboxItemWithMeta & { _id: Types.ObjectId }>()
-                            .exec();
-                        if (!populated) return;
-
-                        cache.set(key, populated);
-                        await populateIngredientsRecursive(populated, cache, depth + 1);
-                    }
-
-                    const cached = cache.get(key);
-                    if (cached) {
-                        // Clone to prevent shared object graphs that JSON.stringify treats as circular.
-                        ingredient.item = structuredClone(cached);
-                    }
-                }),
-            );
-        }),
-    );
 }
