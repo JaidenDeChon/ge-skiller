@@ -8,11 +8,12 @@ type GameItemDoc = OsrsboxItemDocument & {
     _id: Types.ObjectId;
     creationCost?: number | null;
     creationProfit?: number | null;
+    creationRoi?: number | null;
 };
 const MAX_INGREDIENT_DEPTH = MAX_ITEM_TREE_DEPTH;
 
 export type GameItemFilter = 'all' | 'members' | 'f2p' | 'equipable' | 'stackable' | 'quest' | 'nonquest';
-export type GameItemSortOrder = 'asc' | 'desc' | 'profit-desc';
+export type GameItemSortOrder = 'asc' | 'desc' | 'profit-desc' | 'roi-desc';
 export type PlayerSkillLevels = Record<string, number>;
 export type PlayerSupplies = Record<string, number>;
 
@@ -189,6 +190,9 @@ export async function getPaginatedGameItems(params?: {
     const sortOrder = normalizeSortOrder(params?.sortOrder);
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     const profitSort = sortOrder === 'profit-desc';
+    const roiSort = sortOrder === 'roi-desc';
+    // Both profit and ROI sorts are driven by the same creation-cost pipeline.
+    const profitDrivenSort = profitSort || roiSort;
     const profitMode = Boolean(params?.profitMode);
     const baseFilterQuery = getFilterQuery(filter);
     const skillQuery = getSkillMatchQuery(params?.skill);
@@ -204,7 +208,7 @@ export async function getPaginatedGameItems(params?: {
     const supplies = normalizeSupplies(params?.supplies);
     const supplyMap = supplies ?? (suppliesActive ? {} : null);
 
-    if (!skillLevels && !profitSort && !profitMode && !suppliesActive && !supplies) {
+    if (!skillLevels && !profitDrivenSort && !profitMode && !suppliesActive && !supplies) {
         const [items, total] = await Promise.all([
             OsrsboxItemModel.find(filterQuery)
                 .sort({ highPrice: sortDirection, cost: sortDirection, name: 1 })
@@ -219,18 +223,25 @@ export async function getPaginatedGameItems(params?: {
     }
 
     const suppliesFilterActive = suppliesActive || Boolean(supplyMap);
-    const shouldComputeProfit = profitSort || profitMode;
+    const shouldComputeProfit = profitDrivenSort || profitMode;
+    const enforceSupplies = profitDrivenSort && suppliesFilterActive;
+    // Enforcing supplies keeps only items the bank already covers in full, so their creation
+    // cost — and with it their ROI — is zero for every survivor. Filtering on ROI as well would
+    // leave nothing at all, so skip it there and let the sort fall through to profit instead.
+    const filterMissingRoi = roiSort && !enforceSupplies;
     const profitStages = shouldComputeProfit
-        ? buildProfitPipeline(supplyMap, profitSort, profitSort && suppliesFilterActive)
+        ? buildProfitPipeline(supplyMap, profitDrivenSort, enforceSupplies, filterMissingRoi)
         : [];
-    const supplyStages = !profitSort && suppliesFilterActive ? buildSuppliesFilterPipeline(supplyMap) : [];
+    const supplyStages = !profitDrivenSort && suppliesFilterActive ? buildSuppliesFilterPipeline(supplyMap) : [];
     // Profit only needs to be computed for every candidate when it drives the sort order;
     // otherwise it can wait until after pagination and run for just the returned page.
-    const profitStagesBeforeSort = profitSort ? profitStages : [];
-    const profitStagesAfterPagination = profitSort ? [] : profitStages;
-    const sortStage = profitSort
-        ? { creationProfit: sortDirection, highPrice: -1, cost: -1, name: 1 }
-        : { highPrice: sortDirection, cost: sortDirection, name: 1 };
+    const profitStagesBeforeSort = profitDrivenSort ? profitStages : [];
+    const profitStagesAfterPagination = profitDrivenSort ? [] : profitStages;
+    const sortStage = roiSort
+        ? { creationRoi: sortDirection, creationProfit: -1, highPrice: -1, cost: -1, name: 1 }
+        : profitSort
+          ? { creationProfit: sortDirection, highPrice: -1, cost: -1, name: 1 }
+          : { highPrice: sortDirection, cost: sortDirection, name: 1 };
 
     const [{ items, total = 0 } = { items: [], total: 0 }] = await OsrsboxItemModel.aggregate<{
         items: GameItemDoc[];
@@ -320,7 +331,7 @@ function escapeRegex(value: string) {
 }
 
 function normalizeSortOrder(sortOrder?: GameItemSortOrder): GameItemSortOrder {
-    const allowed: GameItemSortOrder[] = ['asc', 'desc', 'profit-desc'];
+    const allowed: GameItemSortOrder[] = ['asc', 'desc', 'profit-desc', 'roi-desc'];
     if (!sortOrder) return 'desc';
     return allowed.includes(sortOrder) ? sortOrder : 'desc';
 }
@@ -373,6 +384,7 @@ function buildProfitPipeline(
     supplies?: PlayerSupplies | null,
     filterMissingProfit: boolean = false,
     enforceSupplies: boolean = false,
+    filterMissingRoi: boolean = false,
 ): Record<string, unknown>[] {
     const supplyMap = supplies ?? normalizeSupplies(supplies);
     const hasSupplies = enforceSupplies || Boolean(supplyMap);
@@ -533,10 +545,30 @@ function buildProfitPipeline(
                 },
             },
         },
+        {
+            // Return on investment as a ratio of profit to the gp that has to be fronted.
+            // Mirrors the percentage the item card renders, so a zero-cost creation (every
+            // ingredient already in the bank) has no meaningful ROI and stays null.
+            $set: {
+                creationRoi: {
+                    $cond: [
+                        {
+                            $and: [{ $ne: ['$creationProfit', null] }, { $gt: ['$creationCost', 0] }],
+                        },
+                        { $divide: ['$creationProfit', '$creationCost'] },
+                        null,
+                    ],
+                },
+            },
+        },
     ];
 
     if (filterMissingProfit) {
         pipeline.push({ $match: { creationProfit: { $ne: null } } });
+    }
+
+    if (filterMissingRoi) {
+        pipeline.push({ $match: { creationRoi: { $ne: null } } });
     }
 
     if (enforceSupplies && hasSupplies) {

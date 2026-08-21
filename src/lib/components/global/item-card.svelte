@@ -61,6 +61,9 @@
     );
     const profitPercent = $derived(resolveProfitPercent(item));
     const formattedProfitPercent = $derived(formatProfitPercent(profitPercent));
+    const investmentValue = $derived(resolveInvestment(item));
+    const hasInvestment = $derived(investmentValue !== null);
+    const formattedInvestment = $derived(hasInvestment ? formatWithCommas(Math.round(investmentValue!)) : '—');
 
     $effect(() => {
         if (priceTime) timeSincePriceTime = timeSince(priceTime);
@@ -93,6 +96,13 @@
         const profit = item.creationProfit;
         if (typeof profit !== 'number' || !Number.isFinite(profit)) return null;
         return profit;
+    }
+
+    /** The gp that has to be fronted to create the item, i.e. the cost of its ingredients. */
+    function resolveInvestment(item: IGameItem): number | null {
+        const cost = item.creationCost;
+        if (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0) return null;
+        return cost;
     }
 
     function resolveProfitPercent(item: IGameItem): number | null {
@@ -172,6 +182,16 @@
                             {#if formattedProfitPercent}
                                 <span class="text-muted-foreground">({formattedProfitPercent})</span>
                             {/if}
+                        </span>
+                    </p>
+                {/if}
+                {#if showProfit && hasInvestment}
+                    <p class="text-xs animate-fade-in">
+                        <span class="text-muted-foreground">Investment required:</span>
+                        <span>
+                            <span aria-hidden="true">≤</span>
+                            <span class="sr-only">at most</span>
+                            {formattedInvestment}gp
                         </span>
                     </p>
                 {/if}

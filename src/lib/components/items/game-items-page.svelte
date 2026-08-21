@@ -31,7 +31,10 @@
     const sortOptions = [
         { value: 'desc', label: 'Sort by value' },
         { value: 'profit-desc', label: 'Sort by profit' },
+        { value: 'roi-desc', label: 'Sort by best ROI' },
     ];
+    // Sort orders that are computed from creation cost, so they need profit mode turned on.
+    const profitSortValues = ['profit-desc', 'roi-desc'];
 
     function normalizeSkillLevels(skillLevels?: CharacterProfile['skillLevels'], hasCharacter = true) {
         if (!hasCharacter) return undefined;
@@ -84,9 +87,7 @@
     let perPageSelected = $state($itemsPagePreferences.perPage || '12');
     let filterSelected = $state($itemsPagePreferences.filter || 'all');
     let sortOrderSelected = $state(
-        $itemsPagePreferences.sortOrder === 'profit-desc' && $itemsPagePreferences.profitMode
-            ? 'profit-desc'
-            : 'desc',
+        normalizeSortSelection($itemsPagePreferences.sortOrder, $itemsPagePreferences.profitMode ?? false),
     );
     let useSuppliesChecked = $state($itemsPagePreferences.useSupplies ?? false);
     let profitModeChecked = $state($itemsPagePreferences.profitMode ?? false);
@@ -326,8 +327,8 @@
     }
 
     function normalizeSortSelection(value?: string | null, profitEnabled = profitModeChecked) {
-        if (value === 'profit-desc') {
-            return profitEnabled ? 'profit-desc' : 'desc';
+        if (value && profitSortValues.includes(value)) {
+            return profitEnabled ? value : 'desc';
         }
         return 'desc';
     }
@@ -362,7 +363,7 @@
     }
 
     function handleProfitModeToggle(value: boolean) {
-        const nextSortOrder = !value && sortOrderSelected === 'profit-desc' ? 'desc' : sortOrderSelected;
+        const nextSortOrder = normalizeSortSelection(sortOrderSelected, value);
         if (nextSortOrder !== sortOrderSelected) {
             sortOrderSelected = nextSortOrder;
         }
@@ -485,7 +486,7 @@
                                     {#each sortOptions as option (option.value)}
                                         <Select.Item
                                             value={option.value}
-                                            disabled={option.value === 'profit-desc' && !profitModeEnabled}
+                                            disabled={profitSortValues.includes(option.value) && !profitModeEnabled}
                                         >
                                             {option.label}
                                         </Select.Item>
