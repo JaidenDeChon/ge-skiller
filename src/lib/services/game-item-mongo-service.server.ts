@@ -224,8 +224,13 @@ export async function getPaginatedGameItems(params?: {
 
     const suppliesFilterActive = suppliesActive || Boolean(supplyMap);
     const shouldComputeProfit = profitDrivenSort || profitMode;
+    const enforceSupplies = profitDrivenSort && suppliesFilterActive;
+    // Enforcing supplies keeps only items the bank already covers in full, so their creation
+    // cost — and with it their ROI — is zero for every survivor. Filtering on ROI as well would
+    // leave nothing at all, so skip it there and let the sort fall through to profit instead.
+    const filterMissingRoi = roiSort && !enforceSupplies;
     const profitStages = shouldComputeProfit
-        ? buildProfitPipeline(supplyMap, profitDrivenSort, profitDrivenSort && suppliesFilterActive, roiSort)
+        ? buildProfitPipeline(supplyMap, profitDrivenSort, enforceSupplies, filterMissingRoi)
         : [];
     const supplyStages = !profitDrivenSort && suppliesFilterActive ? buildSuppliesFilterPipeline(supplyMap) : [];
     // Profit only needs to be computed for every candidate when it drives the sort order;
