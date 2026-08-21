@@ -4,7 +4,6 @@
     import * as Select from '$lib/components/ui/select';
     import { Label } from '$lib/components/ui/label';
     import { Switch } from '$lib/components/ui/switch';
-    import * as AlertDialog from '$lib/components/ui/alert-dialog';
     import { onDestroy } from 'svelte';
     import { defaultSkillLevels } from '$lib/constants/default-skill-levels';
     import type { SkillTreePage } from '$lib/constants/skill-tree-pages';
@@ -121,13 +120,8 @@
     let lastSkillSlug: string | null = null;
     const isMobile = $derived(typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
     const cacheSkipKey = 'ge-skiller:items-cache:skip';
-    const longWaitSkipKey = 'ge-skiller:items-long-wait:skip';
     let skipCacheOnce = $state(false);
     let forceLoading = $state(false);
-    let longWaitDialogOpen = $state(false);
-    let pendingLongWaitToggle = $state<null | 'profit' | 'supplies'>(null);
-    let skipLongWaitDialog = $state(false);
-    let doNotAskAgainChecked = $state(false);
     if (typeof window !== 'undefined') {
         const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
         const navType = navEntry?.type;
@@ -136,7 +130,6 @@
         const skipFlag = sessionStorage.getItem(cacheSkipKey);
         if (skipFlag) sessionStorage.removeItem(cacheSkipKey);
         skipCacheOnce = shouldSkipForReload || Boolean(skipFlag);
-        skipLongWaitDialog = localStorage.getItem(longWaitSkipKey) === '1';
 
         const markSkip = () => {
             try {
@@ -368,51 +361,6 @@
         itemsPagePreferences.set({ ...$itemsPagePreferences, page: 1 });
     }
 
-    function requestLongWaitToggle(kind: 'profit' | 'supplies', value: boolean) {
-        if (!value) {
-            if (kind === 'profit') {
-                handleProfitModeToggle(false);
-            } else {
-                applySuppliesToggle(false);
-            }
-            return;
-        }
-
-        if (skipLongWaitDialog) {
-            pendingLongWaitToggle = kind;
-            confirmLongWait();
-            return;
-        }
-
-        pendingLongWaitToggle = kind;
-        doNotAskAgainChecked = false;
-        longWaitDialogOpen = true;
-    }
-
-    function confirmLongWait() {
-        if (doNotAskAgainChecked && typeof window !== 'undefined') {
-            try {
-                localStorage.setItem(longWaitSkipKey, '1');
-                skipLongWaitDialog = true;
-            } catch {
-                // ignore storage failures
-            }
-        }
-        if (pendingLongWaitToggle === 'profit') {
-            handleProfitModeToggle(true);
-        } else if (pendingLongWaitToggle === 'supplies') {
-            applySuppliesToggle(true);
-        }
-        pendingLongWaitToggle = null;
-        longWaitDialogOpen = false;
-    }
-
-    function cancelLongWait() {
-        pendingLongWaitToggle = null;
-        doNotAskAgainChecked = false;
-        longWaitDialogOpen = false;
-    }
-
     function handleProfitModeToggle(value: boolean) {
         const nextSortOrder = !value && sortOrderSelected === 'profit-desc' ? 'desc' : sortOrderSelected;
         if (nextSortOrder !== sortOrderSelected) {
@@ -586,12 +534,11 @@
                         Filter by my skill levels
                     </Label>
                 </div>
-                <p class="text-xs text-muted-foreground">Longer wait times:</p>
                 <div class="flex items-center gap-2">
                     <Switch
                         id="supplies-profit-switch"
                         checked={useSuppliesChecked}
-                        onCheckedChange={(value) => requestLongWaitToggle('supplies', value)}
+                        onCheckedChange={applySuppliesToggle}
                         aria-label="Only show what I have supplies for"
                     />
                     <Label for="supplies-profit-switch" class="cursor-pointer select-none text-sm">
@@ -602,7 +549,7 @@
                     <Switch
                         id="profit-mode-switch"
                         checked={profitModeEnabled}
-                        onCheckedChange={(value) => requestLongWaitToggle('profit', value)}
+                        onCheckedChange={handleProfitModeToggle}
                         aria-label="Enable profit mode"
                     />
                     <Label for="profit-mode-switch" class="cursor-pointer select-none text-sm">
@@ -612,32 +559,6 @@
             </div>
         </div>
     </div>
-
-    <AlertDialog.Root bind:open={longWaitDialogOpen}>
-        <AlertDialog.Content>
-            <AlertDialog.Header>
-                <AlertDialog.Title>Longer wait time</AlertDialog.Title>
-                <AlertDialog.Description>
-                    This filter can take 20–60 seconds to process. Do you want to continue?
-                </AlertDialog.Description>
-            </AlertDialog.Header>
-            <AlertDialog.Footer class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2 mr-auto">
-                    <input
-                        id="long-wait-skip"
-                        type="checkbox"
-                        class="h-4 w-4 rounded border border-input"
-                        bind:checked={doNotAskAgainChecked}
-                    />
-                    <Label for="long-wait-skip" class="cursor-pointer select-none text-sm">
-                        Do not ask again
-                    </Label>
-                </div>
-                <AlertDialog.Cancel onclick={cancelLongWait}>Cancel</AlertDialog.Cancel>
-                <AlertDialog.Action onclick={confirmLongWait}>Yes, continue</AlertDialog.Action>
-            </AlertDialog.Footer>
-        </AlertDialog.Content>
-    </AlertDialog.Root>
 
     <div class="content-sizing">
         {#snippet pagination()}
