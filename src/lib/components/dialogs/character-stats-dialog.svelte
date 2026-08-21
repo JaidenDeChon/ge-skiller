@@ -51,10 +51,14 @@
     function resetDialog() {
         populatedStats.set(new CharacterProfile(''));
         isLoading.set(false);
+        wasImported.set(false);
     }
 
     // Denotes whether we're in the process of loading/importing character data.
     const isLoading = writable(false);
+
+    // Denotes whether the current populated stats came from an import, for toast wording on save.
+    const wasImported = writable(false);
 
     const characterStore = $derived(getStoreRoot());
     const characters = $derived(getCharacters());
@@ -92,7 +96,11 @@
 
         // Set this character as active, show a toast to the user, and notify parent component of selection.
         characterStore.activeCharacter = buffer.id;
-        toast.success(`Character "${buffer.name}" has been created.`);
+        toast.success(
+            get(wasImported)
+                ? `Character "${buffer.name}" has been imported and saved.`
+                : `Character "${buffer.name}" has been saved.`,
+        );
         onCharacterSelected();
 
         // Close the dialog.
@@ -108,6 +116,7 @@
         try {
             const character = await fetchCharacterDetailsFromWOM($populatedStats.name);
             populatedStats.set(cloneProfile(character));
+            wasImported.set(true);
         } catch (e) {
             toast.error(`Failed to import character "${$populatedStats.name}". Please check the name and try again.`);
             console.error(e);
