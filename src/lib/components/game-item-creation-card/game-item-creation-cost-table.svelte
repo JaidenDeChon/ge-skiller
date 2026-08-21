@@ -170,7 +170,12 @@
 
     function resolveUnitPrice(item?: IOsrsboxItemWithMeta | null): number | null {
         if (!item) return null;
-        const price = item.highPrice ?? item.lowPrice ?? item.cost ?? null;
+        // `cost` is the base game value, not a market price. For an item with no GE
+        // market (an untradeable intermediate like "Oak seedling (w)", cost 1) it is
+        // not what the player pays, so the price is reported as unknown and the real
+        // outlay shows up on the child rows this walk already expands to.
+        const fallback = item.tradeable_on_ge ? (item.cost ?? null) : null;
+        const price = item.highPrice ?? item.lowPrice ?? fallback;
         return typeof price === 'number' ? price : null;
     }
 

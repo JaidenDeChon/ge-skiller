@@ -405,7 +405,23 @@ function buildProfitPipeline(
     const neededExpr = hasSupplies
         ? { $max: [0, { $subtract: ['$$amount', '$$supplyQty'] }] }
         : '$$amount';
-    const unitPriceExpr = { $ifNull: ['$$matched.highPrice', { $ifNull: ['$$matched.lowPrice', '$$matched.cost'] }] };
+    // `cost` is the item's base game value, not a market price. Using it for an
+    // ingredient that has no GE market — an untradeable intermediate such as
+    // "Oak seedling (w)", whose cost is 1 — invented a 1gp outlay and sent the
+    // resulting ROI into five figures. Those ingredients are priced as *unknown*
+    // instead, which nulls the whole creation's cost and keeps it out of the ROI sort
+    // rather than letting it top the list on a fabricated number.
+    const unitPriceExpr = {
+        $ifNull: [
+            '$$matched.highPrice',
+            {
+                $ifNull: [
+                    '$$matched.lowPrice',
+                    { $cond: [{ $eq: ['$$matched.tradeable_on_ge', true] }, '$$matched.cost', null] },
+                ],
+            },
+        ],
+    };
     const outputPriceExpr = { $ifNull: ['$highPrice', { $ifNull: ['$lowPrice', '$cost'] }] };
     const ingredientCostRowsExpr = {
         $map: {
@@ -516,7 +532,7 @@ function buildProfitPipeline(
                 from: 'items',
                 localField: 'consumedIngredientIds',
                 foreignField: '_id',
-                pipeline: [{ $project: { _id: 1, id: 1, highPrice: 1, lowPrice: 1, cost: 1 } }],
+                pipeline: [{ $project: { _id: 1, id: 1, highPrice: 1, lowPrice: 1, cost: 1, tradeable_on_ge: 1 } }],
                 as: 'ingredientItems',
             },
         },
