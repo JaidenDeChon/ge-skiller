@@ -120,5 +120,10 @@ export const osrsboxItemSchema: Schema<OsrsboxItemDocument> = new Schema(
     { collection: 'items' },
 );
 
+// Covers the browse-page base filter and its highPrice sort so listing queries
+// don't collection-scan; the name index serves prefix-anchored search regexes.
+osrsboxItemSchema.index({ tradeable_on_ge: 1, placeholder: 1, noted: 1, stacked: 1, highPrice: -1 });
+osrsboxItemSchema.index({ name: 1 });
+
 export const OsrsboxItemModel: Model<OsrsboxItemDocument> =
     mongoose.models.OsrsboxItem || mongoose.model<OsrsboxItemDocument>('OsrsboxItem', osrsboxItemSchema);
