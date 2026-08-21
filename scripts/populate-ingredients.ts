@@ -14,6 +14,7 @@ import type {
     GameItemCreationIngredient,
     SkillLevelDesignation,
 } from '../src/lib/models/osrsbox-db-item';
+import { wikiTitleCandidates } from '../src/lib/helpers/wiki-page-title';
 
 /**
  * ====================================================================================================================
@@ -217,6 +218,35 @@ function normalizeTitleForLookup(title: string): string {
     }
 
     return normalized;
+}
+
+/**
+ * Ordered wiki page titles to try for an item, most reliable first.
+ *
+ * `wikiTitleCandidates` supplies the derived page title, the in-game name and the raw
+ * `wiki_name`; each is also offered in its dose-stripped form, and the CLI identifier
+ * is kept as a last resort when it isn't just an ObjectId.
+ * @param owner - The item whose creation page is being scraped.
+ * @param identifier - The identifier the importer was invoked with.
+ * @returns Deduplicated candidate page titles.
+ */
+function buildWikiLookupTitles(owner: OsrsboxItemDocument, identifier: string): string[] {
+    const raw = wikiTitleCandidates(owner);
+    if (identifier && !looksLikeObjectId(identifier)) raw.push(identifier);
+
+    const seen = new Set<string>();
+    const titles: string[] = [];
+
+    for (const candidate of raw) {
+        for (const title of [candidate, normalizeTitleForLookup(candidate)]) {
+            const trimmed = title.trim();
+            if (!trimmed || seen.has(trimmed.toLowerCase())) continue;
+            seen.add(trimmed.toLowerCase());
+            titles.push(trimmed);
+        }
+    }
+
+    return titles;
 }
 
 function escapeRegex(value: string): string {
@@ -555,29 +585,34 @@ export async function importCreationForItemTitle(identifier: string, options: Im
         return;
     }
 
-    // Decide what title to use for the wiki: prefer wiki_name, then name
-    const baseTitle = owner.wiki_name ?? owner.name;
-    const normalizedTitle = normalizeTitleForLookup(baseTitle);
+    // Decide what titles to try on the wiki. The derived page title comes first:
+    // OSRSBox's wiki_name is synthetic for versioned items ("Oak seedling (Watered)")
+    // and 404s, so trusting it here used to leave ~8,300 items without creationSpecs.
+    const lookupTitles = buildWikiLookupTitles(owner, identifier);
+    const baseTitle = lookupTitles[0] ?? owner.name;
 
-    // Try normalized wiki title first (e.g. strip dose), then fall back to raw
-    let wikiMethods = await getCreationMethodsForItem(normalizedTitle);
+    let wikiMethods: WikiCreationMethod[] = [];
+    let resolvedTitle = baseTitle;
 
-    if (!wikiMethods.length && normalizedTitle !== baseTitle) {
-        wikiMethods = await getCreationMethodsForItem(baseTitle);
-    }
-
-    // As a final fallback, if the CLI identifier differs from baseTitle, try that too
-    if (!wikiMethods.length && identifier !== baseTitle && identifier !== normalizedTitle) {
-        wikiMethods = await getCreationMethodsForItem(identifier);
+    for (const title of lookupTitles) {
+        wikiMethods = await getCreationMethodsForItem(title);
+        if (wikiMethods.length) {
+            resolvedTitle = title;
+            break;
+        }
     }
 
     if (!wikiMethods.length) {
         logWithProgress(
             'warn',
-            `⚠️ [creation-importer] No creation methods from wiki for "${normalizedTitle}" (base="${baseTitle}", identifier="${identifier}")`,
+            `⚠️ [creation-importer] No creation methods from wiki for "${baseTitle}" (tried: ${lookupTitles.join(' | ')}, identifier="${identifier}")`,
         );
-        logNoWikiMethods(owner, identifier, normalizedTitle);
+        logNoWikiMethods(owner, identifier, baseTitle);
         return;
+    }
+
+    if (resolvedTitle !== baseTitle) {
+        logWithProgress('log', `[creation-importer] Resolved "${baseTitle}" via fallback title "${resolvedTitle}"`);
     }
 
     const cache = new Map<string, mongoose.Types.ObjectId>();
