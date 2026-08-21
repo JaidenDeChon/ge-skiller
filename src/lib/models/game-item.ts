@@ -68,6 +68,7 @@ export type IGameItem = {
         wikiName?: string | null;
         creationCost?: number | null;
         creationProfit?: number | null;
+        creationRoi?: number | null;
     };
 
 /**

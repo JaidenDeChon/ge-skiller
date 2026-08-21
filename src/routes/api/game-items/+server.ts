@@ -24,7 +24,10 @@ export const GET: RequestHandler = async ({ url }) => {
     const orderParam = url.searchParams.get('order');
     const normalizedOrder = orderParam === 'profit-asc' ? 'profit-desc' : orderParam;
     const sortOrder: GameItemSortOrder =
-        normalizedOrder === 'asc' || normalizedOrder === 'desc' || normalizedOrder === 'profit-desc'
+        normalizedOrder === 'asc' ||
+        normalizedOrder === 'desc' ||
+        normalizedOrder === 'profit-desc' ||
+        normalizedOrder === 'roi-desc'
             ? normalizedOrder
             : 'desc';
     const skill = url.searchParams.get('skill');
