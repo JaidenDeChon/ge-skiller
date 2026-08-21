@@ -20,6 +20,7 @@
         "copy-osrsbox-dev-to-prod": "OSRSBOX_SOURCE_DB=osrsbox-dev OSRSBOX_TARGET_DB=osrsbox-prod bun run --env-file .env scripts/copy-osrsbox-db.ts",
         "update-db": "bun run --env-file .env scripts/update-db.ts",
         "compute-creation-tree-skills": "bun run --env-file .env scripts/compute-creation-tree-skills.ts",
+        "test": "bun test",
         "format": "prettier --write ."
     },
     "devDependencies": {
