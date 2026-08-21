@@ -56,7 +56,7 @@ is the part after it.** No guessing, no heuristics.
 
 ## The fix
 
-`scripts/lib/wiki-name.ts` derives, from `wiki_url` (authoritative) with a
+`src/lib/helpers/wiki-page-title.ts` derives, from `wiki_url` (authoritative) with a
 `wiki_name`/`name` fallback:
 
 - `wiki_page_title` — the real, fetchable wiki page title (`Oak seedling`)
@@ -79,45 +79,79 @@ Applied in three places so the data cannot drift back:
 
 `scripts/populate-ingredients.ts` then scrapes `wiki_page_title` instead of `wiki_name`.
 
-## Related, but a separate defect
+## The second defect: untradeable ingredients priced at 1gp
 
-Fixing the names lets watered seedlings acquire `creationSpecs`. It does **not** on its
-own fix the "saplings show ≤1gp investment / absurd ROI" symptom.
+Fixing the names lets watered seedlings acquire `creationSpecs`, but on its own it does
+**not** fix the "saplings show ≤1gp investment / absurd ROI" symptom. That has an
+independent cause, also fixed here.
 
-The profit/ROI aggregation in `src/lib/services/game-item-mongo-service.server.ts` prices
+The profit/ROI aggregation in `src/lib/services/game-item-mongo-service.server.ts` priced
 an ingredient as `highPrice ?? lowPrice ?? cost`. A watered seedling is untradeable, so
-it has no `highPrice`/`lowPrice` and falls back to `cost`, which is the game's base value
-of **1**. The pipeline also only descends **one** level (`primarySpec.ingredients`), so
-the acorn that represents the real outlay never enters the sum.
+it has no `highPrice`/`lowPrice` and fell through to `cost` — the game's base value of
+**1**. `Oak sapling` therefore reported a creation cost of 1gp and an ROI of ~31,500%,
+which is why saplings dominated the new ROI sort.
 
-Net effect: `Oak sapling` reports a creation cost of 1gp and an ROI of ~31,600%.
+`cost` is now used only for ingredients that are actually tradeable on the GE. An
+untradeable ingredient is priced as *unknown*, which nulls the creation cost and keeps
+the item out of the profit and ROI sorts rather than letting it top them on a fabricated
+number. `game-item-creation-cost-table.svelte` applies the same rule client-side, where
+the recursive walk it already does surfaces the real underlying cost on the child rows.
 
-That needs its own change (either treat "untradeable and unpriced" as *unknown* cost
-rather than `cost`, or recurse into the ingredient's own creation tree). Tracked
-separately — see the PR discussion.
+Note the list pipeline still only descends **one** level (`primarySpec.ingredients`), so
+it does not sum an item's full creation tree. Making saplings show their *true* acorn-based
+investment (rather than dropping out as unknown) would mean either recursing in the
+aggregation or precomputing an effective value per item offline, in the style of
+`compute-creation-tree-skills.ts`. That is a larger change and is not attempted here.
 
-## Progress checklist
+## Status
 
 - [x] Root cause identified and quantified against the full dataset
 - [x] `wiki_url` validated as authoritative (0 counterexamples in 28,744 items)
-- [ ] `scripts/lib/wiki-name.ts` + unit tests
-- [ ] Schema fields `wiki_page_title` / `wiki_version`
-- [ ] `grab-osrsbox-items.ts` stamps derived fields
-- [ ] `backfill-missing-items.ts` stamps derived fields
-- [ ] `normalize-wiki-names.ts` repair script
-- [ ] `update-db.ts` wires in the new step
-- [ ] `populate-ingredients.ts` scrapes `wiki_page_title`
-- [ ] Verified against the live database (**blocked: no `.env` / Mongo credentials**)
+- [x] `src/lib/helpers/wiki-page-title.ts` + unit tests
+- [x] Schema fields `wiki_page_title` / `wiki_version`
+- [x] `grab-osrsbox-items.ts` stamps derived fields
+- [x] `backfill-missing-items.ts` stamps derived fields
+- [x] `normalize-wiki-names.ts` repair script
+- [x] `update-db.ts` wires in the `wiki-names` step
+- [x] `populate-ingredients.ts` scrapes the derived title
+- [x] Untradeable ingredients no longer priced from `cost`
+- [ ] **Run against the live database** — see below
 
-## Resuming this work
+## Running it
 
-The analysis above is complete and does not need redoing. Reference data used for the
-measurements can be re-downloaded with:
+The repair pass is idempotent and supports a dry run:
 
 ```bash
-curl -sL -o items-complete.json \
-  https://raw.githubusercontent.com/0xNeffarion/osrsreboxed-db/master/docs/items-complete.json
+bun run normalize-wiki-names -- --dry-run   # report only
+bun run normalize-wiki-names                # write
 ```
 
-Branch: `claude/wiki-name-version-suffix-normalization` (based on the profit/ROI branch
-`claude/ge-skiller-profit-roi-ui-3154eh`, which merges to `main` as-is).
+It is also step `wiki-names` of `bun run update-db`, so a normal refresh picks it up
+automatically. `--skip-wiki-names` opts out.
+
+After it has run, re-run `populate-ingredients` so the ~8,300 previously unresolvable
+items get their creation trees:
+
+```bash
+bun run populate-item-ingredient-trees
+```
+
+## Verification performed
+
+- Unit tests: `bun test` (no database required).
+- Whole-dataset replay of the derivation over `items-complete.json`: 8,377 anchored
+  titles corrected, 20,367 non-anchored titles left byte-identical, 0 mangled.
+- Live wiki check over a 30-item spread: the derived title resolves 30/30; the current
+  `wiki_name` resolves 3/30.
+- Aggregation behaviour covered by `src/lib/services/game-item-creation-cost.test.ts`,
+  which runs against a real MongoDB:
+
+  ```bash
+  docker run -d --rm -p 27018:27017 mongo:7
+  bun test
+  ```
+
+  The suite skips itself when no such instance is reachable.
+
+**Not verified against the production database** — this workspace has no `.env`, so
+there are no Mongo credentials here. The dry run is the intended first step.
