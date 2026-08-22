@@ -37,7 +37,17 @@
     const treeCacheTtlMs = 5 * 60 * 1000;
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
     const wikiUrl = $derived(() => {
-        const slug = gameItem?.wiki_name ?? gameItem?.name ?? gameItem?.wikiName;
+        // The stored URL is authoritative and already carries the version anchor, so an
+        // item from a switch-infobox page ("Oak seedling (w)") lands on its own section.
+        // Building the link from `wiki_name` instead 404s for those, because OSRSBox
+        // synthesises that field as "<page title> (<version>)" — see
+        // scripts/WIKI-NAME-NORMALIZATION.md.
+        const storedUrl = gameItem?.wiki_url?.trim();
+        if (storedUrl) return storedUrl;
+
+        // No stored URL: fall back to the derived page title, then the in-game name.
+        // `wiki_name` stays last for the same reason it cannot be trusted above.
+        const slug = gameItem?.wiki_page_title ?? gameItem?.name ?? gameItem?.wiki_name ?? gameItem?.wikiName;
         if (!slug) return null;
         return `https://oldschool.runescape.wiki/w/${encodeURIComponent(slug.replaceAll(' ', '_'))}`;
     });

@@ -144,6 +144,7 @@ export async function getGameItemById(itemId: string): Promise<IOsrsboxItemWithM
             buy_limit: 1,
             wiki_name: 1,
             wiki_url: 1,
+            wiki_page_title: 1,
         })
         .lean<IOsrsboxItemWithMeta>()
         .exec();
