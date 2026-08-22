@@ -129,12 +129,37 @@ bun run normalize-wiki-names                # write
 It is also step `wiki-names` of `bun run update-db`, so a normal refresh picks it up
 automatically. `--skip-wiki-names` opts out.
 
-After it has run, re-run `populate-ingredients` so the ~8,300 previously unresolvable
-items get their creation trees:
+After it has run, re-scrape the items it unlocked so they get their creation trees:
 
 ```bash
-bun run populate-item-ingredient-trees
+bun run --env-file .env scripts/populate-ingredients.ts --skip-existing --versioned-only
 ```
+
+`--versioned-only` restricts the pass to items carrying a `wiki_version`. Those are
+exactly the ones whose lookups used to fail; everything else was already reachable under
+its own name, so re-scraping it just re-reads pages that were already read successfully
+and found to have no creation method. With `--skip-existing` this is ~7,600 items rather
+than ~22,000 — roughly 3 hours instead of 8 at the observed ~45 requests/minute.
+
+A full refresh is still `bun run populate-item-ingredient-trees`.
+
+## Applied
+
+Run against the `osrsbox` master DB on 2026-08-21. Live results matched the offline
+prediction exactly:
+
+| | Predicted | Actual |
+| --- | --- | --- |
+| Documents written | 28,744 + backfills | **28,763** |
+| Resolve to a different page | 9,209 | **9,209** |
+| Carrying a version anchor | 8,377 | **8,377** |
+
+The 19-document difference is hand-backfilled items, and all 19 landed in the
+no-behaviour-change bucket. A second dry run reported 0 pending writes, confirming
+idempotency. Post-migration integrity across all 28,763 documents: 0 null titles, 0
+empty titles, 0 titles retaining `#`, `_` or percent-escapes.
+
+`osrsbox-dev` and `osrsbox-prod` are untouched pending the re-scrape.
 
 ## Reading the numbers
 

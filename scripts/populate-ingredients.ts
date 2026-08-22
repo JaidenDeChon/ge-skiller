@@ -357,6 +357,16 @@ type ImportOptions = {
      * Only process items whose name or wiki_name contains this string (case-insensitive).
      */
     nameContains?: string;
+    /**
+     * Only process items that carry an infobox version label (`wiki_version`).
+     *
+     * These are the items whose wiki lookups used to fail, because OSRSBox's `wiki_name`
+     * is synthetic for them. Everything else was already reachable under its own name, so
+     * a re-scrape of those items re-fetches pages that were read successfully before and
+     * found to have no creation method. Narrowing to versioned items turns a full pass
+     * over ~22,000 items into ~7,700.
+     */
+    versionedOnly?: boolean;
 };
 
 /**
@@ -697,6 +707,10 @@ export async function importCreationForAllItems(options: ImportOptions = {}): Pr
         baseFilter.$or = [{ creationSpecs: { $exists: false } }, { creationSpecs: { $size: 0 } }];
     }
 
+    if (options.versionedOnly) {
+        baseFilter.wiki_version = { $ne: null };
+    }
+
     if (options.nameContains) {
         const needle = options.nameContains.trim();
         if (needle) {
@@ -816,6 +830,7 @@ export async function importCreationForAllItems(options: ImportOptions = {}): Pr
 async function main() {
     const args = process.argv.slice(2);
     let skipExisting = false;
+    let versionedOnly = false;
     let resumeFromId: string | undefined;
     let nameContains: string | undefined;
     const positionalArgs: string[] = [];
@@ -829,6 +844,11 @@ async function main() {
 
         if (arg === '--skip-existing') {
             skipExisting = true;
+            continue;
+        }
+
+        if (arg === '--versioned-only') {
+            versionedOnly = true;
             continue;
         }
 
@@ -899,8 +919,14 @@ async function main() {
                     `[creation-importer] Limiting batch to items whose name/wiki_name contains "${nameContains.trim()}".`,
                 );
             }
+            if (versionedOnly) {
+                logWithProgress(
+                    'log',
+                    '[creation-importer] Limiting batch to items with an infobox version (--versioned-only).',
+                );
+            }
             logWithProgress('log', '[creation-importer] Running in batch mode over all items...');
-            await importCreationForAllItems({ skipExisting, resumeFromId, nameContains });
+            await importCreationForAllItems({ skipExisting, resumeFromId, nameContains, versionedOnly });
         } else {
             logWithProgress('log', `[creation-importer] Importing creation specs for "${arg}"...`);
             await importCreationForItemTitle(arg, { skipExisting });
