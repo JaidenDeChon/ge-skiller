@@ -58,6 +58,7 @@ describeIfMongo('creation cost for untradeable ingredients', () => {
     };
 
     const seedlingObjectId = new mongoose.Types.ObjectId();
+    const coinsObjectId = new mongoose.Types.ObjectId();
 
     beforeAll(async () => {
         ({ OsrsboxItemModel } = await import('$lib/models/mongo-schemas/osrsbox-db-item-schema'));
@@ -90,6 +91,32 @@ describeIfMongo('creation cost for untradeable ingredients', () => {
                     },
                 ],
             },
+            {
+                ...baseItem,
+                _id: coinsObjectId,
+                id: 995,
+                name: 'Coins',
+                // Coins carry the untradeable flag but their cost is a literal gp price.
+                tradeable: false,
+                tradeable_on_ge: false,
+                stackable: true,
+                cost: 1,
+            },
+            {
+                ...baseItem,
+                id: 113,
+                name: 'Strength potion(4)',
+                tradeable_on_ge: true,
+                cost: 1,
+                highPrice: 500,
+                creationSpecs: [
+                    {
+                        experienceGranted: [],
+                        requiredSkills: [],
+                        ingredients: [{ item: coinsObjectId, amount: 5, consumedDuringCreation: true }],
+                    },
+                ],
+            },
         ]);
     });
 
@@ -106,6 +133,17 @@ describeIfMongo('creation cost for untradeable ingredients', () => {
         // Previously this was 1, making profit 315 and ROI 31500%.
         expect(sapling!.creationCost ?? null).toBeNull();
         expect(sapling!.creationProfit ?? null).toBeNull();
+    });
+
+    it('still prices a coin fee, which is untradeable but is literally gp', async () => {
+        const page = await getPaginatedGameItems({ page: 1, perPage: 10, sortOrder: 'desc', profitMode: true });
+        const potion = page.items.find((item) => item.name === 'Strength potion(4)') as
+            | Record<string, unknown>
+            | undefined;
+
+        expect(potion).toBeDefined();
+        expect(potion!.creationCost).toBe(5);
+        expect(potion!.creationProfit).toBe(495);
     });
 
     it('keeps items with an unknown creation cost out of the ROI sort', async () => {
