@@ -89,3 +89,56 @@ scrape reintroduces the bad links.
 - Confirmed against the live dataset that **0 of 8,437** multi-document names lack a
   non-duplicate candidate, so the ranking always has something canonical to pick.
   1,126 names remain ambiguous after the flag checks and rely on the id tiebreak.
+
+## Applied
+
+Run against the `osrsbox` master DB on 2026-08-21, after the `--versioned-only`
+re-scrape completed:
+
+```
+Ingredient links inspected ......... 43,041
+Links repointed to canonical .......  1,624
+Items written ......................  1,138
+```
+
+A second dry run reported 0 links to move, confirming idempotency. `Oak seedling (w)`
+now prices its `Acorn` from canonical id 5312 (139gp) rather than the unpriced
+duplicate 5111.
+
+## Known issue: self-referential specs from wiki variants
+
+The re-scrape surfaced a **separate** resolution bug that this repair does not address.
+`find-ingredient-cycles` now reports 846 cycles, up from 258, and **414 of them are
+self-loops** — an item listing itself as its own ingredient:
+
+```
+Apple seedling (w)  <-  Apple seedling (w) + Watering can
+```
+
+The real recipe is _unwatered_ seedling + watering can. Both variants live on one wiki
+page, and lookup-key normalization strips the `(w)` suffix, so the ingredient resolves
+back to the watered item itself. This is a name-collision between infobox variants,
+distinct from the duplicate-document problem `pickPreferredItem` solves — the chosen
+document is canonical, it is just the wrong variant.
+
+**Do not run `find-ingredient-cycles` to paper over this.** It removes whole
+`creationSpecs` entries whose ingredients close a cycle, and against the current data
+that means:
+
+|                                       |         |
+| ------------------------------------- | ------- |
+| Creation specs removed                | 1,065   |
+| Items affected                        | 464     |
+| **Items losing every spec they have** | **181** |
+
+Those 181 include `Yellow cape` (7 specs), `Dragon dagger(p++)` (3), `Staff of water`
+(3) and `Candle lantern` (4) — real recipes destroyed to break a cycle that only exists
+because of the variant collision. The cycles step was deliberately skipped in the run
+above.
+
+Skipping it is safe: `compute-creation-tree-skills` guards itself, breaking recursion
+via a `stack.has(key)` check and returning an empty skill range. It completed all 28,763
+items and reported 3,230 cycle hits without failing.
+
+The real fix is to resolve an ingredient to the variant the wiki actually names, using
+`wiki_version` to disambiguate rather than collapsing variants to one lookup key.
