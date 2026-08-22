@@ -406,8 +406,17 @@ function parseRequirementsTable($: cheerio.CheerioAPI, $table: cheerio.Cheerio):
  *   - second column: item link
  *   - third column: quantity
  *   - fourth column: cost
- * And which may also contain the *product* row (selflink to current page)
- * plus Total cost / Profit rows.
+ * And which may also contain the *product* row plus Total cost / Profit rows.
+ *
+ * The wiki's recipe template lays the rows out as inputs, then a `Total cost` header row,
+ * then the output, then Profit rows — so that header is what separates the two, and it is
+ * the only signal that survives a variant panel. Name-based detection cannot: on the
+ * "Poison" panel of `Adamant dagger` the *input* is the selflink `Adamant dagger` and the
+ * *output* is `Adamant dagger(p)`, which links away to its own redirect page. Reading
+ * those by name got the recipe exactly backwards, leaving the poisoned dagger listed as
+ * an ingredient of itself.
+ *
+ * Tables with no `Total cost` row fall back to the original name-based rule.
  */
 function parseMaterialsAndInlineProducts(
     $: cheerio.CheerioAPI,
@@ -420,6 +429,18 @@ function parseMaterialsAndInlineProducts(
     const $rows = $table.find('tr');
     if ($rows.length === 0) return { materials, products };
 
+    const isTotalCostRow = ($row: cheerio.Cheerio): boolean => {
+        const firstCell = $row.find('td, th').first();
+        return firstCell.is('th') && /total cost/.test(firstCell.text().toLowerCase().trim());
+    };
+
+    let hasTotalCostRow = false;
+    $rows.slice(1).each((_, row) => {
+        if (isTotalCostRow($(row))) hasTotalCostRow = true;
+    });
+
+    let pastTotalCost = false;
+
     $rows.slice(1).each((_, row) => {
         const $row = $(row);
         const $cells = $row.find('td, th');
@@ -431,6 +452,7 @@ function parseMaterialsAndInlineProducts(
         if (firstCell.is('th')) {
             const headerText = firstCell.text().toLowerCase().trim();
             if (/total cost|profit after ge tax|profit/.test(headerText) && headerText.length > 0) {
+                if (/total cost/.test(headerText)) pastTotalCost = true;
                 return;
             }
         }
@@ -492,12 +514,15 @@ function parseMaterialsAndInlineProducts(
             isNumericParenVariant = /^\(\d+(?:\s*\/\s*\d+)?\)$/.test(remainder);
         }
 
-        // Treat as product if:
+        // Position wins where the template provides it: everything above `Total cost` is an
+        // input and everything below it is an output, whatever the rows are named.
+        // Otherwise treat as product if:
         // - it's the selflink (same page), OR
         // - exact match, OR
         // - it's a numeric dose/charge variant like "prayer potion(3)" or "ring of recoil (8)"
-        const isProductRow =
-            selfLink.length > 0 || nameLower === titleLower || (isNumericParenVariant && !isUnstrungVariant);
+        const isProductRow = hasTotalCostRow
+            ? pastTotalCost
+            : selfLink.length > 0 || nameLower === titleLower || (isNumericParenVariant && !isUnstrungVariant);
 
         if (isProductRow) {
             products.push({
