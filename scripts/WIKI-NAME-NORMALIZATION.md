@@ -195,9 +195,12 @@ upload dialog, `find-ingredient-cycles.ts`, the items API — sees byte-identica
 
     The suite skips itself when no such instance is reachable.
 
-## Known unrelated bug this exposes
+## The same bug in the UI
 
-`src/routes/items/[id=integer]/+page.svelte` builds its "view on wiki" link from
-`wiki_name`, so that link 404s for the same 8,377 items. It is a one-line fix — prefer
-the stored `wiki_url`, which already carries the correct anchor — but it is a UI change
-and is deliberately left out of this migration.
+`src/routes/items/[id=integer]/+page.svelte` built its "view on wiki" link by slugifying
+`wiki_name`, so that link 404d for the same 8,377 items. It now uses the stored
+`wiki_url`, which is authoritative and already carries the version anchor, so those
+items land on their own section of the page. `wiki_page_title` is the fallback when no
+URL is stored, and `getGameItemById` projects it so the fallback has a value.
+
+This needs no migration — `wiki_url` was already stored and already correct.
