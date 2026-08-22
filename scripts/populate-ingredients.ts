@@ -542,24 +542,41 @@ function extractSkillRequirements(wikiReqs: WikiRequirement[]): {
     return { requiredSkills, experienceGranted };
 }
 
+/** A mapped method, plus why it should be discarded. */
+type MappedCreationMethod = {
+    specs: GameItemCreationSpecs;
+    /**
+     * The method consumes the owner, so it makes something else.
+     *
+     * A page with one unlabelled recipe hands that recipe to every variant on it.
+     * `Torva full helm` documents only the restoration — damaged helm + Bandosian
+     * components — so the *damaged* helm was given a recipe that in fact destroys it, and
+     * with the self-reference dropped that read as "9M of components produce a 223M item".
+     * Nothing in OSRS is built from itself, so a method that takes the owner as input
+     * belongs to a sibling variant and is discarded whole rather than trimmed.
+     */
+    consumesOwner: boolean;
+};
+
 async function mapWikiMethodToCreationSpecs(
     wikiMethod: WikiCreationMethod,
     owner: OsrsboxItemDocument,
     cache: Map<string, mongoose.Types.ObjectId>,
-): Promise<GameItemCreationSpecs> {
+): Promise<MappedCreationMethod> {
     const { requiredSkills, experienceGranted } = extractSkillRequirements(wikiMethod.requirements);
 
     const ingredients: GameItemCreationIngredient[] = [];
+    let consumesOwner = false;
 
     // 1) Normal materials (consumed = true/false based on wiki data)
     for (const m of wikiMethod.materials) {
         const { itemId, ignored } = await resolveItemIdForName(m.item.name, owner, cache);
         if (ignored || !itemId) continue;
-        // Nothing is an ingredient of itself. A variant panel lists the base item as its
-        // input ("Adamant dagger" + "Weapon poison" -> "Adamant dagger(p)"), and where the
-        // variants share one name — watered and unwatered "Oak seedling" — that input
-        // resolves straight back to the owner.
-        if (itemId.equals(owner._id)) continue;
+
+        if (itemId.equals(owner._id)) {
+            consumesOwner = true;
+            continue;
+        }
 
         ingredients.push({
             consumedDuringCreation: m.consumed,
@@ -596,9 +613,8 @@ async function mapWikiMethodToCreationSpecs(
     }
 
     return {
-        requiredSkills,
-        experienceGranted,
-        ingredients,
+        specs: { requiredSkills, experienceGranted, ingredients },
+        consumesOwner,
     };
 }
 
@@ -717,9 +733,19 @@ export async function importCreationForItemTitle(identifier: string, options: Im
 
     const cache = new Map<string, mongoose.Types.ObjectId>();
     const creationSpecs: GameItemCreationSpecs[] = [];
+    let discardedConsumingOwner = 0;
 
     for (const m of variantMethods) {
-        const specs = await mapWikiMethodToCreationSpecs(m, owner, cache);
+        const { specs, consumesOwner } = await mapWikiMethodToCreationSpecs(m, owner, cache);
+
+        if (consumesOwner) {
+            discardedConsumingOwner += 1;
+            logWithProgress(
+                'log',
+                `[creation-importer] Dropping a method for "${owner.name}" that consumes it (methodName="${m.methodName}"); it belongs to another variant of "${resolvedTitle}".`,
+            );
+            continue;
+        }
 
         // If a method has no skills and no ingredients, it's probably junk – skip it.
         const hasSkills = specs.requiredSkills.length > 0 || specs.experienceGranted.length > 0;
@@ -737,6 +763,14 @@ export async function importCreationForItemTitle(identifier: string, options: Im
     }
 
     if (!creationSpecs.length) {
+        // Nothing survived, and what was dropped was dropped because it makes a sibling
+        // rather than this item. That is the same finding as the version filter reaching
+        // zero, so it clears inherited specs for the same reason.
+        if (discardedConsumingOwner) {
+            await clearCreationSpecsForOtherVariant(owner, resolvedTitle, options);
+            return;
+        }
+
         logWithProgress(
             'warn',
             `[creation-importer] No valid creationSpecs built for "${identifier}" after filtering.`,
