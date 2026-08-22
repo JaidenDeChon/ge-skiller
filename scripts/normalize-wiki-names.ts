@@ -44,11 +44,31 @@ type WikiFields = {
     wiki_version?: string | null;
 };
 
+/** Outcome counters for a normalization run. */
+type NormalizeReport = {
+    scanned: number;
+    /** Documents whose stored fields differ from the derived ones, so they get written. */
+    changed: number;
+    /** Documents actually modified (always 0 on a dry run). */
+    written: number;
+    /**
+     * Of `changed`, the documents where the derived title differs from `wiki_name`.
+     *
+     * This is the number that matters: it is the count of items whose wiki lookups
+     * actually behave differently afterwards. The rest are simply having two brand-new
+     * fields populated for the first time with a value the old code already used, which
+     * is why `changed` is ~the entire collection on the first run.
+     */
+    behaviourChanged: number;
+    /** Documents carrying an infobox version label. */
+    versioned: number;
+};
+
 /**
  * Rewrites `wiki_page_title` / `wiki_version` for every item that needs it.
- * @returns Counts of the documents scanned, changed and written.
+ * @returns Counters describing what the run scanned, changed and wrote.
  */
-async function normalizeWikiNames(): Promise<{ scanned: number; changed: number; written: number }> {
+async function normalizeWikiNames(): Promise<NormalizeReport> {
     const cursor = OsrsboxItemModel.find(
         {},
         { _id: 1, id: 1, name: 1, wiki_name: 1, wiki_url: 1, wiki_page_title: 1, wiki_version: 1 },
@@ -60,6 +80,7 @@ async function normalizeWikiNames(): Promise<{ scanned: number; changed: number;
     let changed = 0;
     let written = 0;
     let versioned = 0;
+    let behaviourChanged = 0;
     let operations: mongoose.AnyBulkWriteOperation[] = [];
     const samples: string[] = [];
 
@@ -84,6 +105,10 @@ async function normalizeWikiNames(): Promise<{ scanned: number; changed: number;
 
         changed += 1;
 
+        // Distinguish "field is being populated for the first time" from "this item will
+        // now resolve to a different wiki page". Only the latter changes any behaviour.
+        if (wikiPageTitle !== (doc.wiki_name ?? null)) behaviourChanged += 1;
+
         // Surface a few real corrections so a dry run is actually informative.
         if (samples.length < 15 && wikiVersion && wikiPageTitle !== doc.wiki_name) {
             samples.push(`  id=${doc.id} "${doc.wiki_name}" -> "${wikiPageTitle}" (version: ${wikiVersion})`);
@@ -104,9 +129,8 @@ async function normalizeWikiNames(): Promise<{ scanned: number; changed: number;
     if (samples.length) {
         logger.info(`Example corrections:\n${samples.join('\n')}`);
     }
-    logger.info(`${versioned} item(s) carry an infobox version label.`);
 
-    return { scanned, changed, written };
+    return { scanned, changed, written, behaviourChanged, versioned };
 }
 
 (async function main() {
@@ -117,12 +141,28 @@ async function normalizeWikiNames(): Promise<{ scanned: number; changed: number;
         await mongoose.connect(connectionString, { dbName });
         logger.success('Connection established.');
 
-        const { scanned, changed, written } = await normalizeWikiNames();
+        const report = await normalizeWikiNames();
+        const { scanned, changed, written, behaviourChanged, versioned } = report;
+
+        // Report both numbers explicitly. On a first run `changed` is essentially the whole
+        // collection, because `wiki_page_title` / `wiki_version` do not exist yet and every
+        // document gains them. That figure looks alarming on its own and says nothing about
+        // impact, so the behavioural count is spelled out next to it.
+        const unchangedTitles = changed - behaviourChanged;
+        logger.info(
+            [
+                `Scanned ................................. ${scanned}`,
+                `Documents ${DRY_RUN ? 'that would be written' : 'written'} ......... ${DRY_RUN ? changed : written}`,
+                `  - new fields only, same title ......... ${unchangedTitles}  (no behaviour change)`,
+                `  - resolve to a different wiki page .... ${behaviourChanged}  (the actual fix)`,
+                `Items carrying an infobox version ....... ${versioned}`,
+            ].join('\n'),
+        );
 
         logger.success(
             DRY_RUN
-                ? `Dry run complete | scanned=${scanned} would-update=${changed}`
-                : `Normalization complete | scanned=${scanned} changed=${changed} written=${written}`,
+                ? `Dry run complete | scanned=${scanned} would-write=${changed} behaviour-change=${behaviourChanged}`
+                : `Normalization complete | scanned=${scanned} written=${written} behaviour-change=${behaviourChanged}`,
         );
     } catch (error) {
         logger.error(`Error in script: ${error}`);
