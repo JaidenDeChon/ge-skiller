@@ -3,6 +3,7 @@ import { skillTreeSlugs } from '$lib/constants/skill-tree-pages';
 import { MAX_ITEM_TREE_DEPTH } from '$lib/constants/item-tree';
 import { OsrsboxItemModel, type OsrsboxItemDocument } from '$lib/models/mongo-schemas/osrsbox-db-item-schema';
 import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+import { currencyItemNames } from '$lib/helpers/ingredient-price';
 
 type GameItemDoc = OsrsboxItemDocument & {
     _id: Types.ObjectId;
@@ -412,14 +413,21 @@ function buildProfitPipeline(
     // resulting ROI into five figures. Those ingredients are priced as *unknown*
     // instead, which nulls the whole creation's cost and keeps it out of the ROI sort
     // rather than letting it top the list on a fabricated number.
+    //
+    // Currency is the exception, and not a small one: coins are flagged untradeable, a
+    // third of all recipes charge a coin fee, and 5 coins really does cost 5gp. Mirrors
+    // `resolveIngredientUnitPrice`, which prices the same rows on the item page.
+    const costIsPriceExpr = {
+        $or: [
+            { $eq: ['$$matched.tradeable_on_ge', true] },
+            { $in: ['$$matched.name', currencyItemNames] },
+        ],
+    };
     const unitPriceExpr = {
         $ifNull: [
             '$$matched.highPrice',
             {
-                $ifNull: [
-                    '$$matched.lowPrice',
-                    { $cond: [{ $eq: ['$$matched.tradeable_on_ge', true] }, '$$matched.cost', null] },
-                ],
+                $ifNull: ['$$matched.lowPrice', { $cond: [costIsPriceExpr, '$$matched.cost', null] }],
             },
         ],
     };
@@ -533,7 +541,9 @@ function buildProfitPipeline(
                 from: 'items',
                 localField: 'consumedIngredientIds',
                 foreignField: '_id',
-                pipeline: [{ $project: { _id: 1, id: 1, highPrice: 1, lowPrice: 1, cost: 1, tradeable_on_ge: 1 } }],
+                pipeline: [
+                    { $project: { _id: 1, id: 1, name: 1, highPrice: 1, lowPrice: 1, cost: 1, tradeable_on_ge: 1 } },
+                ],
                 as: 'ingredientItems',
             },
         },

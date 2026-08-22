@@ -14,7 +14,8 @@ import type {
     GameItemCreationIngredient,
     SkillLevelDesignation,
 } from '../src/lib/models/osrsbox-db-item';
-import { wikiTitleCandidates } from '../src/lib/helpers/wiki-page-title';
+import { deriveWikiPageIdentity, wikiTitleCandidates } from '../src/lib/helpers/wiki-page-title';
+import { selectMethodsForVersion } from '../src/lib/helpers/wiki-creation-variants';
 import { pickPreferredItem } from '../src/lib/helpers/item-preference';
 
 /**
@@ -42,6 +43,7 @@ const progressState = {
     recentRequests: [] as number[],
 };
 let itemIdLookupMap: Map<string, mongoose.Types.ObjectId> | null = null;
+const wikiPageVersionCache = new Map<string, string[]>();
 let isShuttingDown = false;
 const originalConsole = {
     log: console.log.bind(console),
@@ -250,6 +252,32 @@ function buildWikiLookupTitles(owner: OsrsboxItemDocument, identifier: string): 
     return titles;
 }
 
+/**
+ * The infobox versions of every item that shares a wiki page, cached per page title.
+ *
+ * `selectMethodsForVersion` needs these to tell "this panel belongs to another variant"
+ * apart from "this panel is labelled by something that isn't a variant at all". There
+ * are only ~540 versioned pages behind ~8,400 items, so the cache keeps this to one
+ * `distinct` per page for a whole batch run.
+ * @param pageTitle - The derived wiki page title shared by the variants.
+ * @returns Every non-null `wiki_version` recorded against that page.
+ */
+async function getVersionsForWikiPage(pageTitle: string | null | undefined): Promise<string[]> {
+    if (!pageTitle) return [];
+
+    const cached = wikiPageVersionCache.get(pageTitle);
+    if (cached) return cached;
+
+    recordAtlasRequest();
+    const versions = (await OsrsboxItemModel.distinct('wiki_version', {
+        wiki_page_title: pageTitle,
+        wiki_version: { $ne: null },
+    })) as string[];
+
+    wikiPageVersionCache.set(pageTitle, versions);
+    return versions;
+}
+
 function escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -389,6 +417,14 @@ type ImportOptions = {
      * over ~22,000 items into ~7,700.
      */
     versionedOnly?: boolean;
+    /**
+     * Scrape and map exactly as usual, but report what would be written instead of writing.
+     *
+     * This step overwrites `creationSpecs` wholesale, so a run against a populated database
+     * is worth previewing: the log then shows the before/after spec count per item without
+     * touching a document.
+     */
+    dryRun?: boolean;
 };
 
 /**
@@ -519,6 +555,11 @@ async function mapWikiMethodToCreationSpecs(
     for (const m of wikiMethod.materials) {
         const { itemId, ignored } = await resolveItemIdForName(m.item.name, owner, cache);
         if (ignored || !itemId) continue;
+        // Nothing is an ingredient of itself. A variant panel lists the base item as its
+        // input ("Adamant dagger" + "Weapon poison" -> "Adamant dagger(p)"), and where the
+        // variants share one name — watered and unwatered "Oak seedling" — that input
+        // resolves straight back to the owner.
+        if (itemId.equals(owner._id)) continue;
 
         ingredients.push({
             consumedDuringCreation: m.consumed,
@@ -544,6 +585,7 @@ async function mapWikiMethodToCreationSpecs(
         for (const toolName of toolNames) {
             const { itemId, ignored } = await resolveItemIdForName(toolName, owner, cache);
             if (ignored || !itemId) continue;
+            if (itemId.equals(owner._id)) continue;
 
             ingredients.push({
                 consumedDuringCreation: false,
@@ -642,10 +684,41 @@ export async function importCreationForItemTitle(identifier: string, options: Im
         logWithProgress('log', `[creation-importer] Resolved "${baseTitle}" via fallback title "${resolvedTitle}"`);
     }
 
+    // A versioned item's URL anchors it at one panel of a shared page, but the wiki API
+    // only serves whole sections, so `wikiMethods` holds every variant's recipe. Storing
+    // all of them hands the item a primary spec belonging to whichever variant the wiki
+    // lists first. Only narrow when the page actually came from this item's own
+    // `wiki_url` — a fallback title is a different page, and its panel labels say
+    // nothing about this item's version.
+    const derivedPageTitle = deriveWikiPageIdentity(owner).wikiPageTitle;
+    const scrapedOwnPage = !!derivedPageTitle && resolvedTitle.toLowerCase() === derivedPageTitle.toLowerCase();
+    // Sibling lookup is a collection scan, so it is only worth paying for an item that has
+    // a version to compare them against.
+    const variantMethods =
+        scrapedOwnPage && owner.wiki_version
+            ? selectMethodsForVersion(wikiMethods, owner.wiki_version, await getVersionsForWikiPage(derivedPageTitle))
+            : wikiMethods;
+
+    if (variantMethods.length !== wikiMethods.length) {
+        logWithProgress(
+            'log',
+            `[creation-importer] Narrowed "${resolvedTitle}" from ${wikiMethods.length} to ${variantMethods.length} method(s) for version "${owner.wiki_version}".`,
+        );
+    }
+
+    // Every method on the page belongs to a named sibling, so this variant is not made
+    // here at all — the plain "Abyssal dagger" is a drop, and the page only documents
+    // poisoning. Any specs it is carrying came from a sibling and have to go, otherwise
+    // the item keeps costing itself at a poison vial.
+    if (!variantMethods.length) {
+        await clearCreationSpecsForOtherVariant(owner, resolvedTitle, options);
+        return;
+    }
+
     const cache = new Map<string, mongoose.Types.ObjectId>();
     const creationSpecs: GameItemCreationSpecs[] = [];
 
-    for (const m of wikiMethods) {
+    for (const m of variantMethods) {
         const specs = await mapWikiMethodToCreationSpecs(m, owner, cache);
 
         // If a method has no skills and no ingredients, it's probably junk – skip it.
@@ -674,6 +747,16 @@ export async function importCreationForItemTitle(identifier: string, options: Im
 
     const hadExistingSpecs = owner.creationSpecs?.length ?? 0;
 
+    if (options.dryRun) {
+        logWithProgress(
+            'log',
+            `🔍 [creation-importer] Would write ${creationSpecs.length} creation spec(s) over ${hadExistingSpecs} for "${
+                owner.wiki_name ?? owner.name
+            }" (dry run).`,
+        );
+        return;
+    }
+
     owner.creationSpecs = creationSpecs;
     await owner.save();
 
@@ -684,6 +767,41 @@ export async function importCreationForItemTitle(identifier: string, options: Im
         `✅ [creation-importer] ${action} ${creationSpecs.length} creation spec(s) for "${
             owner.wiki_name ?? owner.name
         }".`,
+    );
+}
+
+/**
+ * Drops creation specs from an item whose wiki page documents no recipe for its variant.
+ *
+ * Returning early instead would leave the sibling's recipe in place forever, because this
+ * importer only ever overwrites `creationSpecs` and never clears them.
+ * @param owner - The item being imported.
+ * @param pageTitle - The page that was scraped, for the log line.
+ * @param options - Import options; `dryRun` reports instead of writing.
+ */
+async function clearCreationSpecsForOtherVariant(
+    owner: OsrsboxItemDocument,
+    pageTitle: string,
+    options: ImportOptions,
+): Promise<void> {
+    const existing = owner.creationSpecs?.length ?? 0;
+
+    if (!existing) return;
+
+    if (options.dryRun) {
+        logWithProgress(
+            'log',
+            `🔍 [creation-importer] Would clear ${existing} creation spec(s) from "${owner.name}": "${pageTitle}" documents no recipe for version "${owner.wiki_version}" (dry run).`,
+        );
+        return;
+    }
+
+    owner.creationSpecs = [];
+    await owner.save();
+
+    logWithProgress(
+        'log',
+        `🧹 [creation-importer] Cleared ${existing} creation spec(s) from "${owner.name}": "${pageTitle}" documents no recipe for version "${owner.wiki_version}".`,
     );
 }
 
@@ -848,6 +966,7 @@ async function main() {
     const args = process.argv.slice(2);
     let skipExisting = false;
     let versionedOnly = false;
+    let dryRun = false;
     let resumeFromId: string | undefined;
     let nameContains: string | undefined;
     const positionalArgs: string[] = [];
@@ -866,6 +985,11 @@ async function main() {
 
         if (arg === '--versioned-only') {
             versionedOnly = true;
+            continue;
+        }
+
+        if (arg === '--dry-run') {
+            dryRun = true;
             continue;
         }
 
@@ -942,11 +1066,14 @@ async function main() {
                     '[creation-importer] Limiting batch to items with an infobox version (--versioned-only).',
                 );
             }
+            if (dryRun) {
+                logWithProgress('log', '[creation-importer] Dry run: nothing will be written.');
+            }
             logWithProgress('log', '[creation-importer] Running in batch mode over all items...');
-            await importCreationForAllItems({ skipExisting, resumeFromId, nameContains, versionedOnly });
+            await importCreationForAllItems({ skipExisting, resumeFromId, nameContains, versionedOnly, dryRun });
         } else {
             logWithProgress('log', `[creation-importer] Importing creation specs for "${arg}"...`);
-            await importCreationForItemTitle(arg, { skipExisting });
+            await importCreationForItemTitle(arg, { skipExisting, dryRun });
         }
     } catch (err) {
         logWithProgress('error', '🚨 [creation-importer] Unhandled error:', err);

@@ -103,6 +103,109 @@ investment (rather than dropping out as unknown) would mean either recursing in 
 aggregation or precomputing an effective value per item offline, in the style of
 `compute-creation-tree-skills.ts`. That is a larger change and is not attempted here.
 
+## The third defect: every variant's recipe stored on every variant
+
+Recovering the page title exposes the next layer. `wiki_url` anchors an item at **one**
+panel of a shared page, but the MediaWiki API cannot serve part of a section — asking for
+`Creation` on `Steel dart` returns all eleven recipes, eight fletching panels and three
+poisoning panels. `populate-ingredients.ts` stored every one of them on every variant.
+
+Both the item page and the profit aggregation take the _first_ spec with ingredients, so
+whichever panel the wiki happens to list first became the item's recipe:
+
+| Item               | Primary spec it was given        | What that recipe actually makes |
+| ------------------ | -------------------------------- | ------------------------------- |
+| `Steel dart(p)`    | 10x Steel dart tip + 10x Feather | unpoisoned darts                |
+| `Steel javelin(p)` | 15x Javelin shaft                | unpoisoned javelins             |
+| `Oak seedling (w)` | Filled plant pot + Acorn         | an _unwatered_ seedling         |
+
+Measured on the live collection: **1,838** versioned items carried more than one spec,
+and the item page rendered each of them as a "Spec N" tab.
+
+`src/lib/helpers/wiki-creation-variants.ts` narrows the scraped methods to the item's own
+version. The wiki labels its switch panels with the same names OSRSBox anchors on, so the
+label is the discriminator, applied in two steps:
+
+1. Panels labelled with the item's own version win outright.
+2. Failing that, panels labelled with a _sibling_ version are dropped. This is what keeps
+   the three poisoning recipes off unpoisoned `Steel bolts`, whose own panels are named
+   for the feather rather than for the version and so never match by name.
+
+Anything the labels cannot account for is kept, and the filter only runs when the page
+scraped is the one this item's own `wiki_url` points at. Sampled over 60 versioned pages
+against the live wiki: **44** item/version pairs narrowed, **127** left alone.
+
+Step 2 can empty the list, and that is an answer rather than a failure. `Abyssal dagger`
+documents only the three poisoning recipes — the plain dagger is a drop, not a craft — so
+it was being handed the cheapest of them and reported a **399gp** creation cost on a 2.2M
+item, which made it the **top result of the live ROI sort**. Items in that position now
+have their inherited specs cleared instead. It only happens when _every_ panel is claimed
+by a named sibling, which across three 70-page samples came to 1–3 pages each: the plain
+variants of `Abyssal dagger`, `Black knife`, `Black spear`, `Dragon knife`, `Dark bow`.
+A page whose labels stop matching keeps everything rather than losing it, so the failure
+mode is "too much", never "too little".
+
+Pages that label by something other than a version are untouched: `Candle lantern`
+("White candle", "Black candle"), `Crystal bow` ("Crafting", "Ilfeen"), and the many
+Creation sections that are plain subsections with no labels at all — `Oak seedling` among
+them.
+
+## The fourth defect: the product row read as an ingredient
+
+Filtering to the right panel made a latent scraper bug visible. The wiki's recipe table
+lists inputs, a `Total cost` row, then the output, then profit rows. The parser instead
+identified the output _by name_: a self-link, an exact title match, or a numeric dose
+variant.
+
+On a variant panel that is exactly backwards. The `Poison` panel of `Adamant dagger` reads
+`Adamant dagger` + `Weapon poison` -> `Adamant dagger(p)`; the input is the self-link and
+the output links away to its own redirect page. The parser called `Adamant dagger(p)` an
+ingredient — leaving the poisoned dagger an ingredient of itself — and the base dagger the
+product.
+
+`parseMaterialsAndInlineProducts` now splits on the `Total cost` row the template already
+provides, falling back to the old name-based rule for tables that have none. Compared
+old-vs-new over 130 sampled pages against the live wiki: **119 identical, 11 changed, and
+every change a correction** —
+
+- `Dragon knife(p)` = 5x Dragon knife + Weapon poison, instead of listing itself.
+- `Granite maul (clamp)` = Granite maul + Granite clamp, instead of the reverse.
+- `Soft clay` no longer charges for the Bucket it _returns_ to you.
+- `Guthix max cape` correctly produces both the cape and the hood.
+
+Belt and braces, `mapWikiMethodToCreationSpecs` now refuses to store an item as its own
+ingredient. On a page whose variants share one name — watered and unwatered
+`Oak seedling` — the input resolves straight back to the owner, and no amount of parser
+accuracy can separate them.
+
+## Currency is not an untradeable ingredient
+
+The "untradeable ingredients are priced as unknown" rule above is right about materials
+and wrong about money. `Coins` carries `tradeable_on_ge: false` — you cannot list coins on
+the Grand Exchange — but a recipe that charges 5 coins costs 5gp, and **3,257** of the
+9,824 items with recipes charge a coin fee. Pricing coins as unknown nulled the creation
+cost for a third of the catalogue and dropped all of it out of the profit and ROI sorts.
+
+`src/lib/helpers/ingredient-price.ts` now holds the single rule both the aggregation and
+the item page apply: GE price first, then `cost` — but only for an item that is GE
+tradeable or _is_ money (`Coins`, `Platinum token`). Simulated over the whole live
+collection, that takes the number of items whose cost becomes unknown from **4,497** down
+to **2,282**, and the remainder are genuinely ungettable-for-gp inputs: `Bone in vinegar`,
+`Lovakite ore`, `Crystal shard`, `Max cape`.
+
+## Unknown ingredient prices no longer read as free
+
+`game-item-creation-cost-table.svelte` skipped rows whose price was unknown when summing,
+which counted them as 0gp and inflated every profit line below the table. That is harmless
+only when the walk has already expanded the row into the child rows carrying the real
+outlay — an `Oak seedling (w)` that resolves to its acorn — and wrong when it has not,
+which is exactly the case the untradeable rule creates.
+
+Rows now record whether they were substituted by a child recipe. An unowned row with no
+price and no substitute makes the total, and every profit line, report unknown rather than
+a number that is too good. The aggregation already behaved this way (`costKnown`), so this
+brings the item page into line with the list.
+
 ## Status
 
 - [x] Root cause identified and quantified against the full dataset
@@ -115,7 +218,14 @@ aggregation or precomputing an effective value per item offline, in the style of
 - [x] `update-db.ts` wires in the `wiki-names` step
 - [x] `populate-ingredients.ts` scrapes the derived title
 - [x] Untradeable ingredients no longer priced from `cost`
-- [ ] **Run against the live database** — see below
+- [x] Currency exempted from that rule
+- [x] Scraped methods narrowed to the item's own infobox version
+- [x] Specs cleared from variants their page documents no recipe for
+- [x] `populate-ingredients.ts --dry-run`
+- [x] Recipe tables split on `Total cost` instead of guessing the product by name
+- [x] Cost table reports an unknown total instead of counting it as free
+- [x] Wiki-title migration run against `osrsbox` and `osrsbox-dev`
+- [ ] **Re-scrape and promote to `osrsbox-prod`** — see below
 
 ## Running it
 
@@ -143,16 +253,28 @@ than ~22,000 — roughly 3 hours instead of 8 at the observed ~45 requests/minut
 
 A full refresh is still `bun run populate-item-ingredient-trees`.
 
+The re-scrape overwrites `creationSpecs` wholesale, so preview it first — `--dry-run`
+scrapes and maps exactly as usual but reports the before/after spec count per item without
+touching a document:
+
+```bash
+bun run --env-file .env scripts/populate-ingredients.ts --dry-run --versioned-only
+```
+
+Note that the variant and product fixes above change what a re-scrape produces for items
+that already have specs, so `--skip-existing` no longer covers the whole job: the 1,838
+versioned items holding a sibling variant's recipe need a refresh, not a skip.
+
 ## Applied
 
 Run against the `osrsbox` master DB on 2026-08-21. Live results matched the offline
 prediction exactly:
 
-| | Predicted | Actual |
-| --- | --- | --- |
-| Documents written | 28,744 + backfills | **28,763** |
-| Resolve to a different page | 9,209 | **9,209** |
-| Carrying a version anchor | 8,377 | **8,377** |
+|                             | Predicted          | Actual     |
+| --------------------------- | ------------------ | ---------- |
+| Documents written           | 28,744 + backfills | **28,763** |
+| Resolve to a different page | 9,209              | **9,209**  |
+| Carrying a version anchor   | 8,377              | **8,377**  |
 
 The 19-document difference is hand-backfilled items, and all 19 landed in the
 no-behaviour-change bucket. A second dry run reported 0 pending writes, confirming
@@ -184,10 +306,11 @@ mistaken for the blast radius.
 
 ## Blast radius
 
-`wiki_page_title` / `wiki_version` are read by exactly one consumer:
-`scripts/populate-ingredients.ts`, via `wikiTitleCandidates()`. No route, component or
-service reads them. Everything still reading `wiki_name` — the item detail page, the
-upload dialog, `find-ingredient-cycles.ts`, the items API — sees byte-identical data.
+`wiki_page_title` and `wiki_version` are read by `scripts/populate-ingredients.ts` — the
+title via `wikiTitleCandidates()`, the version via `selectMethodsForVersion()` — and the
+title once more as a link fallback on the item detail page. Everything still reading
+`wiki_name` — the upload dialog, `find-ingredient-cycles.ts`, the items API — sees
+byte-identical data.
 
 ## Verification performed
 
