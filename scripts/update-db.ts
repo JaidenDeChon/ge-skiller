@@ -119,6 +119,14 @@ const steps: Step[] = [
         cmd: ['bun', 'run', 'scripts/populate-ingredients.ts'],
     },
     {
+        // Runs after populate-ingredients so any links it wrote are checked too. Newly
+        // scraped data already picks the canonical document; this repairs older rows
+        // that point at an unpriced duplicate.
+        key: 'ingredient-links',
+        name: 'repair-ingredient-links',
+        cmd: ['bun', 'run', 'scripts/repair-ingredient-links.ts'],
+    },
+    {
         key: 'cycles',
         name: 'remove-cyclic-ingredients',
         cmd: ['bun', 'run', 'scripts/find-ingredient-cycles.ts'],

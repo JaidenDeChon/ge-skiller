@@ -15,6 +15,7 @@ import type {
     SkillLevelDesignation,
 } from '../src/lib/models/osrsbox-db-item';
 import { wikiTitleCandidates } from '../src/lib/helpers/wiki-page-title';
+import { pickPreferredItem } from '../src/lib/helpers/item-preference';
 
 /**
  * ====================================================================================================================
@@ -322,23 +323,44 @@ function normalizeLookupKey(value: string): string {
 }
 
 async function buildItemIdLookupMap(): Promise<Map<string, mongoose.Types.ObjectId>> {
-    const map = new Map<string, mongoose.Types.ObjectId>();
-    const docs = await OsrsboxItemModel.find({}, { _id: 1, name: 1, wiki_name: 1 })
+    type LookupDoc = {
+        _id: mongoose.Types.ObjectId;
+        id?: number;
+        name?: string;
+        wiki_name?: string;
+        duplicate?: boolean;
+        placeholder?: boolean;
+        noted?: boolean;
+        tradeable_on_ge?: boolean;
+    };
+
+    const docs = await OsrsboxItemModel.find(
+        {},
+        { _id: 1, id: 1, name: 1, wiki_name: 1, duplicate: 1, placeholder: 1, noted: 1, tradeable_on_ge: 1 },
+    )
         .sort({ _id: 1 })
-        .lean<{ _id: mongoose.Types.ObjectId; name?: string; wiki_name?: string }[]>()
+        .lean<LookupDoc[]>()
         .exec();
     recordAtlasRequest();
 
+    // Thousands of names are shared by several documents — "Acorn" covers four duplicate
+    // ids, the real tradeable item and a bank placeholder. Keeping whichever arrived
+    // first handed ingredients an unpriced duplicate, so rank the candidates instead.
+    const best = new Map<string, LookupDoc>();
+
+    const consider = (key: string, doc: LookupDoc) => {
+        const current = best.get(key);
+        const winner = current ? pickPreferredItem([current, doc]) : doc;
+        if (winner) best.set(key, winner);
+    };
+
     for (const doc of docs) {
-        if (doc.name) {
-            const key = normalizeLookupKey(doc.name);
-            if (!map.has(key)) map.set(key, doc._id);
-        }
-        if (doc.wiki_name) {
-            const key = normalizeLookupKey(doc.wiki_name);
-            if (!map.has(key)) map.set(key, doc._id);
-        }
+        if (doc.name) consider(normalizeLookupKey(doc.name), doc);
+        if (doc.wiki_name) consider(normalizeLookupKey(doc.wiki_name), doc);
     }
+
+    const map = new Map<string, mongoose.Types.ObjectId>();
+    for (const [key, doc] of best) map.set(key, doc._id);
 
     return map;
 }
@@ -375,25 +397,20 @@ type ImportOptions = {
 async function findItemByDisplayName(name: string): Promise<OsrsboxItemDocument | null> {
     const trimmed = name.trim();
 
-    // 1) Exact wiki_name
-    let doc = await OsrsboxItemModel.findOne({ wiki_name: trimmed }).exec();
-    if (doc) return doc;
+    // Each tier may match several documents sharing the name, so gather them all and let
+    // the ranking decide. `findOne` used to return whichever the database stored first,
+    // which for a name like "Acorn" is an unpriced duplicate rather than the real item.
+    const tiers: mongoose.FilterQuery<OsrsboxItemDocument>[] = [
+        { wiki_name: trimmed },
+        { name: trimmed },
+        { wiki_name: { $regex: new RegExp(`^${escapeRegex(trimmed)}$`, 'i') } },
+        { name: { $regex: new RegExp(`^${escapeRegex(trimmed)}$`, 'i') } },
+    ];
 
-    // 2) Exact in-game name
-    doc = await OsrsboxItemModel.findOne({ name: trimmed }).exec();
-    if (doc) return doc;
-
-    // 3) Case-insensitive wiki_name
-    doc = await OsrsboxItemModel.findOne({
-        wiki_name: { $regex: new RegExp(`^${escapeRegex(trimmed)}$`, 'i') },
-    }).exec();
-    if (doc) return doc;
-
-    // 4) Case-insensitive name
-    doc = await OsrsboxItemModel.findOne({
-        name: { $regex: new RegExp(`^${escapeRegex(trimmed)}$`, 'i') },
-    }).exec();
-    if (doc) return doc;
+    for (const filter of tiers) {
+        const docs = await OsrsboxItemModel.find(filter).exec();
+        if (docs.length) return pickPreferredItem(docs);
+    }
 
     return null;
 }
