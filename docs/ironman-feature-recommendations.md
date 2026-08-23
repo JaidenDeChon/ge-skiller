@@ -262,8 +262,8 @@ const highAlchProfit = $derived(() => {
 ```
 
 That is a merchant's alch-flip metric: profit from buying at GE price and alching. An Ironman never
-bought it at GE price. Under Ironman mode the correct number is `highalch − nature rune cost`, and it
-should be labelled as such. Small change, and it removes a number that is actively wrong for this
+bought it at GE price. Under Ironman mode the correct number is `highalch − nature rune cost`, shown
+as **High alch value** rather than as a profit figure. Small change, and it removes a number that is actively wrong for this
 audience.
 
 ### 4.3 Cheapest-XP sorting (small, uses data already present)

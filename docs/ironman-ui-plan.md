@@ -113,10 +113,10 @@ gain an account-type selector above the skills grid.
 > **Account type**
 >
 > - **Main** — Prices come from the Grand Exchange.
-> - **Ironman** — No trading. Items are valued at what shops and alchemy will actually give you.
-> - **Hardcore Ironman** — No trading. Items are valued at what shops and alchemy will actually give you.
-> - **Ultimate Ironman** — No trading and no bank. Items are valued at what shops and alchemy will actually give you.
-> - **Group Ironman** — No trading outside your group. Items are valued at what shops and alchemy will actually give you.
+> - **Ironman** — No economy prices. Prices are shown using alchemy and base shop values (e.g. before the shop value of an item drops from selling multiple).
+> - **Hardcore Ironman** — No economy prices. Prices are shown using alchemy and base shop values (e.g. before the shop value of an item drops from selling multiple).
+> - **Ultimate Ironman** — No economy prices. Prices are shown using alchemy and base shop values (e.g. before the shop value of an item drops from selling multiple). No bank.
+> - **Group Ironman** — No economy prices. Prices are shown using alchemy and base shop values (e.g. before the shop value of an item drops from selling multiple). Trading is limited to your group.
 
 Existing profiles have no `accountType`; default them to `main` on read so nobody's saved characters
 change behaviour on deploy.
@@ -140,10 +140,8 @@ Ironman helm icons would fit the existing `/static/other-images/` convention if 
 **A dismissible banner** above the toolbar the first few times, so the number change is explained
 rather than discovered:
 
-> **Ironman prices**
-> Profit here doesn't use the Grand Exchange. Materials you'd gather yourself count as free,
-> materials you'd buy count at shop price, and items are worth what a shop or the alchemy spell will
-> actually pay. [How this is worked out]
+> **You're in Ironman mode.** The GP values shown in Ironman mode are derived from alchemy and base
+> shop values (e.g. before the shop value of an item drops from selling multiple).
 
 **Switch relabels** (only under Ironman; unchanged for mains):
 
@@ -209,9 +207,10 @@ go stale hourly.
 **Grand Exchange card.**
 
 - Item is untradeable → don't render the card at all.
-- Item is tradeable but the account is an Ironman → collapse it behind a disclosure:
-  `Show Grand Exchange prices` / muted sub-line `You can't use the Grand Exchange on this account.`
-  Worth keeping rather than hiding outright — people do want to know what a thing is "worth".
+- Item is tradeable but the account is an Ironman → deprioritise it rather than annotate it. Order
+  the card below the Shops card and collapse it behind a plain `Show Grand Exchange prices`
+  disclosure, with no explanatory sub-line. It's still real information and people do want to know
+  what a thing is "worth" — it just isn't the number they act on.
 
 **New Shops card** (feature #2), a peer of the two existing pricing cards:
 
@@ -230,12 +229,12 @@ store price, and once the Shops card exists next to it the old label is actively
 
 **Value insights card.**
 
-| Row                | Main | Ironman                                                         |
-| ------------------ | ---- | --------------------------------------------------------------- |
-| `GE spread`        | keep | hide — it's a merchant metric                                   |
-| `High alch profit` | keep | replace with `High alch value`, sub-label `after 1 nature rune` |
-| `Low alch profit`  | keep | replace with `Low alch value`, sub-label `after 1 nature rune`  |
-| `gp per XP`        | —    | new row                                                         |
+| Row                | Main | Ironman                        |
+| ------------------ | ---- | ------------------------------ |
+| `GE spread`        | keep | hide — it's a merchant metric  |
+| `High alch profit` | keep | replace with `High alch value` |
+| `Low alch profit`  | keep | replace with `Low alch value`  |
+| `gp per XP`        | —    | new row                        |
 
 **Buy limit row** (in the Grand Exchange card) is a GE concept. Under Ironman it's replaced by
 `Shop stock` / `Restocks every 60s` in the Shops card.
