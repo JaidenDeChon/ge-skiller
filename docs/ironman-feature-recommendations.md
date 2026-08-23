@@ -125,7 +125,10 @@ bestShopBuy: { shopName, unitPrice, unitsToFloor } | null,  // indexed
 ```
 
 New script `scripts/populate-shops.ts`, wired into `scripts/update-db.ts` as a step after
-`populate-ingredients`. It reuses the existing `wikiApi()` + cheerio section-parsing helpers in
+`populate-ingredients`. Scrape by `wiki_page_title` (the real page title PR #16 derives from
+`wiki_url`), never `wiki_name` — OSRSBox synthesises that field for switch-infobox items, and
+requesting it 404s. `scripts/WIKI-NAME-NORMALIZATION.md` has the detail; the creation scraper already
+made this mistake once and it cost ~29% of the catalogue. It reuses the existing `wikiApi()` + cheerio section-parsing helpers in
 `scripts/osrs-wiki-creation.ts` — the same pattern as `getCreationSectionIndex` / `parseRequirementsTable`,
 pointed at store-location tables instead of creation tables. Ship this first; it is the dependency for
 three of the four asks.
@@ -169,7 +172,9 @@ See §2.3.1 of the UI plan for the full definition.
   `profitMode` / `useSupplies` switches.
 - Thread `ironman=1` through `/api/game-items` exactly as `profitMode` is threaded today.
 - Server-side, branch `buildProfitPipeline()` to read the precomputed `ironmanInputValue` /
-  `ironmanGpSpent` / `ironmanExitValue` / `ironmanProfit` / `ironmanRoi` fields rather than GE prices.
+  `ironmanGpSpent` / `ironmanExitValue` / `ironmanProfit` / `ironmanRoi` fields rather than GE prices,
+  and mirror the Ironman unit price beside `resolveIngredientUnitPrice()` in
+  `src/lib/helpers/ingredient-price.ts` (added by PR #16) rather than inlining it in the pipeline.
 - Relabel in `item-card.svelte`: "Profit" → "Ironman profit", "Investment required" → "Materials".
 
 **Scope note.** This should be a genuine mode, not just a formula swap — under Ironman mode the base

@@ -153,19 +153,25 @@ rather than discovered:
 
 **Sort options.**
 
-| Value         | Main label         | Ironman label            |
-| ------------- | ------------------ | ------------------------ |
-| `desc`        | `Sort by value`    | `Sort by sell value`     |
-| `profit-desc` | `Sort by profit`   | `Sort by Ironman profit` |
-| `roi-desc`    | `Sort by best ROI` | `Sort by best ROI`       |
-| `shop-desc`   | —                  | `Sort by shop value`     |
-| `xp-cost-asc` | —                  | `Sort by cheapest XP`    |
+| Value            | Main label                 | Ironman label              |
+| ---------------- | -------------------------- | -------------------------- |
+| `desc`           | `Sort by value`            | `Sort by sell value`       |
+| `roi-desc`       | `Sort by ROI (percentage)` | `Sort by ROI (percentage)` |
+| `roi-value-desc` | `Sort by ROI (value)`      | `Sort by ROI (value)`      |
+| `shop-desc`      | —                          | `Sort by shop value`       |
+| `xp-cost-asc`    | —                          | `Sort by cheapest XP`      |
 
-**ROI works under Ironman, but only once the denominator changes.** Today ROI is
+These are the sort orders as PR #16 left them: `profit-desc` was retired in favour of
+`roi-value-desc`, and `legacySortValues` in `game-items-page.svelte` plus `LEGACY_SORT_ORDERS` in the
+service still resolve the old value out of persisted preferences and bookmarked URLs. New Ironman
+sorts must be added to `GameItemSortOrder`, `parseSortOrder()` and `sortOptions` together.
+
+**ROI works under Ironman, but only once the denominator changes.** `creationRoi` is
 `creationProfit / creationCost`, and the service returns `null` whenever cost is zero. Feed it
 gp-spent as the denominator and an Ironman working from gathered materials divides by zero on most
-rows, so the sort would quietly drop the majority of the list. The fix is to change what the
-denominator measures — see §2.3.1 — not to hide the sort.
+rows. Both profit-mode sorts feel it: `roi-desc` sorts on `creationRoi` directly and `filterMissingRoi`
+drops the null rows outright, and `roi-value-desc` uses `creationRoi` as its tiebreaker. The fix is to
+change what the denominator measures — see §2.3.1 — not to hide either sort.
 
 #### 2.3.1 What ROI divides by under Ironman
 
@@ -181,6 +187,12 @@ ironmanRoi              = ironmanProfit / ironmanInputValue
 
 `valueBasis` is the field already proposed in §0 — `bestShopBuy.unitPrice ?? (highalch − natureRuneCost)`
 — so the same number values an item as an output and prices it as an input. Nothing new to scrape.
+
+PR #16 added exactly the seam this needs: `src/lib/helpers/ingredient-price.ts` already centralises
+"what does one unit of an ingredient actually cost", and establishes the principle that `cost` counts
+only where someone can really pay it. The Ironman basis belongs beside `resolveIngredientUnitPrice()`
+as a sibling function sharing its `PricedItem` shape, with the aggregation mirroring it the way
+`buildProfitPipeline()` already mirrors the GE version.
 
 This makes ROI meaningful rather than merely defined. It answers the question an Ironman actually has
 in front of a pile of raw materials: **is it worth more processed than raw, and by how much?** A

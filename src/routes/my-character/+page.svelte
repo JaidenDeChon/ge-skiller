@@ -12,7 +12,9 @@
     import SkillsGrid from '$lib/components/global/skills-grid.svelte';
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { resolve } from '$app/paths';
+    import AccountTypeSelect from '$lib/components/global/account-type-select.svelte';
     import { CharacterProfile, type ICharacterProfile } from '$lib/models/player-stats';
+    import type { AccountType } from '$lib/models/account-type';
     import type { IGameItem } from '$lib/models/game-item';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
     import {
@@ -48,11 +50,13 @@
         name = '',
         skillLevels: ICharacterProfile['skillLevels'] = defaultSkillLevels,
         id?: ICharacterProfile['id'],
+        accountType?: ICharacterProfile['accountType'],
     ): ICharacterProfile => {
-        const profile = new CharacterProfile(name, { ...skillLevels }, id);
+        const profile = new CharacterProfile(name, { ...skillLevels }, id, accountType);
         return {
             id: profile.id,
             name: profile.name,
+            accountType: profile.accountType,
             skillLevels: { ...profile.skillLevels },
         };
     };
@@ -94,7 +98,12 @@
 
     $effect(() => {
         if (activeCharacter) {
-            draft = createDraft(activeCharacter.name, { ...activeCharacter.skillLevels }, activeCharacter.id);
+            draft = createDraft(
+                activeCharacter.name,
+                { ...activeCharacter.skillLevels },
+                activeCharacter.id,
+                activeCharacter.accountType,
+            );
             return;
         }
 
@@ -226,6 +235,7 @@
         const updated = {
             ...draft,
             name: trimmedName,
+            accountType: draft.accountType,
             skillLevels: { ...draft.skillLevels },
         };
         const existingIndex = next.findIndex((character) => character.id === updated.id);
@@ -246,7 +256,7 @@
 
         try {
             const imported = await fetchCharacterDetailsFromWOM(trimmedName);
-            draft = createDraft(trimmedName, { ...imported.skillLevels }, draft.id);
+            draft = createDraft(trimmedName, { ...imported.skillLevels }, draft.id, draft.accountType);
             toast.success(`Imported skill levels for "${trimmedName}".`);
         } catch (error) {
             console.error(error);
@@ -254,6 +264,10 @@
         } finally {
             importLoading = false;
         }
+    }
+
+    function handleAccountTypeChange(next: AccountType) {
+        draft.accountType = next;
     }
 
     function handleSkillChange(skill: keyof ICharacterProfile['skillLevels'], value: number) {
@@ -334,18 +348,14 @@
         if (!ensureActiveCharacter()) return;
         const id = Number(itemId);
         if (!Number.isFinite(id)) return;
-        updateSuppliesForCharacter(activeCharacterId, (items) =>
-            items.filter((entry) => Number(entry.id) !== id),
-        );
+        updateSuppliesForCharacter(activeCharacterId, (items) => items.filter((entry) => Number(entry.id) !== id));
     }
 </script>
 
 <div class="content-sizing pt-6 pb-10 space-y-8">
     <header class="space-y-2">
         <h1 class="text-3xl font-bold">My character</h1>
-        <p class="text-muted-foreground">
-            Update your skill levels and supplies.
-        </p>
+        <p class="text-muted-foreground">Update your skill levels and supplies.</p>
     </header>
 
     <Accordion.Root type="multiple" class="rounded-lg border" value={['supplies']}>
@@ -365,14 +375,14 @@
                     <form class="space-y-6" onsubmit={saveCharacter}>
                         <div>
                             <Label class="capitalize text-xs" for="my-character-name">Character name</Label>
-                            <Input
-                                id="my-character-name"
-                                type="text"
-                                required
-                                aria-required
-                                bind:value={draft.name}
-                            />
+                            <Input id="my-character-name" type="text" required aria-required bind:value={draft.name} />
                         </div>
+
+                        <AccountTypeSelect
+                            value={draft.accountType}
+                            onChange={handleAccountTypeChange}
+                            idPrefix="my-character"
+                        />
 
                         <SkillsGrid
                             skillLevels={draft.skillLevels}
@@ -415,9 +425,7 @@
             <Accordion.Content class="px-6">
                 <div class="space-y-4 pt-2">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <p class="text-sm text-muted-foreground">
-                            Add items to your supplies.
-                        </p>
+                        <p class="text-sm text-muted-foreground">Add items to your supplies.</p>
                         <Button
                             onclick={openSuppliesDialog}
                             aria-disabled={!hasActiveCharacter}
@@ -538,7 +546,9 @@
                             {#each searchResults as item (item.id)}
                                 <Command.Item value={item.name} class="!cursor-default">
                                     <div class="flex w-full items-center gap-3">
-                                        <span class="inline-flex h-9 w-9 items-center justify-center rounded bg-muted border">
+                                        <span
+                                            class="inline-flex h-9 w-9 items-center justify-center rounded bg-muted border"
+                                        >
                                             {#if item.icon}
                                                 <img
                                                     src={iconToDataUri(item.icon)}

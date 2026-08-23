@@ -9,7 +9,9 @@
     import SkillsGrid from '$lib/components/global/skills-grid.svelte';
     import { toast } from 'svelte-sonner';
     import * as Dialog from '$lib/components/ui/dialog';
+    import AccountTypeSelect from '$lib/components/global/account-type-select.svelte';
     import { CharacterProfile } from '$lib/models/player-stats';
+    import type { AccountType } from '$lib/models/account-type';
     import { getStoreRoot, getCharacters } from '$lib/stores/character-store.svelte';
     import { fetchCharacterDetailsFromWOM } from '$lib/services/wise-old-man-service';
 
@@ -67,7 +69,7 @@
     const populatedStats = writable(new CharacterProfile(''));
 
     function cloneProfile(profile: CharacterProfile) {
-        return new CharacterProfile(profile.name, { ...profile.skillLevels }, profile.id);
+        return new CharacterProfile(profile.name, { ...profile.skillLevels }, profile.id, profile.accountType);
     }
 
     // Controls whether the buttons in the footer are disabled.
@@ -89,7 +91,11 @@
 
         if (indexOfThisCharacter !== -1) {
             const next = [...currentCharactersList];
-            next[indexOfThisCharacter] = { ...next[indexOfThisCharacter], skillLevels: buffer.skillLevels };
+            next[indexOfThisCharacter] = {
+                ...next[indexOfThisCharacter],
+                accountType: buffer.accountType,
+                skillLevels: buffer.skillLevels,
+            };
             characterStore.characters = next;
         } else {
             characterStore.characters = [...currentCharactersList, buffer];
@@ -116,6 +122,9 @@
 
         try {
             const character = await fetchCharacterDetailsFromWOM($populatedStats.name);
+            // Wise Old Man reports levels, not game mode, so preserve the account type the user
+            // picked rather than letting the import reset it to the constructor default.
+            character.accountType = $populatedStats.accountType;
             populatedStats.set(cloneProfile(character));
             importedName.set(character.name);
         } catch (e) {
@@ -124,6 +133,14 @@
         } finally {
             isLoading.set(false);
         }
+    }
+
+    function handleAccountTypeChange(next: AccountType) {
+        populatedStats.update((current) => {
+            const clone = cloneProfile(current);
+            clone.accountType = next;
+            return clone;
+        });
     }
 
     function handleSkillChange(skill: keyof CharacterProfile['skillLevels'], value: number) {
@@ -157,6 +174,11 @@
                     <Label class="capitalize text-xs" for="character-name">Character name</Label>
                     <Input id="character-name" type="text" required aria-required bind:value={$populatedStats.name} />
                 </div>
+                <AccountTypeSelect
+                    value={$populatedStats.accountType}
+                    onChange={handleAccountTypeChange}
+                    idPrefix="character-dialog"
+                />
                 <SkillsGrid
                     skillLevels={$populatedStats.skillLevels}
                     idPrefix="character-dialog"
