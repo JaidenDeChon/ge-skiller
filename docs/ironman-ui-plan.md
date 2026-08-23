@@ -151,22 +151,58 @@ rather than discovered:
 | `Only show what I have supplies for`                | unchanged                                                   |
 | `Filter by my skill levels`                         | unchanged                                                   |
 
-**Sort options.** Two notes here, one of which is a real design consequence:
+**Sort options.**
 
 | Value         | Main label         | Ironman label            |
 | ------------- | ------------------ | ------------------------ |
 | `desc`        | `Sort by value`    | `Sort by sell value`     |
 | `profit-desc` | `Sort by profit`   | `Sort by Ironman profit` |
-| `roi-desc`    | `Sort by best ROI` | **hidden**               |
+| `roi-desc`    | `Sort by best ROI` | `Sort by best ROI`       |
 | `shop-desc`   | —                  | `Sort by shop value`     |
 | `xp-cost-asc` | —                  | `Sort by cheapest XP`    |
 
-**ROI has to be hidden under Ironman, not relabelled.** ROI is `profit / creationCost`, and the
-service already returns `null` when cost is zero. For an Ironman working from gathered materials cost
-_is_ zero, so ROI is undefined for most of the list — the sort would quietly drop the majority of
-results. `Sort by cheapest XP` is the metric that replaces it, and it's the one Ironmen actually
-optimise anyway. Note the existing `normalizeSortSelection()` already falls back to `'desc'` for
-unavailable sorts, so hiding ROI needs the same guard extended rather than new machinery.
+**ROI works under Ironman, but only once the denominator changes.** Today ROI is
+`creationProfit / creationCost`, and the service returns `null` whenever cost is zero. Feed it
+gp-spent as the denominator and an Ironman working from gathered materials divides by zero on most
+rows, so the sort would quietly drop the majority of the list. The fix is to change what the
+denominator measures — see §2.3.1 — not to hide the sort.
+
+#### 2.3.1 What ROI divides by under Ironman
+
+Gp-spent is the wrong denominator for an Ironman, and it's the only reason ROI broke. Materials you
+gathered are not free — they had a sale value you gave up by crafting with them. So under Ironman the
+cost basis becomes **what the consumed inputs are worth**, using each ingredient's own Ironman value:
+
+```
+ironmanInputValue(item) = Σ valueBasis(ingredient) × qty      // over consumed ingredients only
+ironmanProfit           = ironmanExitValue − ironmanInputValue
+ironmanRoi              = ironmanProfit / ironmanInputValue
+```
+
+`valueBasis` is the field already proposed in §0 — `bestShopBuy.unitPrice ?? (highalch − natureRuneCost)`
+— so the same number values an item as an output and prices it as an input. Nothing new to scrape.
+
+This makes ROI meaningful rather than merely defined. It answers the question an Ironman actually has
+in front of a pile of raw materials: **is it worth more processed than raw, and by how much?** A
+craft that turns 1,420 gp of materials into a 1,536 gp item is +8.2%; one that turns them into
+something worth less is negative, and should be — that's real information, not a broken row.
+
+Two consequences worth being deliberate about:
+
+- **Gp actually fronted is still a separate number**, and still worth showing. Keep it as
+  `ironmanGpSpent` — the subset of input value that has to be handed to a shopkeeper. It drives the
+  item card's cost line and the break-even block in §2.6, both of which genuinely mean "gp out of
+  pocket". Do not conflate the two fields.
+- **A residual set still has no ROI.** If every consumed ingredient has a null `valueBasis` — nothing
+  buys it and it can't be alched — input value is zero and ROI stays null. That set is small, where
+  gp-spent-as-denominator made it most of the list. Keep the existing behaviour for it: null sorts
+  out of the ROI list, with the card showing `—`. Worth revisiting only if the coverage count from
+  §0 shows it's larger than expected.
+
+`ironmanProfit` and `ironmanRoi` are precomputed batch fields alongside `bestShopBuy` and indexed for
+sorting, per finding 3 in the recommendations doc — the request-time pipeline never recomputes them.
+
+Main mode is untouched: it keeps GE prices on both sides and gp-spent as its denominator.
 
 ### 2.4 Item card
 
@@ -182,8 +218,8 @@ people distrust the whole page.
 
   1,536gp                          ← exit value
   High alch                        ← source line, replaces the "2 hours ago" timestamp
-  Ironman profit: +410 gp (36.4%)
-  Shop cost: ≤340gp
+  Ironman profit: +116 gp (8.2%)   ← over the value of the materials consumed
+  Materials: 1,420gp · 340gp from shops
 ```
 
 Source line copy, by which basis won:
@@ -192,10 +228,14 @@ Source line copy, by which basis won:
 - `Bob's Brilliant Axes` (the shop name, when a shop pays more)
 - `No sell value` (nothing buys it and it can't be alched)
 
-Cost line copy:
+Cost line copy. It carries both numbers from §2.3.1 — what the materials are worth, and how much of
+that you actually have to pay for:
 
-- `Shop cost: ≤340gp` — when some inputs are shop-bought
-- `Gathered — no gp cost` — when every input is self-gathered
+- `Materials: 1,420gp · 340gp from shops` — when some inputs are shop-bought
+- `Materials: 1,420gp · all gathered` — when nothing has to be bought
+- `Materials: —` — when no consumed ingredient has a value basis
+
+The percentage beside the profit line is `ironmanRoi`, so the card and the ROI sort always agree.
 
 The `timeSince` line is GE-specific and should be dropped under Ironman; shop and alch values don't
 go stale hourly.
@@ -301,7 +341,8 @@ first: it tells us how many items land in each row before we write the states.
 | 5   | Shops card                                                              | Needs shop scrape                                           |
 | 6   | Selling block (§2.6)                                                    | Needs 5                                                     |
 | 7   | Item-card exit value + source line, sort relabels, new sorts            | Needs 5                                                     |
-| 8   | Cheapest-XP sort + gp-per-XP row                                        | Needs 7                                                     |
+| 8   | `ironmanInputValue` / `ironmanRoi` batch fields + ROI sort (§2.3.1)     | Needs 5                                                     |
+| 9   | Cheapest-XP sort + gp-per-XP row                                        | Needs 7                                                     |
 
 Steps 1–4 need no scraping and no new fields, and each is independently shippable. Step 3 is the one
 you asked about, and it's a filter change gated on the mode rather than a data migration.

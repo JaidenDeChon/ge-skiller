@@ -149,13 +149,18 @@ cannot do.
 
 **The math change.**
 
-|              | Current                         | Ironman mode                                                 |
-| ------------ | ------------------------------- | ------------------------------------------------------------ |
-| Input cost   | `Σ ingredient GE price × qty`   | `Σ (shop price if shop-buyable, else 0 gp + a "gather" tag)` |
-| Output value | `highPrice ?? lowPrice ?? cost` | `max(best shop buy price, highalch − nature rune cost, 0)`   |
+|              | Current                         | Ironman mode                                                   |
+| ------------ | ------------------------------- | -------------------------------------------------------------- |
+| Input cost   | `Σ ingredient GE price × qty`   | `Σ ingredient valueBasis × qty` (what the materials are worth) |
+| Gp fronted   | — (same as input cost)          | `Σ shop price × qty` for shop-buyable inputs only              |
+| Output value | `highPrice ?? lowPrice ?? cost` | `max(best shop buy price, highalch − nature rune cost, 0)`     |
 
-Self-gathered inputs cost 0 gp but are not free — they cost time. Tag them rather than pricing them,
-and let the gp column stay honest.
+Ironman mode needs **two** input numbers, not one. Gp fronted is what a shopkeeper takes, and it is
+zero for a fully gathered recipe — that's the number for "how much am I risking". Input cost is what
+the consumed materials are worth, which is never zero for a real recipe, and it's what profit and ROI
+divide by: gathered materials aren't free, they had a sale value you gave up by crafting with them.
+Using gp-fronted as the ROI denominator is what makes ROI collapse to `null` on most Ironman rows.
+See §2.3.1 of the UI plan for the full definition.
 
 **Where it lands.**
 
@@ -163,9 +168,9 @@ and let the gp column stay honest.
   and a toggle in the switch group in `game-items-page.svelte`, alongside the existing
   `profitMode` / `useSupplies` switches.
 - Thread `ironman=1` through `/api/game-items` exactly as `profitMode` is threaded today.
-- Server-side, branch `buildProfitPipeline()` to read the precomputed `ironmanCost` / `ironmanExitValue`
-  fields rather than GE prices.
-- Relabel in `item-card.svelte`: "Profit" → "Ironman profit", "Investment required" → "Shop cost".
+- Server-side, branch `buildProfitPipeline()` to read the precomputed `ironmanInputValue` /
+  `ironmanGpSpent` / `ironmanExitValue` / `ironmanProfit` / `ironmanRoi` fields rather than GE prices.
+- Relabel in `item-card.svelte`: "Profit" → "Ironman profit", "Investment required" → "Materials".
 
 **Scope note.** This should be a genuine mode, not just a formula swap — under Ironman mode the base
 filter must also stop excluding untradeables (finding #1 above), and items whose inputs are neither
@@ -272,11 +277,13 @@ The honest Ironman metric is rarely profit — most Ironman crafting is net-nega
 they optimise is **gp lost per XP gained**. `experienceGranted` is already on every creation spec, so:
 
 ```
-gpPerXp = (ironmanCost − ironmanExitValue) / totalXp
+gpPerXp = (ironmanInputValue − ironmanExitValue) / totalXp
 ```
 
-Add "Least gp per XP" to `sortOptions` and a gp/XP line to the item card. Works immediately with a
-0-cost-gathered assumption and gets sharper once shop data lands.
+Add "Least gp per XP" to `sortOptions` and a gp/XP line to the item card. This sits alongside ROI
+rather than replacing it — ROI answers "is processing these materials worth it", gp-per-XP answers
+"what does this level cost me". Works immediately with a 0-cost-gathered assumption and gets sharper
+once shop data lands.
 
 ### 4.4 Bank → XP planner (most novel; no new data)
 
