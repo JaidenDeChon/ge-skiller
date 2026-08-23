@@ -265,10 +265,61 @@ Note that the variant and product fixes above change what a re-scrape produces f
 that already have specs, so `--skip-existing` no longer covers the whole job: the 1,838
 versioned items holding a sibling variant's recipe need a refresh, not a skip.
 
+## Store prices and the sell-to-shop dropoff
+
+Shops pay less for each one you sell them. The wiki documents the rule on
+[Shop](https://oldschool.runescape.wiki/w/Shop): the price falls by a fixed percentage of
+the item's **base value** per sale, and "regardless of how overstocked they are, all shops
+will buy the player's items for a minimum of 10% of the item's value".
+
+The numbers behind it are template parameters, not rendered text:
+
+```
+{{StoreTableHead|sellmultiplier=1000|buymultiplier=600|delta=20}}
+{{StoreLine|name=Steel axe|stock=3|restock=400}}
+```
+
+Those are per-mille of the item's value — 600 is 60%, 20 is 2% per sale — and `delta` is
+the same number the item page shows as its "Change Per" column.
+
+`populate-store-prices` reads them from **shop** pages rather than item pages. There are
+508 shops against 28,763 items, so the whole scrape is a few hundred requests and finishes
+in about two minutes, where going item-first would have been tens of thousands. Prices are
+computed from our own `cost` and the shop's multipliers rather than the wiki's rendered
+figures, so they stay consistent with the rest of the dataset.
+
+Measured over the full run: 458 shops carry a stock table (the other 50 are shop _type_
+overview pages like "Axe shops"), 6,042 stock lines read, **1,109 items priced**. 468 lines
+name something that is not an item document — clothing variants, `Graceful outfit`,
+`Agility` — and are reported rather than guessed at.
+
+Stored on the item as `storePrices`, one entry per shop:
+
+| field               | meaning                                                   |
+| ------------------- | --------------------------------------------------------- |
+| `firstPrice`        | gp for the first sale, at the shop's default stock        |
+| `dropPerSale`       | gp lost per further sale                                  |
+| `floorPrice`        | gp once overstocked to the 10% minimum                    |
+| `salesToFloor`      | sales to reach the floor; null when the price never drops |
+| `buyPrice`          | gp the shop charges to buy one                            |
+| `stock`, `currency` | default stock, and what the shop trades in when not coins |
+
+`src/lib/helpers/store-price.ts` has the maths — `storeSalePrices(value, terms, count)`
+returns the series, `summarizeStoreSale` flattens it to the four numbers above.
+
+Checked against the wiki's own worked example and its rendered tables: a 200gp steel axe at
+Bob's Brilliant Axes (600/20) gives 120, 116, 112 with a floor of 20, and Varrock Swordshop
+prices Bronze/Iron/Steel swords at 26/91/325 to buy and 15/54/195 to sell — matching the
+wiki row for row.
+
+Shops that refuse to buy (`hidebuy`) store nothing, and a shop trading in tokens rather
+than coins keeps its `currency` so its numbers are not mistaken for gp.
+
 ### The whole rebuild in one command
 
 `bun run promote-db` runs the sequence end to end — back up, re-scrape, repoint ingredient
-links, report cycles, recompute tree skills, then copy to prod and refresh its prices. It
+links, refresh store prices, report cycles, recompute tree skills, then copy to prod and
+refresh its GE prices. It
 rebuilds on **`osrsbox-dev`** and never writes the master DB, so `osrsbox` stays a rollback
 for the whole operation; sync it from dev afterwards, once prod looks right.
 

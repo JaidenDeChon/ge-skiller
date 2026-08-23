@@ -13,6 +13,7 @@
 //
 //   backup      dump every creationSpecs array on the rebuild DB, so the run is reversible
 //   rescrape    populate-ingredients over the rebuild DB, then repair-ingredient-links
+//   stores      populate-store-prices: what shops pay, and how it falls as you sell more
 //   cycles      find-ingredient-cycles (reports always, writes only with --with-cycles)
 //   tree-skills compute-creation-tree-skills
 //   prod        copy osrsbox-dev -> osrsbox-prod   (needs --promote)
@@ -39,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
 import { EJSON } from 'bson';
 
-const PHASES = ['backup', 'rescrape', 'cycles', 'tree-skills', 'prod', 'prices'] as const;
+const PHASES = ['backup', 'rescrape', 'stores', 'cycles', 'tree-skills', 'prod', 'prices'] as const;
 type Phase = (typeof PHASES)[number];
 
 const args = process.argv.slice(2);
@@ -340,6 +341,15 @@ async function main() {
 
             // The scrape writes fresh ingredient links, so canonical repair follows it.
             await run('scripts/repair-ingredient-links.ts', apply ? [] : ['--dry-run'], {
+                VITE_MONGO_DB_DB_NAME: rebuildDb,
+            });
+        }
+
+        if (wanted('stores')) {
+            currentPhase = 'stores';
+            // Shop pages, not item pages: the terms are template parameters an item page
+            // never renders, and ~508 shops cover the lot in a few hundred requests.
+            await run('scripts/populate-store-prices.ts', apply ? [] : ['--dry-run'], {
                 VITE_MONGO_DB_DB_NAME: rebuildDb,
             });
         }
