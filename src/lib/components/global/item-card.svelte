@@ -49,6 +49,13 @@
     }>();
 
     let timeSincePriceTime = $state('Calculating...');
+    // Why a price is missing. Untradeables reach the browse list under Ironman mode, and a bare dash
+    // with no explanation reads as broken data rather than as a fact about the item.
+    const missingPriceReason = $derived.by(() => {
+        if (hasPrice) return null;
+        if (item.tradeable_on_ge === false) return 'Not tradeable';
+        return 'No recent trades';
+    });
     const iconSrc = $derived(iconToDataUri(item.icon));
     const priceValue = $derived(resolveDisplayPrice(item));
     const hasPrice = $derived(priceValue !== null);
@@ -172,6 +179,10 @@
                 {#if priceTime}
                     <p class="text-muted-foreground text-xs animate-fade-in">
                         {timeSincePriceTime}
+                    </p>
+                {:else if missingPriceReason}
+                    <p class="text-muted-foreground text-xs animate-fade-in">
+                        {missingPriceReason}
                     </p>
                 {/if}
                 {#if showProfit && hasProfit}

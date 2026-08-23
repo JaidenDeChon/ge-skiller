@@ -30,6 +30,7 @@ export const GET: RequestHandler = async ({ url }) => {
     let supplies: PlayerSupplies | undefined;
     const suppliesActive = url.searchParams.get('suppliesActive') === '1';
     const profitMode = url.searchParams.get('profitMode') === '1';
+    const ironman = url.searchParams.get('ironman') === '1';
 
     if (skillLevelsParam) {
         try {
@@ -70,6 +71,7 @@ export const GET: RequestHandler = async ({ url }) => {
         supplies,
         suppliesActive,
         profitMode,
+        ironman,
     });
     return new Response(JSON.stringify(paginated));
 };

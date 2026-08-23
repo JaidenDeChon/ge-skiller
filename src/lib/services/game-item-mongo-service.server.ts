@@ -276,6 +276,7 @@ export async function getPaginatedGameItems(params?: {
     supplies?: PlayerSupplies | null;
     suppliesActive?: boolean;
     profitMode?: boolean;
+    ironman?: boolean;
 }): Promise<PaginatedGameItems> {
     const page = Math.max(1, params?.page ?? 1);
     const perPage = Math.max(1, Math.min(200, params?.perPage ?? 12));
@@ -290,22 +291,31 @@ export async function getPaginatedGameItems(params?: {
     const profitMode = Boolean(params?.profitMode);
     const baseFilterQuery = getFilterQuery(filter);
     const skillQuery = getSkillMatchQuery(params?.skill);
+    const ironman = Boolean(params?.ironman);
     const filterQuery = mergeQueries(baseFilterQuery, skillQuery, {
         placeholder: false,
         noted: false,
         stacked: null,
-        tradeable_on_ge: true,
-        ...getValidPriceQuery(),
+        ...getVisibilityQuery(ironman),
     });
     const skillLevels = normalizeSkillLevels(params?.skillLevels);
     const suppliesActive = Boolean(params?.suppliesActive);
     const supplies = normalizeSupplies(params?.supplies);
     const supplyMap = supplies ?? (suppliesActive ? {} : null);
 
+    // Under Ironman an item's value can come from alchemy rather than the market, so `highalch` joins
+    // the sort keys. Every key here is a stored field, so this stays an index-eligible sort rather
+    // than a computed one — the profit pipeline is already the expensive path and must not grow.
+    // Annotated rather than inferred: a bare object literal widens its values to `number`, which
+    // Mongoose's `sort()` rejects because it wants the `SortOrder` literals.
+    const valueSortKeys: Record<string, 1 | -1> = ironman
+        ? { highPrice: sortDirection, highalch: sortDirection, cost: sortDirection, name: 1 }
+        : { highPrice: sortDirection, cost: sortDirection, name: 1 };
+
     if (!skillLevels && !profitDrivenSort && !profitMode && !suppliesActive && !supplies) {
         const [items, total] = await Promise.all([
             OsrsboxItemModel.find(filterQuery)
-                .sort({ highPrice: sortDirection, cost: sortDirection, name: 1 })
+                .sort(valueSortKeys)
                 .skip(skip)
                 .limit(perPage)
                 .lean<GameItemDoc[]>()
@@ -335,7 +345,7 @@ export async function getPaginatedGameItems(params?: {
         ? { creationRoi: sortDirection, creationProfit: -1, highPrice: -1, cost: -1, name: 1 }
         : roiValueSort
           ? { creationProfit: sortDirection, creationRoi: -1, highPrice: -1, cost: -1, name: 1 }
-          : { highPrice: sortDirection, cost: sortDirection, name: 1 };
+          : valueSortKeys;
 
     const [{ items, total = 0 } = { items: [], total: 0 }] = await OsrsboxItemModel.aggregate<{
         items: GameItemDoc[];
@@ -368,7 +378,11 @@ export async function getPaginatedGameItems(params?: {
 /**
  * Performs a simple text search across name and examine fields.
  */
-export async function searchGameItems(query: string, limit: number = 10): Promise<GameItemDoc[]> {
+export async function searchGameItems(
+    query: string,
+    limit: number = 10,
+    ironman: boolean = false,
+): Promise<GameItemDoc[]> {
     const sanitizedQuery = query.trim();
     if (!sanitizedQuery) return [];
 
@@ -383,8 +397,7 @@ export async function searchGameItems(query: string, limit: number = 10): Promis
         placeholder: false,
         noted: false,
         stacked: null,
-        tradeable_on_ge: true,
-        ...getValidPriceQuery(),
+        ...getVisibilityQuery(ironman),
     };
 
     async function fetchAndAppend(filter: Record<string, unknown>) {
@@ -441,9 +454,34 @@ function normalizeFilter(filter?: GameItemFilter): GameItemFilter {
     return allowed.includes(filter) ? filter : 'all';
 }
 
-function getValidPriceQuery(): Record<string, unknown> {
+/**
+ * Restricts results to items the reader can actually put a number against.
+ *
+ * A Grand Exchange price is the only value a main has, so for them an item without one is a row of
+ * dashes. An Ironman never had that price to begin with: alchemy values them instead, which is why
+ * `highalch` counts here. Shop prices join this list once they are scraped.
+ * @param ironman - Whether the reader is on an account that cannot use the Grand Exchange.
+ * @returns A query fragment requiring at least one usable value.
+ */
+function getValidPriceQuery(ironman = false): Record<string, unknown> {
+    const clauses: Record<string, unknown>[] = [{ highPrice: { $gt: 0 } }, { lowPrice: { $gt: 0 } }];
+    if (ironman) clauses.push({ highalch: { $gt: 0 } });
+    return { $or: clauses };
+}
+
+/**
+ * The tradeability and price gate shared by browsing and search.
+ *
+ * Untradeable items are excluded for a main because nothing in the app can price them. For an
+ * Ironman that exclusion hides a large share of what they actually make, so it is lifted and the
+ * alchemy fallback above carries the value.
+ * @param ironman - Whether the reader is on an account that cannot use the Grand Exchange.
+ * @returns A query fragment gating which items are visible.
+ */
+export function getVisibilityQuery(ironman = false): Record<string, unknown> {
     return {
-        $or: [{ highPrice: { $gt: 0 } }, { lowPrice: { $gt: 0 } }],
+        ...(ironman ? {} : { tradeable_on_ge: true }),
+        ...getValidPriceQuery(ironman),
     };
 }
 
@@ -501,9 +539,7 @@ function buildProfitPipeline(
               ],
           }
         : 0;
-    const neededExpr = hasSupplies
-        ? { $max: [0, { $subtract: ['$$amount', '$$supplyQty'] }] }
-        : '$$amount';
+    const neededExpr = hasSupplies ? { $max: [0, { $subtract: ['$$amount', '$$supplyQty'] }] } : '$$amount';
     // `cost` is the item's base game value, not a market price. Using it for an
     // ingredient that has no GE market — an untradeable intermediate such as
     // "Oak seedling (w)", whose cost is 1 — invented a 1gp outlay and sent the
@@ -515,10 +551,7 @@ function buildProfitPipeline(
     // third of all recipes charge a coin fee, and 5 coins really does cost 5gp. Mirrors
     // `resolveIngredientUnitPrice`, which prices the same rows on the item page.
     const costIsPriceExpr = {
-        $or: [
-            { $eq: ['$$matched.tradeable_on_ge', true] },
-            { $in: ['$$matched.name', currencyItemNames] },
-        ],
+        $or: [{ $eq: ['$$matched.tradeable_on_ge', true] }, { $in: ['$$matched.name', currencyItemNames] }],
     };
     const unitPriceExpr = {
         $ifNull: [
@@ -670,10 +703,7 @@ function buildProfitPipeline(
                 creationProfit: {
                     $cond: [
                         {
-                            $and: [
-                                { $gt: ['$outputPrice', 0] },
-                                { $ne: ['$creationCost', null] },
-                            ],
+                            $and: [{ $gt: ['$outputPrice', 0] }, { $ne: ['$creationCost', null] }],
                         },
                         { $subtract: ['$outputPrice', '$creationCost'] },
                         null,
@@ -953,7 +983,9 @@ function buildPlayerSkillMatchExpression(skillLevels: PlayerSkillLevels) {
                                                                                             field: {
                                                                                                 $toLower: '$$req.k',
                                                                                             },
-                                                                                            input: { $literal: skillLevels },
+                                                                                            input: {
+                                                                                                $literal: skillLevels,
+                                                                                            },
                                                                                         },
                                                                                     },
                                                                                     0,
@@ -989,7 +1021,9 @@ function buildPlayerSkillMatchExpression(skillLevels: PlayerSkillLevels) {
                                                                                                     ],
                                                                                                 },
                                                                                             },
-                                                                                            input: { $literal: skillLevels },
+                                                                                            input: {
+                                                                                                $literal: skillLevels,
+                                                                                            },
                                                                                         },
                                                                                     },
                                                                                     0,

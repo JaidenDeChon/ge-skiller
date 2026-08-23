@@ -52,7 +52,10 @@ describe('pickPreferredItem', () => {
     });
 
     it('falls back to a duplicate when no canonical document exists', () => {
-        const only = [{ id: 1, duplicate: true }, { id: 2, duplicate: true }];
+        const only = [
+            { id: 1, duplicate: true },
+            { id: 2, duplicate: true },
+        ];
         expect(pickPreferredItem(only)?.id).toBe(1);
     });
 

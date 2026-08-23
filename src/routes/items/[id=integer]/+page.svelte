@@ -22,10 +22,20 @@
         getSuppliesForCharacter,
         updateSuppliesForCharacter,
     } from '$lib/stores/bank-items-store';
-    import { getStoreRoot } from '$lib/stores/character-store.svelte';
+    import { getStoreRoot, getActiveAccountType } from '$lib/stores/character-store.svelte';
+    import { canUseGrandExchange } from '$lib/models/account-type';
+    import { NATURE_RUNE_FALLBACK_PRICE, alchemyValueAfterRune } from '$lib/constants/alchemy';
     import { toast } from 'svelte-sonner';
 
-    const { data }: { data: { gameItem: IOsrsboxItemWithMeta | null; showDevControls?: boolean } } = $props();
+    const {
+        data,
+    }: {
+        data: {
+            gameItem: IOsrsboxItemWithMeta | null;
+            natureRunePrice?: number | null;
+            showDevControls?: boolean;
+        };
+    } = $props();
 
     let loading = $state(false);
     let gameItem = $state<IOsrsboxItemWithMeta | null>(data.gameItem ?? null);
@@ -68,6 +78,34 @@
         const price = normalizePrice(gameItem?.lowPrice);
         if (alch === null || alch === undefined || price === null) return null;
         return alch - price;
+    });
+
+    // Which prices apply to the reader. Everything below branches on this one boolean rather than on
+    // the account type, so the four Ironman variants cannot drift apart.
+    const usesGrandExchange = $derived(canUseGrandExchange(getActiveAccountType()));
+    const natureRunePrice = $derived(normalizePrice(data.natureRunePrice) ?? NATURE_RUNE_FALLBACK_PRICE);
+
+    // What an Ironman actually clears by alching, rather than the alch-versus-market-price figure
+    // above. They never bought the item at a market price, so subtracting one tells them nothing.
+    const highAlchValue = $derived(() => alchemyValueAfterRune(gameItem?.highalch, natureRunePrice));
+    const lowAlchValue = $derived(() => alchemyValueAfterRune(gameItem?.lowalch, natureRunePrice));
+
+    const isTradeableOnGe = $derived(gameItem?.tradeable_on_ge !== false);
+    const hasLivePrice = $derived(
+        normalizePrice(gameItem?.highPrice) !== null || normalizePrice(gameItem?.lowPrice) !== null,
+    );
+    // The Grand Exchange card is meaningless for an item that cannot be listed there, and merely
+    // deprioritised for an Ironman looking at one that can — it is still real information, just not
+    // the number they act on.
+    const showGrandExchangeCard = $derived(isTradeableOnGe);
+    const collapseGrandExchangeCard = $derived(isTradeableOnGe && !usesGrandExchange);
+    let grandExchangeOpen = $state(false);
+
+    // Why a price is missing, so a bare dash never reads as broken data.
+    const missingPriceReason = $derived.by(() => {
+        if (hasLivePrice) return null;
+        if (!isTradeableOnGe) return 'Not tradeable';
+        return 'No recent trades';
     });
     const devControlsEnabled = Boolean(data.showDevControls);
 
@@ -305,9 +343,7 @@
         if (!ensureActiveCharacter()) return;
         const itemId = Number(gameItem?.id);
         if (!Number.isFinite(itemId) || !gameItem) return;
-        updateSuppliesForCharacter(activeCharacterId, (items) =>
-            items.filter((entry) => Number(entry.id) !== itemId),
-        );
+        updateSuppliesForCharacter(activeCharacterId, (items) => items.filter((entry) => Number(entry.id) !== itemId));
         toast.success(`Removed ${gameItem.name} from your supplies.`);
         bankDialogOpen = false;
     }
@@ -495,56 +531,75 @@
             <Skeleton class="h-44 w-full" />
             <Skeleton class="h-44 w-full" />
         {:else}
-            <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
-                <div class="flex items-center justify-between p-4 border-b">
-                    <h3 class="text-lg font-semibold">Grand Exchange</h3>
-                </div>
-                <Table.Root>
-                    <Table.Body>
-                        <Table.Row>
-                            <Table.Cell class="font-medium">
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+            {#if showGrandExchangeCard}
+                <section
+                    class="border rounded-lg bg-card shadow-sm overflow-hidden {collapseGrandExchangeCard
+                        ? 'lg:order-last opacity-80'
+                        : ''}"
+                >
+                    <div class="flex items-center justify-between p-4 border-b">
+                        <h3 class="text-lg font-semibold">Grand Exchange</h3>
+                        {#if collapseGrandExchangeCard}
+                            <Button variant="ghost" size="sm" onclick={() => (grandExchangeOpen = !grandExchangeOpen)}>
+                                {grandExchangeOpen ? 'Hide' : 'Show'} Grand Exchange prices
+                            </Button>
+                        {/if}
+                    </div>
+                    {#if !collapseGrandExchangeCard || grandExchangeOpen}
+                        <Table.Root>
+                            <Table.Body>
+                                <Table.Row>
+                                    <Table.Cell class="font-medium">
+                                        <div class="flex items-center gap-2">
+                                            <span
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                            >
+                                                <TrendingUp class="h-4 w-4" />
+                                            </span>
+                                            <span>High price</span>
+                                        </div>
+                                    </Table.Cell>
+                                    <Table.Cell class="text-end">
+                                        {#if missingPriceReason}
+                                            <span class="text-muted-foreground">{missingPriceReason}</span>
+                                        {:else}
+                                            {formatPrice(gameItem?.highPrice)}
+                                        {/if}
+                                    </Table.Cell>
+                                </Table.Row>
+                                <Table.Row>
+                                    <Table.Cell class="font-medium">
+                                        <div class="flex items-center gap-2">
+                                            <span
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                            >
+                                                <TrendingDown class="h-4 w-4" />
+                                            </span>
+                                            <span>Low price</span>
+                                        </div>
+                                    </Table.Cell>
+                                    <Table.Cell class="text-end">{formatPrice(gameItem?.lowPrice)}</Table.Cell>
+                                </Table.Row>
+                                <Table.Row>
+                                    <Table.Cell class="font-medium">
+                                        <div class="flex items-center gap-2">
+                                            <span
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                            >
+                                                <Package class="h-4 w-4" />
+                                            </span>
+                                            <span>Buy limit</span>
+                                        </div>
+                                    </Table.Cell>
+                                    <Table.Cell class="text-end"
+                                        >{formatValue(gameItem?.buyLimit ?? gameItem?.buy_limit, '')}</Table.Cell
                                     >
-                                        <TrendingUp class="h-4 w-4" />
-                                    </span>
-                                    <span>High price</span>
-                                </div>
-                            </Table.Cell>
-                            <Table.Cell class="text-end">{formatPrice(gameItem?.highPrice)}</Table.Cell>
-                        </Table.Row>
-                        <Table.Row>
-                            <Table.Cell class="font-medium">
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                    >
-                                        <TrendingDown class="h-4 w-4" />
-                                    </span>
-                                    <span>Low price</span>
-                                </div>
-                            </Table.Cell>
-                            <Table.Cell class="text-end">{formatPrice(gameItem?.lowPrice)}</Table.Cell>
-                        </Table.Row>
-                        <Table.Row>
-                            <Table.Cell class="font-medium">
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                    >
-                                        <Package class="h-4 w-4" />
-                                    </span>
-                                    <span>Buy limit</span>
-                                </div>
-                            </Table.Cell>
-                            <Table.Cell class="text-end"
-                                >{formatValue(gameItem?.buyLimit ?? gameItem?.buy_limit, '')}</Table.Cell
-                            >
-                        </Table.Row>
-                    </Table.Body>
-                </Table.Root>
-            </section>
+                                </Table.Row>
+                            </Table.Body>
+                        </Table.Root>
+                    {/if}
+                </section>
+            {/if}
 
             <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
                 <div class="flex items-center justify-between p-4 border-b">
@@ -598,7 +653,7 @@
                                             class="h-4 w-4 drop-shadow"
                                         />
                                     </span>
-                                    <span>Store price</span>
+                                    <span>Value</span>
                                 </div>
                             </Table.Cell>
                             <Table.Cell class="text-end">{formatValue(gameItem?.cost)}</Table.Cell>
@@ -617,18 +672,35 @@
             </div>
             <Table.Root>
                 <Table.Body>
+                    {#if usesGrandExchange}
+                        <Table.Row>
+                            <Table.Cell class="font-medium">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                    >
+                                        <ArrowLeftRight class="h-4 w-4" />
+                                    </span>
+                                    <span>GE spread</span>
+                                </div>
+                            </Table.Cell>
+                            <Table.Cell class="text-end">{formatDelta(geSpread())}</Table.Cell>
+                        </Table.Row>
+                    {/if}
                     <Table.Row>
                         <Table.Cell class="font-medium">
                             <div class="flex items-center gap-2">
                                 <span
                                     class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
                                 >
-                                    <ArrowLeftRight class="h-4 w-4" />
+                                    <Coins class="h-4 w-4" />
                                 </span>
-                                <span>GE spread</span>
+                                <span>{usesGrandExchange ? 'High alch profit' : 'High alch value'}</span>
                             </div>
                         </Table.Cell>
-                        <Table.Cell class="text-end">{formatDelta(geSpread())}</Table.Cell>
+                        <Table.Cell class="text-end">
+                            {usesGrandExchange ? formatDelta(highAlchProfit()) : formatValue(highAlchValue())}
+                        </Table.Cell>
                     </Table.Row>
                     <Table.Row>
                         <Table.Cell class="font-medium">
@@ -638,23 +710,12 @@
                                 >
                                     <Coins class="h-4 w-4" />
                                 </span>
-                                <span>High alch profit</span>
+                                <span>{usesGrandExchange ? 'Low alch profit' : 'Low alch value'}</span>
                             </div>
                         </Table.Cell>
-                        <Table.Cell class="text-end">{formatDelta(highAlchProfit())}</Table.Cell>
-                    </Table.Row>
-                    <Table.Row>
-                        <Table.Cell class="font-medium">
-                            <div class="flex items-center gap-2">
-                                <span
-                                    class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                >
-                                    <Coins class="h-4 w-4" />
-                                </span>
-                                <span>Low alch profit</span>
-                            </div>
+                        <Table.Cell class="text-end">
+                            {usesGrandExchange ? formatDelta(lowAlchProfit()) : formatValue(lowAlchValue())}
                         </Table.Cell>
-                        <Table.Cell class="text-end">{formatDelta(lowAlchProfit())}</Table.Cell>
                     </Table.Row>
                 </Table.Body>
             </Table.Root>
