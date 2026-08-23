@@ -78,6 +78,8 @@ export type GameItemCreationSpecs = {
  * @property icon - Item icon encoded as base64. Required; not nullable.
  * @property wiki_name - OSRS Wiki display name. Required; nullable.
  * @property wiki_url - OSRS Wiki URL (may include anchor link). Required; nullable.
+ * @property wiki_page_title - Real, fetchable wiki page title derived from `wiki_url`. Nullable.
+ * @property wiki_version - Infobox version label the item corresponds to, e.g. "Watered". Nullable.
  * @property equipment - Equipment bonuses of equipable armour/weapons. Required; nullable.
  * @property weapon - Weapon bonuses including attack speed, type and stance. Required; nullable.
  */
@@ -112,6 +114,8 @@ export interface IOsrsboxItem {
     icon: string;
     wiki_name: string | null;
     wiki_url: string | null;
+    wiki_page_title?: string | null;
+    wiki_version?: string | null;
     equipment: Record<string, unknown> | null;
     weapon: Record<string, unknown> | null;
     creationSpecs?: GameItemCreationSpecs[];

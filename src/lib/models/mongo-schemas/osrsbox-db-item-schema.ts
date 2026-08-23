@@ -109,6 +109,8 @@ export const osrsboxItemSchema: Schema<OsrsboxItemDocument> = new Schema(
         icon: { type: String, required: true },
         wiki_name: { type: String, default: null },
         wiki_url: { type: String, default: null },
+        wiki_page_title: { type: String, default: null },
+        wiki_version: { type: String, default: null },
         equipment: { type: Schema.Types.Mixed, default: null },
         weapon: { type: Schema.Types.Mixed, default: null },
         highPrice: { type: Number, required: false },

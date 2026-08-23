@@ -7,6 +7,7 @@ import consola from 'consola';
 import logUpdate from 'log-update';
 import { OsrsboxItemModel } from '../src/lib/models/mongo-schemas/osrsbox-db-item-schema';
 import type { IOsrsboxItem } from '../src/lib/models/osrsbox-db-item';
+import { deriveWikiPageIdentity } from '../src/lib/helpers/wiki-page-title';
 
 /**
  * ====================================================================================================================
@@ -149,10 +150,20 @@ async function upsertGameItems(
         // Preserve any existing creationSpecs by never updating them from this source.
         const { creationSpecs, ...itemWithoutCreationSpecs } = item;
 
+        // OSRSBox has no field for the real wiki page title, so derive it on the way in.
+        // Doing it here (rather than only in a repair pass) keeps re-imports correct.
+        const { wikiPageTitle, wikiVersion } = deriveWikiPageIdentity(item);
+
         const update: {
             $set: typeof itemWithoutCreationSpecs;
             $setOnInsert?: { creationSpecs: IOsrsboxItem['creationSpecs'] };
-        } = { $set: itemWithoutCreationSpecs };
+        } = {
+            $set: {
+                ...itemWithoutCreationSpecs,
+                wiki_page_title: wikiPageTitle,
+                wiki_version: wikiVersion,
+            },
+        };
 
         if (creationSpecs !== undefined) {
             update.$setOnInsert = { creationSpecs };
