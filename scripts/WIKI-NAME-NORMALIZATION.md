@@ -265,6 +265,30 @@ Note that the variant and product fixes above change what a re-scrape produces f
 that already have specs, so `--skip-existing` no longer covers the whole job: the 1,838
 versioned items holding a sibling variant's recipe need a refresh, not a skip.
 
+### The whole rebuild in one command
+
+`bun run promote-db` runs the sequence end to end — back up, re-scrape, repoint ingredient
+links, report cycles, recompute tree skills, then copy to prod and refresh its prices. It
+rebuilds on **`osrsbox-dev`** and never writes the master DB, so `osrsbox` stays a rollback
+for the whole operation; sync it from dev afterwards, once prod looks right.
+
+```bash
+bun run promote-db                       # plan: reports every phase, writes nothing
+bun run promote-db -- --apply            # rebuild osrsbox-dev, stop before prod
+bun run promote-db -- --apply --promote  # ...and push dev through to prod
+```
+
+Nothing is written without `--apply` and prod is never touched without `--promote`. Cycle
+removal only reports unless `--with-cycles` is passed, because it deletes whole
+`creationSpecs` entries to break a loop. Every phase streams under a heartbeat — a line at
+least every `--heartbeat` seconds — and the whole run is appended to a timestamped log in
+`scripts/`, so it can be followed from another shell with `tail -f`.
+
+The backup phase writes an EJSON dump of every `creationSpecs` array before anything else
+runs. `bun run restore-creation-specs -- --db=<db> --file=<dump> --apply` puts it back;
+without `--apply` it reports what it would write and checks that every reference revives as
+a real ObjectId.
+
 ## Applied
 
 Run against the `osrsbox` master DB on 2026-08-21. Live results matched the offline
