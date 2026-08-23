@@ -198,6 +198,17 @@
         return resolveIngredientUnitPrice(item);
     }
 
+    /**
+     * A row's display name, or a placeholder when the tree stopped short of loading it.
+     *
+     * The builder caps how much of a recipe it materializes, so a deep or heavily
+     * cross-linked branch can arrive as a bare id. Such a row has no price either, which
+     * already makes the total read as unknown — this just stops the cell rendering blank.
+     */
+    function rowLabel(row: CostRow): string {
+        return row.item?.name ?? 'Unknown item';
+    }
+
     function formatNumber(value: number | null | undefined) {
         if (value === null || value === undefined) return '—';
         return Math.round(value).toLocaleString();
@@ -248,10 +259,10 @@
                                 href={resolve(`/items/${row.item.id}`)}
                                 data-sveltekit-preload-data="hover"
                             >
-                                {row.item.name}
+                                {rowLabel(row)}
                             </a>
                         {:else}
-                            {row.item.name}
+                            {rowLabel(row)}
                         {/if}
                     </Table.Cell>
                     <Table.Cell class="text-end">{formatNumber(row.amount)}</Table.Cell>
