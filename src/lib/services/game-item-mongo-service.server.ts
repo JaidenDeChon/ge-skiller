@@ -26,6 +26,30 @@ export type PaginatedGameItems = {
 };
 
 /**
+ * The fields the ingredient tree is actually read for.
+ *
+ * A tree node is a whole OSRSBox document by default, and most of that document — combat
+ * bonuses, wiki links, release dates, linked ids — is never rendered. Sending it anyway
+ * cost roughly 40% of a payload that already reaches 1.5MB on the worst items, multiplied
+ * by every repeated node. `tradeable_on_ge` and `name` are here for
+ * `resolveIngredientUnitPrice`, which the cost table applies per row.
+ */
+const TREE_NODE_PROJECTION = {
+    _id: 1,
+    id: 1,
+    name: 1,
+    icon: 1,
+    examine: 1,
+    highPrice: 1,
+    lowPrice: 1,
+    highalch: 1,
+    lowalch: 1,
+    cost: 1,
+    tradeable_on_ge: 1,
+    creationSpecs: 1,
+} as const;
+
+/**
  * Populates nested ingredient trees so the frontend can render a full org chart.
  */
 export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxItemWithMeta | null> {
@@ -41,7 +65,7 @@ export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxI
         query.id = trimmedId;
     }
 
-    const root = await OsrsboxItemModel.findOne(query)
+    const root = await OsrsboxItemModel.findOne(query, TREE_NODE_PROJECTION)
         .lean<IOsrsboxItemWithMeta & { _id: Types.ObjectId }>()
         .exec();
     if (!root) return null;
@@ -54,7 +78,10 @@ export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxI
         const missing = Array.from(new Set(frontier)).filter((id) => !cache.has(id));
         if (!missing.length) break;
 
-        const docs = await OsrsboxItemModel.find({ _id: { $in: missing.map((id) => new Types.ObjectId(id)) } })
+        const docs = await OsrsboxItemModel.find(
+            { _id: { $in: missing.map((id) => new Types.ObjectId(id)) } },
+            TREE_NODE_PROJECTION,
+        )
             .lean<(IOsrsboxItemWithMeta & { _id: Types.ObjectId })[]>()
             .exec();
 
