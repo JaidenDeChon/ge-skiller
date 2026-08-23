@@ -29,12 +29,17 @@
         { value: 'nonquest', label: 'Non-quest items' },
     ];
     const sortOptions = [
+        { value: 'roi-desc', label: 'Sort by ROI (percentage)' },
+        { value: 'roi-value-desc', label: 'Sort by ROI (value)' },
         { value: 'desc', label: 'Sort by value' },
-        { value: 'profit-desc', label: 'Sort by profit' },
-        { value: 'roi-desc', label: 'Sort by best ROI' },
     ];
     // Sort orders that are computed from creation cost, so they need profit mode turned on.
-    const profitSortValues = ['profit-desc', 'roi-desc'];
+    const profitSortValues = ['roi-desc', 'roi-value-desc'];
+    // Retired sort orders still sitting in persisted preferences or bookmarked URLs.
+    const legacySortValues: Record<string, string> = {
+        'profit-asc': 'roi-value-desc',
+        'profit-desc': 'roi-value-desc',
+    };
 
     function normalizeSkillLevels(skillLevels?: CharacterProfile['skillLevels'], hasCharacter = true) {
         if (!hasCharacter) return undefined;
@@ -327,8 +332,10 @@
     }
 
     function normalizeSortSelection(value?: string | null, profitEnabled = profitModeChecked) {
-        if (value && profitSortValues.includes(value)) {
-            return profitEnabled ? value : 'desc';
+        if (!value) return 'desc';
+        const resolved = legacySortValues[value] ?? value;
+        if (profitSortValues.includes(resolved)) {
+            return profitEnabled ? resolved : 'desc';
         }
         return 'desc';
     }
@@ -554,7 +561,7 @@
                         aria-label="Enable profit mode"
                     />
                     <Label for="profit-mode-switch" class="cursor-pointer select-none text-sm">
-                        Show profit <span class="text-xs text-muted-foreground">(enables profit sorting)</span>
+                        Show profit <span class="text-xs text-muted-foreground">(enables ROI sorting)</span>
                     </Label>
                 </div>
             </div>

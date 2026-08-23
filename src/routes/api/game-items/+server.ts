@@ -2,6 +2,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import {
     getGameItems,
     getPaginatedGameItems,
+    parseSortOrder,
     type GameItemFilter,
     type GameItemSortOrder,
     type PlayerSupplies,
@@ -21,15 +22,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const page = Number(url.searchParams.get('page')) || 1;
     const perPage = Number(url.searchParams.get('perPage')) || 50;
     const filter = (url.searchParams.get('filter') ?? undefined) as GameItemFilter | undefined;
-    const orderParam = url.searchParams.get('order');
-    const normalizedOrder = orderParam === 'profit-asc' ? 'profit-desc' : orderParam;
-    const sortOrder: GameItemSortOrder =
-        normalizedOrder === 'asc' ||
-        normalizedOrder === 'desc' ||
-        normalizedOrder === 'profit-desc' ||
-        normalizedOrder === 'roi-desc'
-            ? normalizedOrder
-            : 'desc';
+    const sortOrder: GameItemSortOrder = parseSortOrder(url.searchParams.get('order'));
     const skill = url.searchParams.get('skill');
     const skillLevelsParam = url.searchParams.get('skillLevels');
     let skillLevels: PlayerSkillLevels | undefined;
