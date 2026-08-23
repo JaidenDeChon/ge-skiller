@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { skillTreeSlugs } from '$lib/constants/skill-tree-pages';
 import { MAX_ITEM_TREE_DEPTH, MAX_ITEM_TREE_NODES } from '$lib/constants/item-tree';
 import { OsrsboxItemModel, type OsrsboxItemDocument } from '$lib/models/mongo-schemas/osrsbox-db-item-schema';
+import { NATURE_RUNE_FALLBACK_PRICE, NATURE_RUNE_ITEM_ID } from '$lib/constants/alchemy';
 import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 import { currencyItemNames } from '$lib/helpers/ingredient-price';
 
@@ -10,6 +11,8 @@ type GameItemDoc = OsrsboxItemDocument & {
     creationCost?: number | null;
     creationProfit?: number | null;
     creationRoi?: number | null;
+    /** What the item is realistically worth to an account that cannot trade. Ironman mode only. */
+    ironmanExitValue?: number | null;
 };
 const MAX_INGREDIENT_DEPTH = MAX_ITEM_TREE_DEPTH;
 
@@ -23,6 +26,37 @@ const LEGACY_SORT_ORDERS: Record<string, GameItemSortOrder> = {
 };
 export type PlayerSkillLevels = Record<string, number>;
 export type PlayerSupplies = Record<string, number>;
+
+/**
+ * The live nature rune price, cached briefly.
+ *
+ * Every Ironman valuation is net of the rune an alchemy cast burns, so this is read once and reused
+ * across the documents in a request rather than hardcoded — a fixed gp figure goes stale as soon as
+ * the market moves. A failed read falls back to the documented default rather than pricing the rune
+ * at zero, which would overstate every value on the page.
+ */
+let natureRunePriceCache: { price: number; readAt: number } | null = null;
+const NATURE_RUNE_CACHE_MS = 5 * 60 * 1000;
+
+async function getNatureRunePrice(): Promise<number> {
+    if (natureRunePriceCache && Date.now() - natureRunePriceCache.readAt < NATURE_RUNE_CACHE_MS) {
+        return natureRunePriceCache.price;
+    }
+
+    try {
+        const rune = await OsrsboxItemModel.findOne({ id: NATURE_RUNE_ITEM_ID })
+            .select({ highPrice: 1, lowPrice: 1 })
+            .lean<{ highPrice?: number; lowPrice?: number }>()
+            .exec();
+
+        const price = rune?.highPrice ?? rune?.lowPrice ?? null;
+        const resolved = typeof price === 'number' && price > 0 ? price : NATURE_RUNE_FALLBACK_PRICE;
+        natureRunePriceCache = { price: resolved, readAt: Date.now() };
+        return resolved;
+    } catch {
+        return NATURE_RUNE_FALLBACK_PRICE;
+    }
+}
 
 export type PaginatedGameItems = {
     items: GameItemDoc[];
@@ -333,8 +367,9 @@ export async function getPaginatedGameItems(params?: {
     // cost — and with it their ROI — is zero for every survivor. Filtering on ROI as well would
     // leave nothing at all, so skip it there and let the sort fall through to profit instead.
     const filterMissingRoi = roiSort && !enforceSupplies;
+    const natureRunePrice = ironman && shouldComputeProfit ? await getNatureRunePrice() : NATURE_RUNE_FALLBACK_PRICE;
     const profitStages = shouldComputeProfit
-        ? buildProfitPipeline(supplyMap, profitDrivenSort, enforceSupplies, filterMissingRoi)
+        ? buildProfitPipeline(supplyMap, profitDrivenSort, enforceSupplies, filterMissingRoi, ironman, natureRunePrice)
         : [];
     const supplyStages = !profitDrivenSort && suppliesFilterActive ? buildSuppliesFilterPipeline(supplyMap) : [];
     // Profit only needs to be computed for every candidate when it drives the sort order;
@@ -517,11 +552,13 @@ function normalizeSupplies(supplies?: PlayerSupplies | null): PlayerSupplies | n
     return Object.fromEntries(entries);
 }
 
-function buildProfitPipeline(
+export function buildProfitPipeline(
     supplies?: PlayerSupplies | null,
     filterMissingProfit: boolean = false,
     enforceSupplies: boolean = false,
     filterMissingRoi: boolean = false,
+    ironman: boolean = false,
+    natureRunePrice: number = NATURE_RUNE_FALLBACK_PRICE,
 ): Record<string, unknown>[] {
     const supplyMap = supplies ?? normalizeSupplies(supplies);
     const hasSupplies = enforceSupplies || Boolean(supplyMap);
@@ -553,7 +590,7 @@ function buildProfitPipeline(
     const costIsPriceExpr = {
         $or: [{ $eq: ['$$matched.tradeable_on_ge', true] }, { $in: ['$$matched.name', currencyItemNames] }],
     };
-    const unitPriceExpr = {
+    const geUnitPriceExpr = {
         $ifNull: [
             '$$matched.highPrice',
             {
@@ -561,7 +598,37 @@ function buildProfitPipeline(
             },
         ],
     };
-    const outputPriceExpr = { $ifNull: ['$highPrice', { $ifNull: ['$lowPrice', '$cost'] }] };
+    const geOutputPriceExpr = { $ifNull: ['$highPrice', { $ifNull: ['$lowPrice', '$cost'] }] };
+
+    /**
+     * What an item is worth to an account that cannot trade, as an aggregation expression.
+     *
+     * Mirrors `resolveIronmanUnitValue` so the browse list, the item page and the cost table all
+     * agree. Alchemy net of the nature rune is the value; currency keeps its `cost` because coins
+     * are money; anything the app cannot value stays null so it drops out of the ROI sort rather
+     * than ranking on an invented number.
+     */
+    const ironmanValueExpr = (alchField: string, nameField: string, costField: string) => ({
+        $cond: [
+            { $in: [nameField, currencyItemNames] },
+            { $ifNull: [costField, null] },
+            {
+                $cond: [
+                    { $gt: [{ $ifNull: [alchField, 0] }, 0] },
+                    { $max: [0, { $subtract: [alchField, natureRunePrice] }] },
+                    null,
+                ],
+            },
+        ],
+    });
+
+    // Ironman mode swaps what both sides of the recipe are priced at, not just what is displayed.
+    // Leaving these on Grand Exchange prices is what made the browse ranking identical in both
+    // modes: the numbers on the cards changed, the order they came back in did not.
+    const unitPriceExpr = ironman
+        ? ironmanValueExpr('$$matched.highalch', '$$matched.name', '$$matched.cost')
+        : geUnitPriceExpr;
+    const outputPriceExpr = ironman ? ironmanValueExpr('$highalch', '$name', '$cost') : geOutputPriceExpr;
     const ingredientCostRowsExpr = {
         $map: {
             input: '$consumedIngredients',
@@ -684,7 +751,18 @@ function buildProfitPipeline(
                 localField: 'consumedIngredientIds',
                 foreignField: '_id',
                 pipeline: [
-                    { $project: { _id: 1, id: 1, name: 1, highPrice: 1, lowPrice: 1, cost: 1, tradeable_on_ge: 1 } },
+                    {
+                        $project: {
+                            _id: 1,
+                            id: 1,
+                            name: 1,
+                            highPrice: 1,
+                            lowPrice: 1,
+                            cost: 1,
+                            highalch: 1,
+                            tradeable_on_ge: 1,
+                        },
+                    },
                 ],
                 as: 'ingredientItems',
             },
@@ -703,7 +781,11 @@ function buildProfitPipeline(
                 creationProfit: {
                     $cond: [
                         {
-                            $and: [{ $gt: ['$outputPrice', 0] }, { $ne: ['$creationCost', null] }],
+                            $and: [
+                                { $ne: ['$outputPrice', null] },
+                                { $gt: ['$outputPrice', 0] },
+                                { $ne: ['$creationCost', null] },
+                            ],
                         },
                         { $subtract: ['$outputPrice', '$creationCost'] },
                         null,
@@ -739,6 +821,12 @@ function buildProfitPipeline(
 
     if (enforceSupplies && hasSupplies) {
         pipeline.push({ $match: { $expr: suppliesSatisfiedExpr } });
+    }
+
+    if (ironman) {
+        // The card's headline number. Kept as its own field rather than reusing `outputPrice`,
+        // which is scratch state the $unset below clears.
+        pipeline.push({ $set: { ironmanExitValue: '$outputPrice' } });
     }
 
     pipeline.push({

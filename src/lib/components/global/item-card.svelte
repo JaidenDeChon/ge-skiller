@@ -38,6 +38,7 @@
         allowHide = true,
         showProfit = false,
         profitContext = 'Profit',
+        ironman = false,
     } = $props<{
         item?: IGameItem;
         loading?: boolean;
@@ -46,20 +47,24 @@
         allowHide?: boolean;
         showProfit?: boolean;
         profitContext?: string;
+        ironman?: boolean;
     }>();
 
     let timeSincePriceTime = $state('Calculating...');
-    // Why a price is missing. Untradeables reach the browse list under Ironman mode, and a bare dash
-    // with no explanation reads as broken data rather than as a fact about the item.
-    const missingPriceReason = $derived.by(() => {
-        if (hasPrice) return null;
-        if (item.tradeable_on_ge === false) return 'Not tradeable';
-        return 'No recent trades';
-    });
     const iconSrc = $derived(iconToDataUri(item.icon));
     const priceValue = $derived(resolveDisplayPrice(item));
     const hasPrice = $derived(priceValue !== null);
     const formattedPrice = $derived(hasPrice ? formatWithCommas(priceValue!) : '—');
+    // Why a price is missing. Untradeables reach the browse list under Ironman mode, and a bare dash
+    // with no explanation reads as broken data rather than as a fact about the item.
+    const missingPriceReason = $derived.by(() => {
+        if (hasPrice) return null;
+        if (ironman) return 'No sell value';
+        if (item.tradeable_on_ge === false) return 'Not tradeable';
+        return 'No recent trades';
+    });
+    // Where an Ironman value came from. Shop names join this once shop data is scraped.
+    const valueSourceLabel = $derived(ironman && hasPrice ? 'High alch' : null);
     const priceTime = $derived(resolveDisplayTime(item));
     const profitValue = $derived(resolveProfit(item));
     const hasProfit = $derived(typeof profitValue === 'number' && Number.isFinite(profitValue));
@@ -78,7 +83,9 @@
     });
 
     function resolveDisplayPrice(item: IGameItem): number | null {
-        const price = item.highPrice ?? item.lowPrice ?? null;
+        // An Ironman cannot realise a Grand Exchange price, so showing one as the headline number
+        // states a value they can never get. The server sends what they can actually clear.
+        const price = ironman ? item.ironmanExitValue : (item.highPrice ?? item.lowPrice ?? null);
         if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return null;
         return price;
     }
@@ -176,7 +183,11 @@
                 <p class="text-2xl font-bold animate-fade-in">
                     <span class="text-primary">{formattedPrice}</span>{#if hasPrice}gp{/if}
                 </p>
-                {#if priceTime}
+                {#if valueSourceLabel}
+                    <p class="text-muted-foreground text-xs animate-fade-in">
+                        {valueSourceLabel}
+                    </p>
+                {:else if priceTime && !ironman}
                     <p class="text-muted-foreground text-xs animate-fade-in">
                         {timeSincePriceTime}
                     </p>

@@ -104,7 +104,10 @@
     );
     const sortLabel = $derived(sortOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Sort items');
     const profitModeEnabled = $derived(profitModeChecked);
-    const profitContextLabel = $derived(profitModeEnabled && useSuppliesChecked ? 'Profit (supplies)' : 'Profit');
+    const profitContextLabel = $derived.by(() => {
+        const base = ironmanMode ? 'Ironman profit' : 'Profit';
+        return profitModeEnabled && useSuppliesChecked ? `${base} (supplies)` : base;
+    });
     const suppliesParam = $derived.by(() => {
         if (!useSuppliesChecked) return null;
         const entries: Array<[string, number]> = [];
@@ -647,6 +650,7 @@
                         allowFavorite={true}
                         showProfit={profitModeEnabled}
                         profitContext={profitContextLabel}
+                        ironman={ironmanMode}
                     />
                 {/each}
             {/if}

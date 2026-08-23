@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { isCurrencyItem, resolveIngredientUnitPrice } from './ingredient-price';
+import { isCurrencyItem, resolveIngredientUnitPrice, resolveIronmanUnitValue } from './ingredient-price';
 
 describe('resolveIngredientUnitPrice', () => {
     it('prefers the live high price', () => {
@@ -60,5 +60,49 @@ describe('isCurrencyItem', () => {
         expect(isCurrencyItem('coins')).toBe(false);
         expect(isCurrencyItem(null)).toBe(false);
         expect(isCurrencyItem(undefined)).toBe(false);
+    });
+});
+
+describe('resolveIronmanUnitValue', () => {
+    // A Grand Exchange price is a number an Ironman can never realise, so it must not leak in.
+    it('ignores the Grand Exchange price entirely', () => {
+        expect(
+            resolveIronmanUnitValue(
+                { name: 'Adamant platebody', tradeable_on_ge: true, cost: 6400, highPrice: 9999, highalch: 3840 },
+                100,
+            ),
+        ).toBe(3740);
+    });
+
+    it('nets the alchemy value against the nature rune', () => {
+        expect(resolveIronmanUnitValue({ name: 'Rune scimitar', highalch: 900 }, 100)).toBe(800);
+    });
+
+    // Nobody is obliged to alch at a loss, so the value floors at zero rather than going negative.
+    it('floors a losing cast at zero', () => {
+        expect(resolveIronmanUnitValue({ name: 'Bronze dagger', highalch: 6 }, 100)).toBe(0);
+    });
+
+    // Unknown and worthless are different claims. Shop prices may yet value these, so nulling keeps
+    // them out of the ROI sort instead of ranking them on a number the app invented.
+    it('reports no value when the item cannot be alched', () => {
+        expect(resolveIronmanUnitValue({ name: 'Oak seedling (w)', cost: 1 }, 100)).toBeNull();
+        expect(resolveIronmanUnitValue({ name: 'Oak seedling (w)', cost: 1, highalch: 0 }, 100)).toBeNull();
+    });
+
+    // Coins are money whoever is holding them, the same exception the GE pricing path makes.
+    it('prices currency at its cost', () => {
+        expect(resolveIronmanUnitValue({ name: 'Coins', cost: 1, tradeable_on_ge: false }, 100)).toBe(1);
+    });
+
+    it('reports no value for a missing item', () => {
+        expect(resolveIronmanUnitValue(null, 100)).toBeNull();
+    });
+
+    // The rune price moves with the market, so the same item is worth less when runes cost more.
+    it('tracks the nature rune price it is given', () => {
+        const item = { name: 'Rune scimitar', highalch: 900 };
+        expect(resolveIronmanUnitValue(item, 100)).toBe(800);
+        expect(resolveIronmanUnitValue(item, 250)).toBe(650);
     });
 });
