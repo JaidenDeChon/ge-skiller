@@ -14,7 +14,13 @@ type GameItemDoc = OsrsboxItemDocument & {
 const MAX_INGREDIENT_DEPTH = MAX_ITEM_TREE_DEPTH;
 
 export type GameItemFilter = 'all' | 'members' | 'f2p' | 'equipable' | 'stackable' | 'quest' | 'nonquest';
-export type GameItemSortOrder = 'asc' | 'desc' | 'profit-desc' | 'roi-desc';
+export type GameItemSortOrder = 'asc' | 'desc' | 'roi-desc' | 'roi-value-desc';
+
+/** Sort orders that used to be exposed, kept working for bookmarked URLs and persisted preferences. */
+const LEGACY_SORT_ORDERS: Record<string, GameItemSortOrder> = {
+    'profit-asc': 'roi-value-desc',
+    'profit-desc': 'roi-value-desc',
+};
 export type PlayerSkillLevels = Record<string, number>;
 export type PlayerSupplies = Record<string, number>;
 
@@ -275,12 +281,12 @@ export async function getPaginatedGameItems(params?: {
     const perPage = Math.max(1, Math.min(200, params?.perPage ?? 12));
     const skip = (page - 1) * perPage;
     const filter = normalizeFilter(params?.filter);
-    const sortOrder = normalizeSortOrder(params?.sortOrder);
+    const sortOrder = parseSortOrder(params?.sortOrder);
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
-    const profitSort = sortOrder === 'profit-desc';
+    const roiValueSort = sortOrder === 'roi-value-desc';
     const roiSort = sortOrder === 'roi-desc';
-    // Both profit and ROI sorts are driven by the same creation-cost pipeline.
-    const profitDrivenSort = profitSort || roiSort;
+    // Both ROI sorts are driven by the same creation-cost pipeline.
+    const profitDrivenSort = roiValueSort || roiSort;
     const profitMode = Boolean(params?.profitMode);
     const baseFilterQuery = getFilterQuery(filter);
     const skillQuery = getSkillMatchQuery(params?.skill);
@@ -327,8 +333,8 @@ export async function getPaginatedGameItems(params?: {
     const profitStagesAfterPagination = profitDrivenSort ? [] : profitStages;
     const sortStage = roiSort
         ? { creationRoi: sortDirection, creationProfit: -1, highPrice: -1, cost: -1, name: 1 }
-        : profitSort
-          ? { creationProfit: sortDirection, highPrice: -1, cost: -1, name: 1 }
+        : roiValueSort
+          ? { creationProfit: sortDirection, creationRoi: -1, highPrice: -1, cost: -1, name: 1 }
           : { highPrice: sortDirection, cost: sortDirection, name: 1 };
 
     const [{ items, total = 0 } = { items: [], total: 0 }] = await OsrsboxItemModel.aggregate<{
@@ -418,10 +424,15 @@ function escapeRegex(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function normalizeSortOrder(sortOrder?: GameItemSortOrder): GameItemSortOrder {
-    const allowed: GameItemSortOrder[] = ['asc', 'desc', 'profit-desc', 'roi-desc'];
+/**
+ * Resolves an arbitrary sort-order string (query param, persisted preference) to a supported
+ * sort order, translating retired values and falling back to the default high-price sort.
+ */
+export function parseSortOrder(sortOrder?: string | null): GameItemSortOrder {
     if (!sortOrder) return 'desc';
-    return allowed.includes(sortOrder) ? sortOrder : 'desc';
+    const resolved = LEGACY_SORT_ORDERS[sortOrder] ?? sortOrder;
+    const allowed: GameItemSortOrder[] = ['asc', 'desc', 'roi-desc', 'roi-value-desc'];
+    return allowed.includes(resolved as GameItemSortOrder) ? (resolved as GameItemSortOrder) : 'desc';
 }
 
 function normalizeFilter(filter?: GameItemFilter): GameItemFilter {
