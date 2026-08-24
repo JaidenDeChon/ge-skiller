@@ -175,7 +175,7 @@
         const { item: resolvedItem, itemId: resolvedItemId } = extractItemDescriptor(rawItem);
         const ingredientItem =
             resolvedItemId !== null && resolvedItemId !== undefined
-                ? expandedItemCache[String(resolvedItemId)] ?? resolvedItem
+                ? (expandedItemCache[String(resolvedItemId)] ?? resolvedItem)
                 : resolvedItem;
         const ingredientId = resolvedItemId ?? `unknown-${index}`;
         const key = `${parentKey}-${ingredientId}-${index}`;
@@ -231,9 +231,7 @@
         };
     }
 
-    function extractItemDescriptor(
-        raw: unknown,
-    ): { item?: IOsrsboxItemWithMeta; itemId: string | number | null } {
+    function extractItemDescriptor(raw: unknown): { item?: IOsrsboxItemWithMeta; itemId: string | number | null } {
         if (!raw) return { itemId: null };
         if (typeof raw === 'string' || typeof raw === 'number') {
             return { itemId: raw };
@@ -242,8 +240,7 @@
 
         const maybeItem = raw as IOsrsboxItemWithMeta & { _id?: unknown; id?: unknown };
         const hasName = 'name' in maybeItem && typeof maybeItem.name === 'string';
-        const directId =
-            typeof maybeItem.id === 'string' || typeof maybeItem.id === 'number' ? maybeItem.id : null;
+        const directId = typeof maybeItem.id === 'string' || typeof maybeItem.id === 'number' ? maybeItem.id : null;
         const objectId = extractObjectId(maybeItem._id ?? (raw as { $oid?: unknown }).$oid ?? raw);
         const itemId = directId ?? objectId;
 
@@ -573,8 +570,9 @@
         if (!itemId) return;
 
         const nativeEvent = params?.event?.event;
-        const hasModifier =
-            Boolean(nativeEvent?.altKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey || nativeEvent?.shiftKey);
+        const hasModifier = Boolean(
+            nativeEvent?.altKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey || nativeEvent?.shiftKey,
+        );
         if (collapseNodesOnClick && params?.data?.hasLazyChildren && params?.data?.nodeKey && !hasModifier) {
             const key = String(params.data.nodeKey);
             if (!expandedSupplyNodes[key]) {

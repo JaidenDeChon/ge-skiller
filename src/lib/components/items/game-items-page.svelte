@@ -8,11 +8,8 @@
     import { defaultSkillLevels } from '$lib/constants/default-skill-levels';
     import type { SkillTreePage } from '$lib/constants/skill-tree-pages';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
-    import {
-        bankItemsStore,
-        ensureSuppliesForCharacter,
-        getSuppliesForCharacter,
-    } from '$lib/stores/bank-items-store';
+    import { canUseGrandExchange, getAccountTypeOption } from '$lib/models/account-type';
+    import { bankItemsStore, ensureSuppliesForCharacter, getSuppliesForCharacter } from '$lib/stores/bank-items-store';
     import { filterItemsStore } from '$lib/stores/filter-items-by-player-levels';
     import { itemsPagePreferences } from '$lib/stores/items-page-preferences';
     import type { IGameItem } from '$lib/models/game-item';
@@ -68,6 +65,10 @@
         return characters.find((c) => String(c.id) === String(targetId));
     });
     const activeSkillLevels = $derived(normalizeSkillLevels(activeCharacter?.skillLevels, Boolean(activeCharacter)));
+    // Pricing follows the active character rather than a page toggle, so browsing, an item page and
+    // search cannot disagree about which prices the reader is looking at.
+    const ironmanMode = $derived(!canUseGrandExchange(activeCharacter?.accountType));
+    const activeAccountType = $derived(getAccountTypeOption(activeCharacter?.accountType));
     let skillFilterChecked = $state($filterItemsStore.filterItemsByPlayerLevels);
     const skillFilterEnabled = $derived(Boolean(skillFilterChecked && activeSkillLevels));
     const skillLevelsForQuery = $derived(skillFilterEnabled ? activeSkillLevels : undefined);
@@ -101,11 +102,12 @@
     const filterLabel = $derived(
         filterOptions.find((option) => option.value === filterSelected)?.label ?? 'Filter items',
     );
-    const sortLabel = $derived(
-        sortOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Sort items',
-    );
+    const sortLabel = $derived(sortOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Sort items');
     const profitModeEnabled = $derived(profitModeChecked);
-    const profitContextLabel = $derived(profitModeEnabled && useSuppliesChecked ? 'Profit (supplies)' : 'Profit');
+    const profitContextLabel = $derived.by(() => {
+        const base = ironmanMode ? 'Ironman profit' : 'Profit';
+        return profitModeEnabled && useSuppliesChecked ? `${base} (supplies)` : base;
+    });
     const suppliesParam = $derived.by(() => {
         if (!useSuppliesChecked) return null;
         const entries: Array<[string, number]> = [];
@@ -203,6 +205,7 @@
         supplies?: string | null,
         suppliesEnabled?: boolean,
         profitMode?: boolean,
+        ironman?: boolean,
     ) {
         if (listAbort) listAbort.abort();
         const controller = new AbortController();
@@ -218,6 +221,7 @@
             supplies,
             suppliesEnabled,
             profitMode,
+            ironman,
         });
         const cached = !skipCacheOnce && !shouldForceLoading ? readItemsCache(cacheKey) : null;
         skipCacheOnce = false;
@@ -255,6 +259,9 @@
             }
             if (profitMode) {
                 searchParams.set('profitMode', '1');
+            }
+            if (ironman) {
+                searchParams.set('ironman', '1');
             }
 
             const response = await fetch(`/api/game-items?${searchParams.toString()}`, {
@@ -302,6 +309,7 @@
             suppliesParam,
             suppliesActive,
             profitModeEnabled,
+            ironmanMode,
         );
     });
 
@@ -414,6 +422,7 @@
         supplies?: string | null;
         suppliesEnabled?: boolean;
         profitMode?: boolean;
+        ironman?: boolean;
     }) {
         if (typeof window === 'undefined') return '';
         const normalizedSkills = normalizeRecord(params.skillLevels);
@@ -427,6 +436,7 @@
             supplies: params.supplies ?? null,
             useSupplies: params.suppliesEnabled ?? useSuppliesChecked,
             profitMode: params.profitMode ?? profitModeChecked,
+            ironman: params.ironman ?? ironmanMode,
         };
         return `ge-skiller:items-cache:${JSON.stringify(payload)}`;
     }
@@ -468,6 +478,18 @@
             <h1 class="text-3xl font-bold">{headingLabel}</h1>
         </div>
     </div>
+
+    {#if ironmanMode}
+        <div class="content-sizing">
+            <div class="mb-4 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+                <span class="font-semibold">You're in {activeAccountType.label} mode.</span>
+                <span class="text-muted-foreground">
+                    The GP values shown in Ironman mode are derived from alchemy and base shop values (e.g. before the
+                    shop value of an item drops from selling multiple).
+                </span>
+            </div>
+        </div>
+    {/if}
 
     <div class="border-b border-border">
         <div class="content-sizing">
@@ -628,6 +650,7 @@
                         allowFavorite={true}
                         showProfit={profitModeEnabled}
                         profitContext={profitContextLabel}
+                        ironman={ironmanMode}
                     />
                 {/each}
             {/if}

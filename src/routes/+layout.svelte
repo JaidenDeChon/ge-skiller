@@ -30,7 +30,6 @@
     });
 </script>
 
-
 <svelte:head>
     <title>{shareTitle}</title>
     <meta name="description" content={shareDescription} />

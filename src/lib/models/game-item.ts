@@ -69,6 +69,7 @@ export type IGameItem = {
         creationCost?: number | null;
         creationProfit?: number | null;
         creationRoi?: number | null;
+        ironmanExitValue?: number | null;
     };
 
 /**

@@ -7,6 +7,7 @@
  * "Oak seedling (w)" carries `cost: 1`, and spending that made saplings look like a
  * 31,500% return.
  */
+import { NATURE_RUNE_FALLBACK_PRICE, alchemyValueAfterRune } from '$lib/constants/alchemy';
 import type { IOsrsboxItem } from '$lib/models/osrsbox-db-item';
 
 /**
@@ -54,4 +55,35 @@ export function resolveIngredientUnitPrice(item?: PricedItem | null): number | n
     const price = item.highPrice ?? item.lowPrice ?? usableCost;
 
     return typeof price === 'number' ? price : null;
+}
+
+/**
+ * What one unit of an item is worth to an account that cannot trade.
+ *
+ * An Ironman's only reliable exit is alchemy, so the alchemy value net of the nature rune the cast
+ * burns is what the item is really worth to them — the Grand Exchange price is a number they can
+ * never realise. Currency is the exception for the same reason it is in
+ * {@link resolveIngredientUnitPrice}: coins are money, and 5 coins is 5gp whoever is holding them.
+ *
+ * Returns null rather than 0 when nothing values the item. Unknown and worthless are different
+ * claims, and shop prices — which will join this function once scraped — may yet value it. Nulling
+ * keeps the item out of the ROI sort instead of ranking it on a number the app invented.
+ *
+ * A cast that costs more than it returns nets 0, not a negative: nobody is obliged to alch.
+ * @param item - The item document, or null when it could not be resolved.
+ * @param natureRunePrice - What a nature rune costs.
+ * @returns Value in gp, or null when nothing the app knows about values the item.
+ */
+export function resolveIronmanUnitValue(
+    item?: (PricedItem & { highalch?: number | null }) | null,
+    natureRunePrice: number = NATURE_RUNE_FALLBACK_PRICE,
+): number | null {
+    if (!item) return null;
+
+    if (isCurrencyItem(item.name)) return item.cost ?? null;
+
+    const alchemyNet = alchemyValueAfterRune(item.highalch, natureRunePrice);
+    if (alchemyNet === null) return null;
+
+    return Math.max(0, alchemyNet);
 }
