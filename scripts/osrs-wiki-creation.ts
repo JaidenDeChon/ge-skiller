@@ -5,6 +5,49 @@ import * as cheerio from 'cheerio';
  */
 const OSRS_WIKI_API = 'https://oldschool.runescape.wiki/api.php';
 
+/**
+ * Minimum gap between wiki requests, in milliseconds.
+ *
+ * A full rescrape previously ran unthrottled at roughly 349 req/min (~3.2 wiki calls per
+ * item at 1.8 items/sec), which earned a burst of 403s about four hours in — 427 items
+ * were skipped before the run was stopped. 400ms holds the pass to ~150 req/min, well
+ * under the rate that drew the block.
+ *
+ * Override with WIKI_MIN_REQUEST_MS to go slower still; 0 disables the throttle.
+ */
+const MIN_REQUEST_INTERVAL_MS = Number(process.env.WIKI_MIN_REQUEST_MS ?? 400);
+
+/**
+ * Identifies the scraper, per the wiki's API etiquette. An unidentified client is the
+ * first thing a rate limiter drops. Set WIKI_USER_AGENT to add contact details.
+ */
+const USER_AGENT = process.env.WIKI_USER_AGENT ?? 'ge-skiller/0.0.1 (OSRS crafting-profit tool)';
+
+/**
+ * Backoff waits after a rate-limited response, in milliseconds. One entry per retry, so
+ * a request gets RATE_LIMIT_BACKOFF_MS.length + 1 attempts before the item is skipped.
+ */
+const RATE_LIMIT_BACKOFF_MS = [2_000, 8_000, 32_000];
+
+/** Next timestamp at which a request may go out; each caller reserves its own slot. */
+let nextRequestAllowedAt = 0;
+
+/**
+ * Waits until this caller's reserved slot in the request schedule comes up.
+ *
+ * The slot is reserved before awaiting, so concurrent callers queue behind each other
+ * rather than all reading the same "last request" time and firing together.
+ */
+async function throttleWikiRequest(): Promise<void> {
+    if (MIN_REQUEST_INTERVAL_MS <= 0) return;
+
+    const now = Date.now();
+    const waitMs = Math.max(0, nextRequestAllowedAt - now);
+    nextRequestAllowedAt = Math.max(now, nextRequestAllowedAt) + MIN_REQUEST_INTERVAL_MS;
+
+    if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+}
+
 export type WikiItemRef = {
     name: string;
     href?: string; // /w/Item_name
@@ -54,12 +97,30 @@ async function wikiApi(params: Record<string, string>): Promise<WikiParseRespons
         ...params,
     }).forEach(([k, v]) => url.searchParams.set(k, v));
 
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-        throw new Error(`OSRS wiki API error: ${res.status} ${res.statusText}`);
+    // A throttled block is transient, but the caller treats any throw as "this item has no
+    // recipe" and moves on — so an unretried 403 silently leaves stale data behind. Back
+    // off and let the limiter's window pass before giving up on the item.
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < RATE_LIMIT_BACKOFF_MS.length + 1; attempt++) {
+        await throttleWikiRequest();
+
+        const res = await fetch(url.toString(), { headers: { 'User-Agent': USER_AGENT } });
+        if (res.ok) return (await res.json()) as WikiParseResponse;
+
+        lastError = new Error(`OSRS wiki API error: ${res.status} ${res.statusText}`);
+
+        const retryable = res.status === 403 || res.status === 429 || res.status >= 500;
+        const backoffMs = RATE_LIMIT_BACKOFF_MS[attempt];
+        if (!retryable || backoffMs === undefined) break;
+
+        console.warn(
+            `⏸️  [osrs-wiki] ${res.status} ${res.statusText} — backing off ${backoffMs / 1000}s (attempt ${attempt + 1}/${RATE_LIMIT_BACKOFF_MS.length})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
 
-    return (await res.json()) as WikiParseResponse;
+    throw lastError ?? new Error('OSRS wiki API error: request failed');
 }
 
 function buildMethodFromCaptionTables(
