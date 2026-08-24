@@ -107,9 +107,24 @@ const steps: Step[] = [
         cmd: ['bun', 'run', 'scripts/remove-duplicate-items.ts'],
     },
     {
+        // Must run before populate-ingredients: that step scrapes the wiki by page
+        // title, and OSRSBox's wiki_name is not a real page title for versioned items.
+        key: 'wiki-names',
+        name: 'normalize-wiki-names',
+        cmd: ['bun', 'run', 'scripts/normalize-wiki-names.ts'],
+    },
+    {
         key: 'ingredients',
         name: 'populate-ingredients',
         cmd: ['bun', 'run', 'scripts/populate-ingredients.ts'],
+    },
+    {
+        // Runs after populate-ingredients so any links it wrote are checked too. Newly
+        // scraped data already picks the canonical document; this repairs older rows
+        // that point at an unpriced duplicate.
+        key: 'ingredient-links',
+        name: 'repair-ingredient-links',
+        cmd: ['bun', 'run', 'scripts/repair-ingredient-links.ts'],
     },
     {
         key: 'cycles',

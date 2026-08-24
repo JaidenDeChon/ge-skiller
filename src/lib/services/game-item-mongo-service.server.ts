@@ -1,8 +1,9 @@
 import { Types } from 'mongoose';
 import { skillTreeSlugs } from '$lib/constants/skill-tree-pages';
-import { MAX_ITEM_TREE_DEPTH } from '$lib/constants/item-tree';
+import { MAX_ITEM_TREE_DEPTH, MAX_ITEM_TREE_NODES } from '$lib/constants/item-tree';
 import { OsrsboxItemModel, type OsrsboxItemDocument } from '$lib/models/mongo-schemas/osrsbox-db-item-schema';
 import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
+import { currencyItemNames } from '$lib/helpers/ingredient-price';
 
 type GameItemDoc = OsrsboxItemDocument & {
     _id: Types.ObjectId;
@@ -31,6 +32,30 @@ export type PaginatedGameItems = {
 };
 
 /**
+ * The fields the ingredient tree is actually read for.
+ *
+ * A tree node is a whole OSRSBox document by default, and most of that document — combat
+ * bonuses, wiki links, release dates, linked ids — is never rendered. Sending it anyway
+ * cost roughly 40% of a payload that already reaches 1.5MB on the worst items, multiplied
+ * by every repeated node. `tradeable_on_ge` and `name` are here for
+ * `resolveIngredientUnitPrice`, which the cost table applies per row.
+ */
+const TREE_NODE_PROJECTION = {
+    _id: 1,
+    id: 1,
+    name: 1,
+    icon: 1,
+    examine: 1,
+    highPrice: 1,
+    lowPrice: 1,
+    highalch: 1,
+    lowalch: 1,
+    cost: 1,
+    tradeable_on_ge: 1,
+    creationSpecs: 1,
+} as const;
+
+/**
  * Populates nested ingredient trees so the frontend can render a full org chart.
  */
 export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxItemWithMeta | null> {
@@ -46,7 +71,7 @@ export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxI
         query.id = trimmedId;
     }
 
-    const root = await OsrsboxItemModel.findOne(query)
+    const root = await OsrsboxItemModel.findOne(query, TREE_NODE_PROJECTION)
         .lean<IOsrsboxItemWithMeta & { _id: Types.ObjectId }>()
         .exec();
     if (!root) return null;
@@ -59,7 +84,10 @@ export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxI
         const missing = Array.from(new Set(frontier)).filter((id) => !cache.has(id));
         if (!missing.length) break;
 
-        const docs = await OsrsboxItemModel.find({ _id: { $in: missing.map((id) => new Types.ObjectId(id)) } })
+        const docs = await OsrsboxItemModel.find(
+            { _id: { $in: missing.map((id) => new Types.ObjectId(id)) } },
+            TREE_NODE_PROJECTION,
+        )
             .lean<(IOsrsboxItemWithMeta & { _id: Types.ObjectId })[]>()
             .exec();
 
@@ -70,9 +98,36 @@ export async function populateIngredientsTree(itemId: string): Promise<IOsrsboxI
         }
     }
 
-    attachIngredientsFromCache(root, root, cache, 0);
+    attachIngredientsFromCache(root, root, cache, 0, new Set([root._id.toString()]), { attached: 0 });
 
     return root;
+}
+
+/**
+ * Rewrites a cloned document's ingredient references as plain hex id strings.
+ *
+ * `structuredClone` strips the ObjectId prototype, so a reference left untouched
+ * serializes as a byte map — `{"buffer":{"0":105,...}}` — which is both ~200 bytes and
+ * unreadable by the chart's lazy loader. The ids are read from `source`, which still holds
+ * real ObjectIds.
+ * @param target - The cloned document to fix up.
+ * @param source - The cached document the clone was made from.
+ */
+function writeIngredientIdsAsStrings(target: IOsrsboxItemWithMeta, source: IOsrsboxItemWithMeta): void {
+    const targetSpecs = target.creationSpecs ?? [];
+    const sourceSpecs = source.creationSpecs ?? [];
+
+    for (let specIndex = 0; specIndex < sourceSpecs.length; specIndex += 1) {
+        const sourceIngredients = sourceSpecs[specIndex]?.ingredients ?? [];
+        const targetIngredients = targetSpecs[specIndex]?.ingredients ?? [];
+
+        for (let i = 0; i < sourceIngredients.length; i += 1) {
+            const raw = sourceIngredients[i]?.item as unknown;
+            const targetIngredient = targetIngredients[i];
+            if (!(raw instanceof Types.ObjectId) || !targetIngredient) continue;
+            targetIngredient.item = raw.toString() as unknown as (typeof targetIngredient)['item'];
+        }
+    }
 }
 
 /**
@@ -93,17 +148,28 @@ function collectIngredientIds(item: IOsrsboxItemWithMeta): string[] {
  * Replaces ingredient ObjectId references with materialized copies of the cached documents.
  * Walks the raw `source` doc for ingredient ids (structuredClone strips the ObjectId prototype
  * from `target`) and gives every occurrence its own clone so the tree has no shared object
- * graphs, which JSON.stringify would otherwise duplicate or treat as circular. The depth
- * budget also bounds cyclic ingredient data.
+ * graphs, which JSON.stringify would otherwise duplicate or treat as circular.
+ *
+ * The depth budget alone does not bound cyclic data. `Plank` lists a `Sawmill voucher` and
+ * the voucher lists planks, so every level of that loop multiplies the node count instead
+ * of adding to it: the twelve-level budget turned `Shaving stand` into hundreds of
+ * thousands of nodes and the request never came back. `ancestors` carries the ids already
+ * open on this path, and an ingredient found there is attached as a leaf rather than
+ * expanded again — the row still renders, the loop just stops unrolling.
+ *
+ * That guard is per-path, so it cannot see a loop that runs through two OSRSBox documents
+ * for the same item — `Black cape` is built from `Blue cape`, which is built from a second
+ * `Black cape` id. `budget` is the backstop for those: once the tree has materialized
+ * `MAX_ITEM_TREE_NODES`, later ingredients are attached with their data but not expanded.
  */
 function attachIngredientsFromCache(
     target: IOsrsboxItemWithMeta,
     source: IOsrsboxItemWithMeta,
     cache: Map<string, IOsrsboxItemWithMeta>,
     depth: number,
+    ancestors: Set<string>,
+    budget: { attached: number },
 ): void {
-    if (depth >= MAX_INGREDIENT_DEPTH) return;
-
     const targetSpecs = target.creationSpecs ?? [];
     const sourceSpecs = source.creationSpecs ?? [];
 
@@ -116,12 +182,33 @@ function attachIngredientsFromCache(
             const targetIngredient = targetIngredients[i];
             if (!(raw instanceof Types.ObjectId) || !targetIngredient) continue;
 
-            const cached = cache.get(raw.toString());
+            const key = raw.toString();
+
+            // Write the plain id first, so an ingredient this walk decides not to expand
+            // still leaves something the client can use. `structuredClone` strips the
+            // ObjectId prototype, and the leftover serializes as a byte-map blob —
+            // {"buffer":{"0":105,...}} — which is ~200 bytes and which the chart's lazy
+            // loader cannot read. The hex string is 26 bytes and it already handles it.
+            targetIngredient.item = key as unknown as (typeof targetIngredient)['item'];
+
+            const cached = cache.get(key);
             if (!cached) continue;
+            if (depth >= MAX_INGREDIENT_DEPTH) continue;
+            if (budget.attached >= MAX_ITEM_TREE_NODES) continue;
 
             const copy = structuredClone(cached);
+            // Do this before the copy is attached: a node reached as a leaf never has its
+            // own ingredients walked, so this is the only chance to replace the prototype
+            // structuredClone just stripped.
+            writeIngredientIdsAsStrings(copy, cached);
             targetIngredient.item = copy as unknown as (typeof targetIngredient)['item'];
-            attachIngredientsFromCache(copy, cached, cache, depth + 1);
+            budget.attached += 1;
+
+            if (ancestors.has(key)) continue;
+
+            ancestors.add(key);
+            attachIngredientsFromCache(copy, cached, cache, depth + 1, ancestors, budget);
+            ancestors.delete(key);
         }
     }
 }
@@ -150,6 +237,7 @@ export async function getGameItemById(itemId: string): Promise<IOsrsboxItemWithM
             buy_limit: 1,
             wiki_name: 1,
             wiki_url: 1,
+            wiki_page_title: 1,
         })
         .lean<IOsrsboxItemWithMeta>()
         .exec();
@@ -416,7 +504,30 @@ function buildProfitPipeline(
     const neededExpr = hasSupplies
         ? { $max: [0, { $subtract: ['$$amount', '$$supplyQty'] }] }
         : '$$amount';
-    const unitPriceExpr = { $ifNull: ['$$matched.highPrice', { $ifNull: ['$$matched.lowPrice', '$$matched.cost'] }] };
+    // `cost` is the item's base game value, not a market price. Using it for an
+    // ingredient that has no GE market — an untradeable intermediate such as
+    // "Oak seedling (w)", whose cost is 1 — invented a 1gp outlay and sent the
+    // resulting ROI into five figures. Those ingredients are priced as *unknown*
+    // instead, which nulls the whole creation's cost and keeps it out of the ROI sort
+    // rather than letting it top the list on a fabricated number.
+    //
+    // Currency is the exception, and not a small one: coins are flagged untradeable, a
+    // third of all recipes charge a coin fee, and 5 coins really does cost 5gp. Mirrors
+    // `resolveIngredientUnitPrice`, which prices the same rows on the item page.
+    const costIsPriceExpr = {
+        $or: [
+            { $eq: ['$$matched.tradeable_on_ge', true] },
+            { $in: ['$$matched.name', currencyItemNames] },
+        ],
+    };
+    const unitPriceExpr = {
+        $ifNull: [
+            '$$matched.highPrice',
+            {
+                $ifNull: ['$$matched.lowPrice', { $cond: [costIsPriceExpr, '$$matched.cost', null] }],
+            },
+        ],
+    };
     const outputPriceExpr = { $ifNull: ['$highPrice', { $ifNull: ['$lowPrice', '$cost'] }] };
     const ingredientCostRowsExpr = {
         $map: {
@@ -474,14 +585,26 @@ function buildProfitPipeline(
         },
     };
 
+    // An item that lists itself is not a recipe, it is broken data — a wiki variant panel
+    // read as the item's own, or two OSRSBox documents for one in-game item. Costing it
+    // produces a number, so nothing downstream would notice; this keeps it out of the
+    // profit and ROI sorts the way an unknown price does.
+    const selfReferentialExpr = {
+        $in: ['$_id', { $ifNull: ['$consumedIngredientIds', []] }],
+    };
     const costKnownExpr = {
-        $allElementsTrue: {
-            $map: {
-                input: '$ingredientCostRows',
-                as: 'row',
-                in: { $ne: ['$$row.total', null] },
+        $and: [
+            { $not: '$selfReferential' },
+            {
+                $allElementsTrue: {
+                    $map: {
+                        input: '$ingredientCostRows',
+                        as: 'row',
+                        in: { $ne: ['$$row.total', null] },
+                    },
+                },
             },
-        },
+        ],
     };
     const suppliesSatisfiedExpr = hasSupplies
         ? {
@@ -527,11 +650,13 @@ function buildProfitPipeline(
                 from: 'items',
                 localField: 'consumedIngredientIds',
                 foreignField: '_id',
-                pipeline: [{ $project: { _id: 1, id: 1, highPrice: 1, lowPrice: 1, cost: 1 } }],
+                pipeline: [
+                    { $project: { _id: 1, id: 1, name: 1, highPrice: 1, lowPrice: 1, cost: 1, tradeable_on_ge: 1 } },
+                ],
                 as: 'ingredientItems',
             },
         },
-        { $set: { ingredientCostRows: ingredientCostRowsExpr } },
+        { $set: { ingredientCostRows: ingredientCostRowsExpr, selfReferential: selfReferentialExpr } },
         { $set: { costKnown: costKnownExpr, outputPrice: outputPriceExpr } },
         {
             $set: {
