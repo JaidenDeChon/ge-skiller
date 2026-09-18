@@ -12,6 +12,7 @@
     import { formatWithCommas } from '$lib/helpers/format-number';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import { fetchItemTree, readItemTreeCache } from '$lib/helpers/item-tree-cache';
+    import { isPending, type Deferred } from '$lib/helpers/deferred-page-data';
     import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
     import Button from '$lib/components/ui/button/button.svelte';
     import { Input } from '$lib/components/ui/input';
@@ -32,14 +33,17 @@
         data,
     }: {
         data: {
-            gameItem: IOsrsboxItemWithMeta | null;
-            natureRunePrice?: number | null;
+            itemId: string;
+            // Deferred on a client-side navigation so the route commits immediately; see
+            // `deferred-page-data` and the effect that unwraps these below.
+            gameItem: Deferred<IOsrsboxItemWithMeta | null>;
+            natureRunePrice?: Deferred<number | null>;
             showDevControls?: boolean;
         };
     } = $props();
 
     let loading = $state(false);
-    let gameItem = $state<IOsrsboxItemWithMeta | null>(data.gameItem ?? null);
+    let gameItem = $state<IOsrsboxItemWithMeta | null>(isPending(data.gameItem) ? null : data.gameItem);
     let treeItem = $state<IOsrsboxItemWithMeta | null>(null);
     // `treeLoading` is the cold start, where there is nothing on screen yet and the card
     // shows skeletons. `treeRefreshing` is the warm case: the reader moved to another item
@@ -87,7 +91,20 @@
     // Which prices apply to the reader. Everything below branches on this one boolean rather than on
     // the account type, so the four Ironman variants cannot drift apart.
     const usesGrandExchange = $derived(canUseGrandExchange(getActiveAccountType()));
-    const natureRunePrice = $derived(normalizePrice(data.natureRunePrice) ?? NATURE_RUNE_FALLBACK_PRICE);
+    // The rune's price is the same whichever item is on screen, so a response that lands after the
+    // reader has moved on is still the right answer and needs no per-navigation guard.
+    let natureRuneHighPrice = $state<number | null>(null);
+    $effect(() => {
+        const incoming = data.natureRunePrice ?? null;
+        if (!isPending(incoming)) {
+            natureRuneHighPrice = incoming;
+            return;
+        }
+        void incoming.then((price) => {
+            natureRuneHighPrice = price ?? null;
+        });
+    });
+    const natureRunePrice = $derived(normalizePrice(natureRuneHighPrice) ?? NATURE_RUNE_FALLBACK_PRICE);
 
     // What an Ironman actually clears by alching, rather than the alch-versus-market-price figure
     // above. They never bought the item at a market price, so subtracting one tells them nothing.
@@ -184,7 +201,7 @@
                 // is stale by definition.
                 void fetchItemTree(updated.id, { force: true }).then(
                     (tree) => {
-                        if (lastDataItemId === updated.id) treeItem = tree;
+                        if (currentItemId === String(updated.id)) treeItem = tree;
                     },
                     (error) => {
                         console.error('Failed to refresh item tree', error);
@@ -200,7 +217,9 @@
         }
     }
 
-    let lastDataItemId: string | number | null = null;
+    // Keyed on the route parameter rather than on the loaded item, because on a client-side
+    // navigation the item itself is still in flight when this page takes over the screen.
+    let currentItemId: string | null = null;
 
     /**
      * Put the tree for `itemId` on screen, without disturbing what is already there any more
@@ -214,7 +233,7 @@
      * itself as refreshing rather than collapsing to skeletons, so the chart animates from
      * the old root to the new one once the response arrives.
      */
-    async function applyItemTree(itemId: string | number) {
+    async function applyItemTree(itemId: string) {
         treeError = null;
 
         const cached = readItemTreeCache(itemId);
@@ -232,15 +251,15 @@
             const tree = await fetchItemTree(itemId);
             // Another item was routed to while this was in flight; that navigation owns the
             // chart now, so drop this response rather than overwriting the newer tree.
-            if (lastDataItemId !== itemId) return;
+            if (currentItemId !== itemId) return;
             treeItem = tree;
         } catch (error) {
-            if (lastDataItemId !== itemId) return;
+            if (currentItemId !== itemId) return;
             treeError = error instanceof Error ? error.message : 'Failed to load item tree.';
             treeItem = null;
             console.error('Failed to load item tree', error);
         } finally {
-            if (lastDataItemId === itemId) {
+            if (currentItemId === itemId) {
                 treeLoading = false;
                 treeRefreshing = false;
             }
@@ -249,15 +268,36 @@
 
     $effect(() => {
         // When routed data arrives, hydrate local state and kick off dependent fetches.
+        const itemId = data.itemId ?? null;
+        if (itemId === currentItemId) return;
+
+        currentItemId = itemId;
+
         const incoming = data.gameItem ?? null;
-        const incomingId = incoming?.id ?? null;
-        if (incomingId === lastDataItemId) return;
+        if (isPending(incoming)) {
+            // The navigation has already committed, so this page owns the screen while its item is
+            // still on the wire. Skeletons until it lands.
+            gameItem = null;
+            loading = true;
+            void incoming.then(
+                (item) => {
+                    if (currentItemId !== itemId) return;
+                    gameItem = item;
+                    loading = false;
+                },
+                (error) => {
+                    if (currentItemId !== itemId) return;
+                    loading = false;
+                    console.error('Failed to load item', error);
+                    toast.error('Failed to load this item.');
+                },
+            );
+        } else {
+            gameItem = incoming;
+            loading = false;
+        }
 
-        lastDataItemId = incomingId;
-        gameItem = incoming;
-        loading = false;
-
-        if (incomingId === null || incomingId === undefined) {
+        if (itemId === null) {
             treeItem = null;
             treeError = null;
             treeLoading = false;
@@ -265,7 +305,9 @@
             return;
         }
 
-        void applyItemTree(incomingId);
+        // The tree is keyed on the same id as the route, so it does not have to wait for the item
+        // itself — both requests run side by side.
+        void applyItemTree(itemId);
     });
 
     const primaryCreationSpec = $derived(getPrimaryCreationSpec(treeItem));
