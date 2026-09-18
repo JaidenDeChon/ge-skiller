@@ -21,7 +21,7 @@ const MIN_REQUEST_INTERVAL_MS = Number(process.env.WIKI_MIN_REQUEST_MS ?? 400);
  * Identifies the scraper, per the wiki's API etiquette. An unidentified client is the
  * first thing a rate limiter drops. Set WIKI_USER_AGENT to add contact details.
  */
-const USER_AGENT = process.env.WIKI_USER_AGENT ?? 'ge-skiller/0.0.1 (OSRS crafting-profit tool)';
+const USER_AGENT = process.env.WIKI_USER_AGENT ?? 'aris-maye/0.0.1 (OSRS crafting-profit tool)';
 
 /**
  * Backoff waits after a rate-limited response, in milliseconds. One entry per retry, so

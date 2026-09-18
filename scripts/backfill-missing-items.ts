@@ -49,7 +49,7 @@ const LATEST_PRICES_URL = `${PRICES_BASE}/latest`;
 const OSRS_WIKI_API = 'https://oldschool.runescape.wiki/api.php';
 
 // Be nice to the wiki; use a custom UA
-const USER_AGENT = 'ge-skiller-import/1.0 (contact: your-contact-or-repo-url-here)';
+const USER_AGENT = 'aris-maye-import/1.0 (contact: your-contact-or-repo-url-here)';
 
 /**
  * ======================================================================

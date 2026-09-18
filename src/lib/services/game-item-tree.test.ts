@@ -18,7 +18,7 @@ const TEST_MONGO_URI = process.env.TEST_MONGO_URI ?? 'mongodb://127.0.0.1:27018'
 /** Probes for a usable Mongo before declaring the suite. */
 async function mongoReachable(): Promise<boolean> {
     try {
-        await mongoose.connect(TEST_MONGO_URI, { dbName: 'ge-skiller-tree-test', serverSelectionTimeoutMS: 1500 });
+        await mongoose.connect(TEST_MONGO_URI, { dbName: 'aris-maye-tree-test', serverSelectionTimeoutMS: 1500 });
         return true;
     } catch {
         return false;

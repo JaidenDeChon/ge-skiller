@@ -71,7 +71,7 @@ describe('readItemTreeCache', () => {
 
     it('treats an entry past its TTL as a miss', () => {
         const sixMinutesAgo = Date.now() - 6 * 60 * 1000;
-        storage.setItem('ge-skiller:item-tree:1925', JSON.stringify({ cachedAt: sixMinutesAgo, payload: bucket }));
+        storage.setItem('aris-maye:item-tree:1925', JSON.stringify({ cachedAt: sixMinutesAgo, payload: bucket }));
 
         expect(readItemTreeCache(1925)).toBeUndefined();
     });

@@ -81,7 +81,7 @@
         />
 
         <a href={resolve('/')} aria-label="logo and home link">
-            <span class="rs-font-with-shadow text-primary text-xl">ge-skiller</span>
+            <span class="rs-font-with-shadow text-primary text-xl">Aris Maye</span>
         </a>
 
         <!-- Button that looks like search bar; opens command modal. -->

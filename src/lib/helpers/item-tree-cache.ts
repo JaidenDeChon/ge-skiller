@@ -1,6 +1,6 @@
 import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
 
-const CACHE_KEY_PREFIX = 'ge-skiller:item-tree:';
+const CACHE_KEY_PREFIX = 'aris-maye:item-tree:';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 type TreeCacheEntry = { cachedAt: number; payload: IOsrsboxItemWithMeta | null };
