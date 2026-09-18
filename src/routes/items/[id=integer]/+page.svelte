@@ -383,7 +383,9 @@
     </Dialog.Root>
     <!-- Header -->
     <header>
-        <div class="flex justify-between items-center w-full">
+        <!-- Below `sm` there is not enough width for the breadcrumbs and the actions to share a
+             line, so the actions drop underneath instead of squeezing the trail. -->
+        <div class="flex flex-col items-start gap-3 w-full sm:flex-row sm:justify-between sm:items-center">
             {#if loading || !gameItem}
                 <div class="flex gap-5">
                     <Skeleton class="h-4 w-10" />
@@ -416,7 +418,7 @@
                     </Breadcrumb.List>
                 </Breadcrumb.Root>
 
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-3">
                     {#if wikiUrl()}
                         <Button href={wikiUrl()} target="_blank" rel="noreferrer" variant="outline">Wiki</Button>
                     {/if}
