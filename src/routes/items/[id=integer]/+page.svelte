@@ -1,5 +1,15 @@
 <script lang="ts">
-    import { Star, StarOff, TrendingUp, TrendingDown, Package, ArrowLeftRight, Coins } from 'lucide-svelte';
+    import {
+        Star,
+        StarOff,
+        TrendingUp,
+        TrendingDown,
+        Package,
+        PackageX,
+        TriangleAlert,
+        ArrowLeftRight,
+        Coins,
+    } from 'lucide-svelte';
     import { Skeleton } from '$lib/components/ui/skeleton';
     import * as Avatar from '$lib/components/ui/avatar';
     import * as Breadcrumb from '$lib/components/ui/breadcrumb';
@@ -13,6 +23,8 @@
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
     import { fetchItemTree, readItemTreeCache } from '$lib/helpers/item-tree-cache';
     import { isPending, type Deferred } from '$lib/helpers/deferred-page-data';
+    import { ITEM_LOAD_DEPENDENCY, type GameItemLoadResult } from '$lib/models/game-item-load';
+    import { invalidate } from '$app/navigation';
     import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
     import Button from '$lib/components/ui/button/button.svelte';
     import { Input } from '$lib/components/ui/input';
@@ -36,14 +48,22 @@
             itemId: string;
             // Deferred on a client-side navigation so the route commits immediately; see
             // `deferred-page-data` and the effect that unwraps these below.
-            gameItem: Deferred<IOsrsboxItemWithMeta | null>;
+            gameItem: Deferred<GameItemLoadResult>;
             natureRunePrice?: Deferred<number | null>;
             showDevControls?: boolean;
         };
     } = $props();
 
     let loading = $state(false);
-    let gameItem = $state<IOsrsboxItemWithMeta | null>(isPending(data.gameItem) ? null : data.gameItem);
+    // Seeded synchronously rather than from the effect below, because effects do not run while the
+    // page is rendered on the server and that render has to carry the real item.
+    const initialResult = isPending(data.gameItem) ? null : data.gameItem;
+    let gameItem = $state<IOsrsboxItemWithMeta | null>(initialResult?.status === 'found' ? initialResult.item : null);
+    // Set when there is no item to show at all, which is a finished state rather than a slow one:
+    // the page says so instead of leaving its skeletons pulsing forever.
+    let loadProblem = $state<'missing' | 'failed' | null>(
+        initialResult && initialResult.status !== 'found' ? initialResult.status : null,
+    );
     let treeItem = $state<IOsrsboxItemWithMeta | null>(null);
     // `treeLoading` is the cold start, where there is nothing on screen yet and the card
     // shows skeletons. `treeRefreshing` is the warm case: the reader moved to another item
@@ -220,6 +240,9 @@
     // Keyed on the route parameter rather than on the loaded item, because on a client-side
     // navigation the item itself is still in flight when this page takes over the screen.
     let currentItemId: string | null = null;
+    // A retry re-runs `load` for the same route, so the id alone cannot tell the two apart. The
+    // value `load` handed over is a new object every time it runs, which can.
+    let currentItemSource: Deferred<GameItemLoadResult> | null = null;
 
     /**
      * Put the tree for `itemId` on screen, without disturbing what is already there any more
@@ -266,35 +289,35 @@
         }
     }
 
+    function applyItemResult(result: GameItemLoadResult) {
+        gameItem = result.status === 'found' ? result.item : null;
+        loadProblem = result.status === 'found' ? null : result.status;
+        loading = false;
+    }
+
     $effect(() => {
         // When routed data arrives, hydrate local state and kick off dependent fetches.
         const itemId = data.itemId ?? null;
-        if (itemId === currentItemId) return;
+        const incoming = data.gameItem ?? null;
+        if (itemId === currentItemId && incoming === currentItemSource) return;
 
         currentItemId = itemId;
+        currentItemSource = incoming;
 
-        const incoming = data.gameItem ?? null;
-        if (isPending(incoming)) {
+        if (incoming === null) {
+            applyItemResult({ status: 'missing' });
+        } else if (isPending(incoming)) {
             // The navigation has already committed, so this page owns the screen while its item is
             // still on the wire. Skeletons until it lands.
             gameItem = null;
+            loadProblem = null;
             loading = true;
-            void incoming.then(
-                (item) => {
-                    if (currentItemId !== itemId) return;
-                    gameItem = item;
-                    loading = false;
-                },
-                (error) => {
-                    if (currentItemId !== itemId) return;
-                    loading = false;
-                    console.error('Failed to load item', error);
-                    toast.error('Failed to load this item.');
-                },
-            );
+            void incoming.then((result) => {
+                if (currentItemSource !== incoming) return;
+                applyItemResult(result);
+            });
         } else {
-            gameItem = incoming;
-            loading = false;
+            applyItemResult(incoming);
         }
 
         if (itemId === null) {
@@ -309,6 +332,38 @@
         // itself — both requests run side by side.
         void applyItemTree(itemId);
     });
+
+    let retrying = $state(false);
+
+    // Re-runs this page's `load` alone, rather than every load on the page. The effect above picks
+    // the new result up, because `load` hands over a value it has not seen before.
+    async function retryItemLoad() {
+        if (retrying) return;
+        retrying = true;
+        try {
+            await invalidate(ITEM_LOAD_DEPENDENCY);
+        } catch (error) {
+            console.error('Failed to reload item', error);
+            toast.error('Still could not load this item.');
+        } finally {
+            retrying = false;
+        }
+    }
+
+    // The skeletons stand for an answer that is still coming. Once one has arrived — even the
+    // answer that there is no item — they give way to it.
+    const pending = $derived(loading || (!gameItem && !loadProblem));
+    const problemCopy = $derived(
+        loadProblem === 'missing'
+            ? {
+                  title: 'Item not found',
+                  body: 'No item with this ID exists. It may have been removed from the game, or the link may be wrong.',
+              }
+            : {
+                  title: "Couldn't load this item",
+                  body: 'The request did not go through. Check your connection, then try again.',
+              },
+    );
 
     const primaryCreationSpec = $derived(getPrimaryCreationSpec(treeItem));
     const renderChart = $derived(!!primaryCreationSpec?.ingredients?.length);
@@ -430,7 +485,7 @@
              is full width there and keeps the edge it sits on above `sm`: the trail stays left,
              the actions stay right. -->
         <div class="flex flex-col gap-3 w-full sm:flex-row sm:justify-between sm:items-center">
-            {#if loading || !gameItem}
+            {#if pending}
                 <div class="flex gap-5">
                     <Skeleton class="h-4 w-10" />
                     <Skeleton class="h-4 w-10" />
@@ -455,52 +510,56 @@
 
                         <Breadcrumb.Separator />
 
-                        <!-- This page -->
+                        <!-- This page. The trail is the way back out, so it stays whether or not
+                             there was an item to put at the end of it. -->
                         <Breadcrumb.Item>
-                            <Breadcrumb.Page>{gameItem?.name}</Breadcrumb.Page>
+                            <Breadcrumb.Page>{gameItem?.name ?? problemCopy.title}</Breadcrumb.Page>
                         </Breadcrumb.Item>
                     </Breadcrumb.List>
                 </Breadcrumb.Root>
 
-                <div class="flex flex-wrap items-center justify-end gap-3 w-full sm:w-auto">
-                    {#if wikiUrl()}
-                        <Button href={wikiUrl()} target="_blank" rel="noreferrer" variant="outline">Wiki</Button>
-                    {/if}
-                    {#if devControlsEnabled}
-                        <OsrsboxItemUploadDialog triggerClass="inline-flex" onCreated={refreshItemFromApi}>
-                            {#snippet trigger({ openWithItem, triggerClass })}
-                                <Button
-                                    variant="outline"
-                                    class={triggerClass}
-                                    disabled={!gameItem || editLoading}
-                                    onclick={() => gameItem && handleEdit(openWithItem)}
-                                >
-                                    Edit
-                                </Button>
-                            {/snippet}
-                        </OsrsboxItemUploadDialog>
-                    {/if}
-                    {#if isInBank}
-                        <Button
-                            variant="outline"
-                            onclick={openRemoveFromBank}
-                            aria-disabled={suppliesActionsDisabled}
-                            class={suppliesActionsDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-                        >
-                            Remove from supplies
-                        </Button>
-                    {:else}
-                        <Button
-                            variant="outline"
-                            onclick={openAddToBank}
-                            aria-disabled={suppliesActionsDisabled}
-                            class={suppliesActionsDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-                        >
-                            Add to supplies
-                        </Button>
-                    {/if}
-                    <FavoriteButton {gameItem} />
-                </div>
+                <!-- Every action here acts on an item, so none of them belong on a page without one. -->
+                {#if gameItem}
+                    <div class="flex flex-wrap items-center justify-end gap-3 w-full sm:w-auto">
+                        {#if wikiUrl()}
+                            <Button href={wikiUrl()} target="_blank" rel="noreferrer" variant="outline">Wiki</Button>
+                        {/if}
+                        {#if devControlsEnabled}
+                            <OsrsboxItemUploadDialog triggerClass="inline-flex" onCreated={refreshItemFromApi}>
+                                {#snippet trigger({ openWithItem, triggerClass })}
+                                    <Button
+                                        variant="outline"
+                                        class={triggerClass}
+                                        disabled={!gameItem || editLoading}
+                                        onclick={() => gameItem && handleEdit(openWithItem)}
+                                    >
+                                        Edit
+                                    </Button>
+                                {/snippet}
+                            </OsrsboxItemUploadDialog>
+                        {/if}
+                        {#if isInBank}
+                            <Button
+                                variant="outline"
+                                onclick={openRemoveFromBank}
+                                aria-disabled={suppliesActionsDisabled}
+                                class={suppliesActionsDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+                            >
+                                Remove from supplies
+                            </Button>
+                        {:else}
+                            <Button
+                                variant="outline"
+                                onclick={openAddToBank}
+                                aria-disabled={suppliesActionsDisabled}
+                                class={suppliesActionsDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+                            >
+                                Add to supplies
+                            </Button>
+                        {/if}
+                        <FavoriteButton {gameItem} />
+                    </div>
+                {/if}
             {/if}
         </div>
 
@@ -508,8 +567,18 @@
         <!-- py-3 makes up for py-3 from .content-sizing -->
         <div class="flex gap-6 my-4 py-3">
             <!-- Item image -->
-            {#if loading || !gameItem}
+            {#if pending}
                 <Skeleton class="h-16 w-16 rounded-full" />
+            {:else if !gameItem}
+                <div
+                    class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-muted text-muted-foreground"
+                >
+                    {#if loadProblem === 'missing'}
+                        <PackageX class="h-7 w-7" />
+                    {:else}
+                        <TriangleAlert class="h-7 w-7" />
+                    {/if}
+                </div>
             {:else}
                 <Avatar.Root class="p-3 bg-muted border item-card__img-background h-16 w-16">
                     {#if gameItem.icon}
@@ -528,9 +597,22 @@
 
             <!-- Name and description -->
             <div class="flex flex-col gap-2 justify-center">
-                {#if loading || !gameItem}
+                {#if pending}
                     <Skeleton class="h-7 w-52 mb-2" />
                     <Skeleton class="h-3 w-36" />
+                {:else if !gameItem}
+                    <h1 class="text-2xl font-bold animate-fade-in">{problemCopy.title}</h1>
+                    <p class="text-muted-foreground text-sm animate-fade-in">{problemCopy.body}</p>
+                    <div class="mt-2 flex flex-wrap items-center gap-3">
+                        <Button href="/items" variant="outline">Browse items</Button>
+                        <!-- Only offered where a second attempt could land differently. A missing
+                             item will still be missing. -->
+                        {#if loadProblem === 'failed'}
+                            <Button onclick={retryItemLoad} disabled={retrying}>
+                                {retrying ? 'Trying…' : 'Try again'}
+                            </Button>
+                        {/if}
+                    </div>
                 {:else}
                     <h1 class="text-2xl font-bold animate-fade-in">{gameItem.name}</h1>
                     <p class="text-muted-foreground text-sm animate-fade-in">
@@ -541,129 +623,215 @@
         </div>
     </header>
 
-    <div class="flex gap-3 flex-wrap">
-        <IconBadge text={gameItem?.members ? 'Members' : 'Free to play'}>
-            {#snippet icon()}
-                <!-- Members indicator -->
-                {#if gameItem?.members}
-                    <Star class="size-5 p-0.5 fill-primary text-transparent" />
-                {:else}
-                    <StarOff class="size-5 p-0.5 text-muted-foreground" />
-                {/if}
-            {/snippet}
-        </IconBadge>
-    </div>
-
-    <!-- Item tree card -->
-    {#if treeError}
-        <p class="text-sm text-rose-500 mt-4">Failed to load ingredient data.</p>
-    {/if}
-    <GameItemTreeCard
-        rootClass="mt-4 pb-5"
-        gameItem={treeItem}
-        loading={treeLoading}
-        refreshing={treeRefreshing}
-        {renderChart}
-    />
-
-    <!-- Pricing tables -->
-    <div class="grid gap-4 lg:grid-cols-2 mt-6">
-        {#if loading || !gameItem}
-            <Skeleton class="h-44 w-full" />
-            <Skeleton class="h-44 w-full" />
-        {:else}
-            {#if showGrandExchangeCard}
-                <section
-                    class="border rounded-lg bg-card shadow-sm overflow-hidden {collapseGrandExchangeCard
-                        ? 'lg:order-last opacity-80'
-                        : ''}"
-                >
-                    <div class="flex items-center justify-between p-4 border-b">
-                        <h3 class="text-lg font-semibold">Grand Exchange</h3>
-                        {#if collapseGrandExchangeCard}
-                            <Button variant="ghost" size="sm" onclick={() => (grandExchangeOpen = !grandExchangeOpen)}>
-                                {grandExchangeOpen ? 'Hide' : 'Show'} Grand Exchange prices
-                            </Button>
-                        {/if}
-                    </div>
-                    {#if !collapseGrandExchangeCard || grandExchangeOpen}
-                        <Table.Root>
-                            <Table.Body>
-                                <Table.Row>
-                                    <Table.Cell class="font-medium">
-                                        <div class="flex items-center gap-2">
-                                            <span
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                            >
-                                                <TrendingUp class="h-4 w-4" />
-                                            </span>
-                                            <span>High price</span>
-                                        </div>
-                                    </Table.Cell>
-                                    <Table.Cell class="text-end">
-                                        {#if missingPriceReason}
-                                            <span class="text-muted-foreground">{missingPriceReason}</span>
-                                        {:else}
-                                            {formatPrice(gameItem?.highPrice)}
-                                        {/if}
-                                    </Table.Cell>
-                                </Table.Row>
-                                <Table.Row>
-                                    <Table.Cell class="font-medium">
-                                        <div class="flex items-center gap-2">
-                                            <span
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                            >
-                                                <TrendingDown class="h-4 w-4" />
-                                            </span>
-                                            <span>Low price</span>
-                                        </div>
-                                    </Table.Cell>
-                                    <Table.Cell class="text-end">{formatPrice(gameItem?.lowPrice)}</Table.Cell>
-                                </Table.Row>
-                                <Table.Row>
-                                    <Table.Cell class="font-medium">
-                                        <div class="flex items-center gap-2">
-                                            <span
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                            >
-                                                <Package class="h-4 w-4" />
-                                            </span>
-                                            <span>Buy limit</span>
-                                        </div>
-                                    </Table.Cell>
-                                    <Table.Cell class="text-end"
-                                        >{formatValue(gameItem?.buyLimit ?? gameItem?.buy_limit, '')}</Table.Cell
-                                    >
-                                </Table.Row>
-                            </Table.Body>
-                        </Table.Root>
+    <!-- Everything below describes an item. Gated on the problem rather than on the item itself,
+         because while one is still on its way these sections are what carry the skeletons; it is
+         only once the answer is in and there is no item that they have nothing to say. -->
+    {#if !loadProblem}
+        <div class="flex gap-3 flex-wrap">
+            <IconBadge text={gameItem?.members ? 'Members' : 'Free to play'}>
+                {#snippet icon()}
+                    <!-- Members indicator -->
+                    {#if gameItem?.members}
+                        <Star class="size-5 p-0.5 fill-primary text-transparent" />
+                    {:else}
+                        <StarOff class="size-5 p-0.5 text-muted-foreground" />
                     {/if}
+                {/snippet}
+            </IconBadge>
+        </div>
+
+        <!-- Item tree card -->
+        {#if treeError}
+            <p class="text-sm text-rose-500 mt-4">Failed to load ingredient data.</p>
+        {/if}
+        <GameItemTreeCard
+            rootClass="mt-4 pb-5"
+            gameItem={treeItem}
+            loading={treeLoading}
+            refreshing={treeRefreshing}
+            {renderChart}
+        />
+
+        <!-- Pricing tables -->
+        <div class="grid gap-4 lg:grid-cols-2 mt-6">
+            {#if pending}
+                <Skeleton class="h-44 w-full" />
+                <Skeleton class="h-44 w-full" />
+            {:else}
+                {#if showGrandExchangeCard}
+                    <section
+                        class="border rounded-lg bg-card shadow-sm overflow-hidden {collapseGrandExchangeCard
+                            ? 'lg:order-last opacity-80'
+                            : ''}"
+                    >
+                        <div class="flex items-center justify-between p-4 border-b">
+                            <h3 class="text-lg font-semibold">Grand Exchange</h3>
+                            {#if collapseGrandExchangeCard}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onclick={() => (grandExchangeOpen = !grandExchangeOpen)}
+                                >
+                                    {grandExchangeOpen ? 'Hide' : 'Show'} Grand Exchange prices
+                                </Button>
+                            {/if}
+                        </div>
+                        {#if !collapseGrandExchangeCard || grandExchangeOpen}
+                            <Table.Root>
+                                <Table.Body>
+                                    <Table.Row>
+                                        <Table.Cell class="font-medium">
+                                            <div class="flex items-center gap-2">
+                                                <span
+                                                    class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                                >
+                                                    <TrendingUp class="h-4 w-4" />
+                                                </span>
+                                                <span>High price</span>
+                                            </div>
+                                        </Table.Cell>
+                                        <Table.Cell class="text-end">
+                                            {#if missingPriceReason}
+                                                <span class="text-muted-foreground">{missingPriceReason}</span>
+                                            {:else}
+                                                {formatPrice(gameItem?.highPrice)}
+                                            {/if}
+                                        </Table.Cell>
+                                    </Table.Row>
+                                    <Table.Row>
+                                        <Table.Cell class="font-medium">
+                                            <div class="flex items-center gap-2">
+                                                <span
+                                                    class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                                >
+                                                    <TrendingDown class="h-4 w-4" />
+                                                </span>
+                                                <span>Low price</span>
+                                            </div>
+                                        </Table.Cell>
+                                        <Table.Cell class="text-end">{formatPrice(gameItem?.lowPrice)}</Table.Cell>
+                                    </Table.Row>
+                                    <Table.Row>
+                                        <Table.Cell class="font-medium">
+                                            <div class="flex items-center gap-2">
+                                                <span
+                                                    class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                                >
+                                                    <Package class="h-4 w-4" />
+                                                </span>
+                                                <span>Buy limit</span>
+                                            </div>
+                                        </Table.Cell>
+                                        <Table.Cell class="text-end"
+                                            >{formatValue(gameItem?.buyLimit ?? gameItem?.buy_limit, '')}</Table.Cell
+                                        >
+                                    </Table.Row>
+                                </Table.Body>
+                            </Table.Root>
+                        {/if}
+                    </section>
+                {/if}
+
+                <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
+                    <div class="flex items-center justify-between p-4 border-b">
+                        <h3 class="text-lg font-semibold">Game Prices</h3>
+                    </div>
+                    <Table.Root>
+                        <Table.Body>
+                            <Table.Row>
+                                <Table.Cell class="font-medium">
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                        >
+                                            <img
+                                                src="/spell-images/high-level-alchemy.png"
+                                                alt="High alchemy"
+                                                class="h-4 w-4 drop-shadow"
+                                            />
+                                        </span>
+                                        <span>High alch</span>
+                                    </div>
+                                </Table.Cell>
+                                <Table.Cell class="text-end">{formatValue(gameItem?.highalch)}</Table.Cell>
+                            </Table.Row>
+                            <Table.Row>
+                                <Table.Cell class="font-medium">
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                        >
+                                            <img
+                                                src="/spell-images/low-level-alchemy.png"
+                                                alt="Low alchemy"
+                                                class="h-4 w-4 drop-shadow"
+                                            />
+                                        </span>
+                                        <span>Low alch</span>
+                                    </div>
+                                </Table.Cell>
+                                <Table.Cell class="text-end">{formatValue(gameItem?.lowalch)}</Table.Cell>
+                            </Table.Row>
+                            <Table.Row>
+                                <Table.Cell class="font-medium">
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                        >
+                                            <img
+                                                src="/other-images/pot.png"
+                                                alt="General store"
+                                                class="h-4 w-4 drop-shadow"
+                                            />
+                                        </span>
+                                        <span>Value</span>
+                                    </div>
+                                </Table.Cell>
+                                <Table.Cell class="text-end">{formatValue(gameItem?.cost)}</Table.Cell>
+                            </Table.Row>
+                        </Table.Body>
+                    </Table.Root>
                 </section>
             {/if}
+        </div>
 
+        <!-- Insights & requirements -->
+        <div class="grid gap-4 lg:grid-cols-2 mt-4">
             <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
                 <div class="flex items-center justify-between p-4 border-b">
-                    <h3 class="text-lg font-semibold">Game Prices</h3>
+                    <h3 class="text-lg font-semibold">Value insights</h3>
                 </div>
                 <Table.Root>
                     <Table.Body>
+                        {#if usesGrandExchange}
+                            <Table.Row>
+                                <Table.Cell class="font-medium">
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
+                                        >
+                                            <ArrowLeftRight class="h-4 w-4" />
+                                        </span>
+                                        <span>GE spread</span>
+                                    </div>
+                                </Table.Cell>
+                                <Table.Cell class="text-end">{formatDelta(geSpread())}</Table.Cell>
+                            </Table.Row>
+                        {/if}
                         <Table.Row>
                             <Table.Cell class="font-medium">
                                 <div class="flex items-center gap-2">
                                     <span
                                         class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
                                     >
-                                        <img
-                                            src="/spell-images/high-level-alchemy.png"
-                                            alt="High alchemy"
-                                            class="h-4 w-4 drop-shadow"
-                                        />
+                                        <Coins class="h-4 w-4" />
                                     </span>
-                                    <span>High alch</span>
+                                    <span>{usesGrandExchange ? 'High alch profit' : 'High alch value'}</span>
                                 </div>
                             </Table.Cell>
-                            <Table.Cell class="text-end">{formatValue(gameItem?.highalch)}</Table.Cell>
+                            <Table.Cell class="text-end">
+                                {usesGrandExchange ? formatDelta(highAlchProfit()) : formatValue(highAlchValue())}
+                            </Table.Cell>
                         </Table.Row>
                         <Table.Row>
                             <Table.Cell class="font-medium">
@@ -671,97 +839,20 @@
                                     <span
                                         class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
                                     >
-                                        <img
-                                            src="/spell-images/low-level-alchemy.png"
-                                            alt="Low alchemy"
-                                            class="h-4 w-4 drop-shadow"
-                                        />
+                                        <Coins class="h-4 w-4" />
                                     </span>
-                                    <span>Low alch</span>
+                                    <span>{usesGrandExchange ? 'Low alch profit' : 'Low alch value'}</span>
                                 </div>
                             </Table.Cell>
-                            <Table.Cell class="text-end">{formatValue(gameItem?.lowalch)}</Table.Cell>
-                        </Table.Row>
-                        <Table.Row>
-                            <Table.Cell class="font-medium">
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                    >
-                                        <img
-                                            src="/other-images/pot.png"
-                                            alt="General store"
-                                            class="h-4 w-4 drop-shadow"
-                                        />
-                                    </span>
-                                    <span>Value</span>
-                                </div>
+                            <Table.Cell class="text-end">
+                                {usesGrandExchange ? formatDelta(lowAlchProfit()) : formatValue(lowAlchValue())}
                             </Table.Cell>
-                            <Table.Cell class="text-end">{formatValue(gameItem?.cost)}</Table.Cell>
                         </Table.Row>
                     </Table.Body>
                 </Table.Root>
             </section>
-        {/if}
-    </div>
-
-    <!-- Insights & requirements -->
-    <div class="grid gap-4 lg:grid-cols-2 mt-4">
-        <section class="border rounded-lg bg-card shadow-sm overflow-hidden">
-            <div class="flex items-center justify-between p-4 border-b">
-                <h3 class="text-lg font-semibold">Value insights</h3>
-            </div>
-            <Table.Root>
-                <Table.Body>
-                    {#if usesGrandExchange}
-                        <Table.Row>
-                            <Table.Cell class="font-medium">
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                    >
-                                        <ArrowLeftRight class="h-4 w-4" />
-                                    </span>
-                                    <span>GE spread</span>
-                                </div>
-                            </Table.Cell>
-                            <Table.Cell class="text-end">{formatDelta(geSpread())}</Table.Cell>
-                        </Table.Row>
-                    {/if}
-                    <Table.Row>
-                        <Table.Cell class="font-medium">
-                            <div class="flex items-center gap-2">
-                                <span
-                                    class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                >
-                                    <Coins class="h-4 w-4" />
-                                </span>
-                                <span>{usesGrandExchange ? 'High alch profit' : 'High alch value'}</span>
-                            </div>
-                        </Table.Cell>
-                        <Table.Cell class="text-end">
-                            {usesGrandExchange ? formatDelta(highAlchProfit()) : formatValue(highAlchValue())}
-                        </Table.Cell>
-                    </Table.Row>
-                    <Table.Row>
-                        <Table.Cell class="font-medium">
-                            <div class="flex items-center gap-2">
-                                <span
-                                    class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted border item-card__img-background shadow-sm"
-                                >
-                                    <Coins class="h-4 w-4" />
-                                </span>
-                                <span>{usesGrandExchange ? 'Low alch profit' : 'Low alch value'}</span>
-                            </div>
-                        </Table.Cell>
-                        <Table.Cell class="text-end">
-                            {usesGrandExchange ? formatDelta(lowAlchProfit()) : formatValue(lowAlchValue())}
-                        </Table.Cell>
-                    </Table.Row>
-                </Table.Body>
-            </Table.Root>
-        </section>
-    </div>
+        </div>
+    {/if}
 </div>
 
 <style>
