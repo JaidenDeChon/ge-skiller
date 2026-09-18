@@ -33,7 +33,7 @@
     let treeLoading = $state(false);
     let treeError = $state<string | null>(null);
     let treeAbort: AbortController | null = null;
-    const treeCacheKeyPrefix = 'ge-skiller:item-tree:';
+    const treeCacheKeyPrefix = 'aris-maye:item-tree:';
     const treeCacheTtlMs = 5 * 60 * 1000;
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
     const wikiUrl = $derived(() => {

@@ -9,12 +9,12 @@
 
     let { children, data } = $props();
 
-    const shareTitle = 'GE Skiller: Find the Best OSRS Items to Craft & Profit';
+    const shareTitle = 'Aris Maye: Find the Best OSRS Items to Craft & Profit';
     const shareDescription =
-        'Find the best things to make using your skill levels, powered by real-time GE prices on GE Skiller.';
+        'Find the best things to make using your skill levels, powered by real-time GE prices on Aris Maye.';
     const shareImageAlt =
-        'GE Skiller. Find the best things to make using your skill levels. Powered by real-time GE prices.';
-    const baseUrl = $derived(data.baseUrl || 'https://ge-skiller.netlify.app');
+        'Aris Maye, an Old School RuneScape fortune-teller. Find the best things to make using your skill levels. Powered by real-time GE prices.';
+    const baseUrl = $derived(data.baseUrl || 'https://aris-maye.netlify.app');
     const shareImageUrl = $derived(`${baseUrl}/other-images/share-thumb.png`);
 
     onNavigate((navigation) => {
@@ -36,7 +36,7 @@
     <meta name="description" content={shareDescription} />
 
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="GE Skiller" />
+    <meta property="og:site_name" content="Aris Maye" />
     <meta property="og:title" content={shareTitle} />
     <meta property="og:description" content={shareDescription} />
     <meta property="og:url" content={baseUrl} />

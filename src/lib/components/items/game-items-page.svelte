@@ -120,7 +120,7 @@
     let listAbort: AbortController | null = null;
     let lastSkillSlug: string | null = null;
     const isMobile = $derived(typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
-    const cacheSkipKey = 'ge-skiller:items-cache:skip';
+    const cacheSkipKey = 'aris-maye:items-cache:skip';
     let skipCacheOnce = $state(false);
     let forceLoading = $state(false);
     if (typeof window !== 'undefined') {
@@ -421,7 +421,7 @@
             useSupplies: params.suppliesEnabled ?? useSuppliesChecked,
             profitMode: params.profitMode ?? profitModeChecked,
         };
-        return `ge-skiller:items-cache:${JSON.stringify(payload)}`;
+        return `aris-maye:items-cache:${JSON.stringify(payload)}`;
     }
 
     function readItemsCache(cacheKey: string): ItemsCacheEntry | null {
