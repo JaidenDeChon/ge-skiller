@@ -11,6 +11,7 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import { formatWithCommas } from '$lib/helpers/format-number';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
+    import { fetchItemTree, readItemTreeCache } from '$lib/helpers/item-tree-cache';
     import type { IOsrsboxItemWithMeta } from '$lib/models/osrsbox-db-item';
     import Button from '$lib/components/ui/button/button.svelte';
     import { Input } from '$lib/components/ui/input';
@@ -40,11 +41,14 @@
     let loading = $state(false);
     let gameItem = $state<IOsrsboxItemWithMeta | null>(data.gameItem ?? null);
     let treeItem = $state<IOsrsboxItemWithMeta | null>(null);
+    // `treeLoading` is the cold start, where there is nothing on screen yet and the card
+    // shows skeletons. `treeRefreshing` is the warm case: the reader moved to another item
+    // and the previous tree is still rendered while the new one loads. Keeping them apart is
+    // what lets the chart keep its ECharts instance across an item-to-item navigation and
+    // animate into the new tree instead of being destroyed and rebuilt from scratch.
     let treeLoading = $state(false);
+    let treeRefreshing = $state(false);
     let treeError = $state<string | null>(null);
-    let treeAbort: AbortController | null = null;
-    const treeCacheKeyPrefix = 'ge-skiller:item-tree:';
-    const treeCacheTtlMs = 5 * 60 * 1000;
     const iconSrc = $derived(iconToDataUri(gameItem?.icon));
     const wikiUrl = $derived(() => {
         // The stored URL is authoritative and already carries the version anchor, so an
@@ -176,7 +180,16 @@
             const updated = (await resp.json()) as IOsrsboxItemWithMeta;
             gameItem = updated;
             if (updated?.id !== null && updated?.id !== undefined) {
-                void loadItemTree(updated.id);
+                // The item was just re-read from the source of truth, so the cached tree for it
+                // is stale by definition.
+                void fetchItemTree(updated.id, { force: true }).then(
+                    (tree) => {
+                        if (lastDataItemId === updated.id) treeItem = tree;
+                    },
+                    (error) => {
+                        console.error('Failed to refresh item tree', error);
+                    },
+                );
             }
             toast.success('Item updated.');
         } catch (error) {
@@ -187,75 +200,52 @@
         }
     }
 
-    type TreeCacheEntry = { cachedAt: number; payload: IOsrsboxItemWithMeta | null };
-
-    function readTreeCache(key: string): IOsrsboxItemWithMeta | null | undefined {
-        if (typeof window === 'undefined') return undefined;
-        try {
-            const raw = sessionStorage.getItem(key);
-            if (!raw) return undefined;
-            const parsed = JSON.parse(raw) as TreeCacheEntry;
-            if (!parsed || typeof parsed !== 'object') return undefined;
-            if (!parsed.cachedAt || Date.now() - parsed.cachedAt > treeCacheTtlMs) {
-                sessionStorage.removeItem(key);
-                return undefined;
-            }
-            return parsed.payload ?? null;
-        } catch {
-            return undefined;
-        }
-    }
-
-    function writeTreeCache(key: string, payload: IOsrsboxItemWithMeta | null) {
-        if (typeof window === 'undefined') return;
-        try {
-            const entry: TreeCacheEntry = { cachedAt: Date.now(), payload };
-            sessionStorage.setItem(key, JSON.stringify(entry));
-        } catch {
-            // ignore storage failures
-        }
-    }
-
-    async function loadItemTree(itemId: string | number) {
-        if (treeAbort) treeAbort.abort();
-        const controller = new AbortController();
-        treeAbort = controller;
-        treeLoading = true;
-        treeError = null;
-        try {
-            const cacheKey = `${treeCacheKeyPrefix}${String(itemId)}`;
-            const cached = readTreeCache(cacheKey);
-            if (cached !== undefined) {
-                treeItem = cached;
-                treeLoading = false;
-                treeAbort = null;
-                return;
-            }
-
-            const resp = await fetch(`/api/game-item-full-tree/?id=${encodeURIComponent(String(itemId))}`, {
-                signal: controller.signal,
-            });
-            if (!resp.ok) {
-                throw new Error(`Failed to load item tree (status ${resp.status})`);
-            }
-            const tree = (await resp.json()) as IOsrsboxItemWithMeta | null;
-            if (controller.signal.aborted) return;
-            treeItem = tree;
-            writeTreeCache(cacheKey, tree);
-        } catch (error) {
-            if ((error as Error).name !== 'AbortError') {
-                treeError = error instanceof Error ? error.message : 'Failed to load item tree.';
-                console.error('Failed to load item tree', error);
-            }
-        } finally {
-            if (treeAbort === controller) {
-                treeAbort = null;
-                treeLoading = false;
-            }
-        }
-    }
-
     let lastDataItemId: string | number | null = null;
+
+    /**
+     * Put the tree for `itemId` on screen, without disturbing what is already there any more
+     * than it has to.
+     *
+     * A cached tree is applied synchronously, before this function ever suspends, so Svelte
+     * sees a single state change and the creation card never flips through its loading
+     * branch. That is what already made the back button feel smooth, and requesting the tree
+     * the moment a chart node is clicked means a forward navigation usually lands here on a
+     * cache hit too. When it does not, the previous tree stays mounted and the card marks
+     * itself as refreshing rather than collapsing to skeletons, so the chart animates from
+     * the old root to the new one once the response arrives.
+     */
+    async function applyItemTree(itemId: string | number) {
+        treeError = null;
+
+        const cached = readItemTreeCache(itemId);
+        if (cached !== undefined) {
+            treeItem = cached;
+            treeLoading = false;
+            treeRefreshing = false;
+            return;
+        }
+
+        treeLoading = treeItem === null;
+        treeRefreshing = treeItem !== null;
+
+        try {
+            const tree = await fetchItemTree(itemId);
+            // Another item was routed to while this was in flight; that navigation owns the
+            // chart now, so drop this response rather than overwriting the newer tree.
+            if (lastDataItemId !== itemId) return;
+            treeItem = tree;
+        } catch (error) {
+            if (lastDataItemId !== itemId) return;
+            treeError = error instanceof Error ? error.message : 'Failed to load item tree.';
+            treeItem = null;
+            console.error('Failed to load item tree', error);
+        } finally {
+            if (lastDataItemId === itemId) {
+                treeLoading = false;
+                treeRefreshing = false;
+            }
+        }
+    }
 
     $effect(() => {
         // When routed data arrives, hydrate local state and kick off dependent fetches.
@@ -265,18 +255,17 @@
 
         lastDataItemId = incomingId;
         gameItem = incoming;
-        treeItem = null;
-        treeError = null;
-        if (treeAbort) {
-            treeAbort.abort();
-            treeAbort = null;
-        }
-        if (incomingId !== null && incomingId !== undefined) {
-            void loadItemTree(incomingId);
-        } else {
-            treeLoading = false;
-        }
         loading = false;
+
+        if (incomingId === null || incomingId === undefined) {
+            treeItem = null;
+            treeError = null;
+            treeLoading = false;
+            treeRefreshing = false;
+            return;
+        }
+
+        void applyItemTree(incomingId);
     });
 
     const primaryCreationSpec = $derived(getPrimaryCreationSpec(treeItem));
@@ -523,7 +512,13 @@
     {#if treeError}
         <p class="text-sm text-rose-500 mt-4">Failed to load ingredient data.</p>
     {/if}
-    <GameItemTreeCard rootClass="mt-4 pb-5" gameItem={treeItem} loading={treeLoading} {renderChart} />
+    <GameItemTreeCard
+        rootClass="mt-4 pb-5"
+        gameItem={treeItem}
+        loading={treeLoading}
+        refreshing={treeRefreshing}
+        {renderChart}
+    />
 
     <!-- Pricing tables -->
     <div class="grid gap-4 lg:grid-cols-2 mt-6">
