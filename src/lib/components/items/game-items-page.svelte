@@ -4,7 +4,9 @@
     import * as Select from '$lib/components/ui/select';
     import { Label } from '$lib/components/ui/label';
     import { Switch } from '$lib/components/ui/switch';
-    import { onDestroy } from 'svelte';
+    import { onDestroy, untrack } from 'svelte';
+    import { pushState } from '$app/navigation';
+    import { page } from '$app/state';
     import { defaultSkillLevels } from '$lib/constants/default-skill-levels';
     import type { SkillTreePage } from '$lib/constants/skill-tree-pages';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
@@ -90,6 +92,9 @@
     const bankItems = $derived(getSuppliesForCharacter($bankItemsStore, activeCharacter?.id ?? null));
     let totalItems = $state(0);
     let currentPage = $state(Number($itemsPagePreferences.page) || 1);
+    // The page a history entry represents when it has no page recorded on it — i.e. the one this
+    // view opens on. Skill routes always open on page 1 (see the reset effect below).
+    const historyBasePage = untrack(() => (skillSlug ? 1 : Number($itemsPagePreferences.page) || 1));
     let perPageSelected = $state($itemsPagePreferences.perPage || '12');
     let filterSelected = $state($itemsPagePreferences.filter || 'all');
     let sortOrderSelected = $state(
@@ -320,9 +325,27 @@
 
     // Persist current page when it changes without creating feedback loops.
     $effect(() => {
-        const page = currentPage; // track
-        itemsPagePreferences.update((prefs) => ({ ...prefs, page }));
+        const nextPage = currentPage; // track
+        itemsPagePreferences.update((prefs) => ({ ...prefs, page: nextPage }));
     });
+
+    // Follow browser back/forward. Each pagination click pushes a history entry recording its page
+    // (see handlePaginationPageChange), so whichever entry we land on tells us what to show;
+    // SvelteKit restores that entry's scroll position itself. Reading currentPage untracked keeps
+    // this from re-running — and snapping the page back — when a filter or sort resets it to 1.
+    $effect(() => {
+        const entryPage = page.state.itemsPage ?? historyBasePage;
+        untrack(() => {
+            if (entryPage !== currentPage) currentPage = entryPage;
+        });
+    });
+
+    // Runs only when the reader picks a page in the pagination widget, never when this component
+    // resets currentPage itself, so only real pagination adds to the browser's history.
+    function handlePaginationPageChange(nextPage: number) {
+        if (page.state.itemsPage !== nextPage) pushState('', { itemsPage: nextPage });
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }
 
     function handlePerPageChange(value: string) {
         const next = value || '12';
@@ -598,6 +621,7 @@
                     bind:page={currentPage}
                     count={totalItems}
                     perPage={perPageValue}
+                    onPageChange={handlePaginationPageChange}
                 >
                     {#snippet children({ pages, currentPage })}
                         <Pagination.Content>
