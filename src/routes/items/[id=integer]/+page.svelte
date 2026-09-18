@@ -384,15 +384,17 @@
     <!-- Header -->
     <header>
         <!-- Below `sm` there is not enough width for the breadcrumbs and the actions to share a
-             line, so the actions drop underneath instead of squeezing the trail. -->
-        <div class="flex flex-col items-start gap-3 w-full sm:flex-row sm:justify-between sm:items-center">
+             line, so the actions drop onto their own row instead of squeezing the trail. Each row
+             is full width there and keeps the edge it sits on above `sm`: the trail stays left,
+             the actions stay right. -->
+        <div class="flex flex-col gap-3 w-full sm:flex-row sm:justify-between sm:items-center">
             {#if loading || !gameItem}
                 <div class="flex gap-5">
                     <Skeleton class="h-4 w-10" />
                     <Skeleton class="h-4 w-10" />
                     <Skeleton class="h-4 w-32" />
                 </div>
-                <Skeleton class="rounded-full w-10 h-10" />
+                <Skeleton class="rounded-full w-10 h-10 self-end sm:self-auto" />
             {:else}
                 <!-- Breadcrumbs and actions -->
                 <Breadcrumb.Root>
@@ -418,7 +420,7 @@
                     </Breadcrumb.List>
                 </Breadcrumb.Root>
 
-                <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-wrap items-center justify-end gap-3 w-full sm:w-auto">
                     {#if wikiUrl()}
                         <Button href={wikiUrl()} target="_blank" rel="noreferrer" variant="outline">Wiki</Button>
                     {/if}
