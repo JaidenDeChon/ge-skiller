@@ -10,6 +10,7 @@
     import { iconToDataUri } from '$lib/helpers/icon-to-data-uri';
     import type { IngredientTreeNode } from '$lib/components/game-item-creation-card/types';
     import { getPrimaryCreationSpec } from '$lib/helpers/creation-specs';
+    import { fetchItemTree, prefetchItemTree } from '$lib/helpers/item-tree-cache';
     import { MAX_ITEM_TREE_DEPTH } from '$lib/constants/item-tree';
     import { bankItemsStore, ensureSuppliesForCharacter, getSuppliesForCharacter } from '$lib/stores/bank-items-store';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
@@ -175,7 +176,7 @@
         const { item: resolvedItem, itemId: resolvedItemId } = extractItemDescriptor(rawItem);
         const ingredientItem =
             resolvedItemId !== null && resolvedItemId !== undefined
-                ? expandedItemCache[String(resolvedItemId)] ?? resolvedItem
+                ? (expandedItemCache[String(resolvedItemId)] ?? resolvedItem)
                 : resolvedItem;
         const ingredientId = resolvedItemId ?? `unknown-${index}`;
         const key = `${parentKey}-${ingredientId}-${index}`;
@@ -231,9 +232,7 @@
         };
     }
 
-    function extractItemDescriptor(
-        raw: unknown,
-    ): { item?: IOsrsboxItemWithMeta; itemId: string | number | null } {
+    function extractItemDescriptor(raw: unknown): { item?: IOsrsboxItemWithMeta; itemId: string | number | null } {
         if (!raw) return { itemId: null };
         if (typeof raw === 'string' || typeof raw === 'number') {
             return { itemId: raw };
@@ -242,8 +241,7 @@
 
         const maybeItem = raw as IOsrsboxItemWithMeta & { _id?: unknown; id?: unknown };
         const hasName = 'name' in maybeItem && typeof maybeItem.name === 'string';
-        const directId =
-            typeof maybeItem.id === 'string' || typeof maybeItem.id === 'number' ? maybeItem.id : null;
+        const directId = typeof maybeItem.id === 'string' || typeof maybeItem.id === 'number' ? maybeItem.id : null;
         const objectId = extractObjectId(maybeItem._id ?? (raw as { $oid?: unknown }).$oid ?? raw);
         const itemId = directId ?? objectId;
 
@@ -544,9 +542,9 @@
         if (expandedItemCache[key] || expandedItemFetches[key]) return;
         expandedItemFetches = { ...expandedItemFetches, [key]: true };
         try {
-            const response = await fetch(`/api/game-item-full-tree/?id=${encodeURIComponent(key)}`);
-            if (!response.ok) return;
-            const item = (await response.json()) as (IOsrsboxItemWithMeta & { _id?: unknown }) | null;
+            // Shared with the item page's tree loader, so a branch expanded here is already in
+            // hand if the reader then opens that item.
+            const item = (await fetchItemTree(key)) as (IOsrsboxItemWithMeta & { _id?: unknown }) | null;
             if (!item || item.id === null || item.id === undefined) return;
             const nextCache = { ...expandedItemCache };
             nextCache[key] = item;
@@ -573,8 +571,9 @@
         if (!itemId) return;
 
         const nativeEvent = params?.event?.event;
-        const hasModifier =
-            Boolean(nativeEvent?.altKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey || nativeEvent?.shiftKey);
+        const hasModifier = Boolean(
+            nativeEvent?.altKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey || nativeEvent?.shiftKey,
+        );
         if (collapseNodesOnClick && params?.data?.hasLazyChildren && params?.data?.nodeKey && !hasModifier) {
             const key = String(params.data.nodeKey);
             if (!expandedSupplyNodes[key]) {
@@ -587,11 +586,24 @@
         const hasChildren = Array.isArray(params?.data?.children) && params.data.children.length > 0;
         if (collapseNodesOnClick && hasChildren) {
             if (hasModifier) {
-                goto(resolve(`/items/${itemId}`));
+                openItemPage(itemId);
             }
             return;
         }
 
+        openItemPage(itemId);
+    }
+
+    /**
+     * Navigate to an item's page, starting its tree request first.
+     *
+     * The destination page is this same chart with a new root, and it only animates between
+     * the two if it can swap its data in one step. Kicking the tree fetch off here runs it
+     * alongside the route's own load, so the tree is usually cached by the time the page asks
+     * for it and the chart glides to the new root instead of being rebuilt.
+     */
+    function openItemPage(itemId: string | number) {
+        prefetchItemTree(itemId);
         goto(resolve(`/items/${itemId}`));
     }
 </script>

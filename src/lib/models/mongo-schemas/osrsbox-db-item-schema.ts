@@ -109,6 +109,26 @@ export const osrsboxItemSchema: Schema<OsrsboxItemDocument> = new Schema(
         icon: { type: String, required: true },
         wiki_name: { type: String, default: null },
         wiki_url: { type: String, default: null },
+        wiki_page_title: { type: String, default: null },
+        wiki_version: { type: String, default: null },
+        // Populated by `populate-store-prices`, which scrapes shop pages rather than item
+        // pages: the terms live in template parameters the item page never renders.
+        storePrices: {
+            type: [
+                {
+                    _id: false,
+                    shop: { type: String, required: true },
+                    firstPrice: { type: Number, required: true },
+                    floorPrice: { type: Number, required: true },
+                    dropPerSale: { type: Number, required: true },
+                    salesToFloor: { type: Number, default: null },
+                    buyPrice: { type: Number, default: null },
+                    stock: { type: Number, default: null },
+                    currency: { type: String, default: null },
+                },
+            ],
+            default: undefined,
+        },
         equipment: { type: Schema.Types.Mixed, default: null },
         weapon: { type: Schema.Types.Mixed, default: null },
         highPrice: { type: Number, required: false },

@@ -4,15 +4,14 @@
     import * as Select from '$lib/components/ui/select';
     import { Label } from '$lib/components/ui/label';
     import { Switch } from '$lib/components/ui/switch';
-    import { onDestroy } from 'svelte';
+    import { onDestroy, untrack } from 'svelte';
+    import { pushState } from '$app/navigation';
+    import { page } from '$app/state';
     import { defaultSkillLevels } from '$lib/constants/default-skill-levels';
     import type { SkillTreePage } from '$lib/constants/skill-tree-pages';
     import { getStoreRoot } from '$lib/stores/character-store.svelte';
-    import {
-        bankItemsStore,
-        ensureSuppliesForCharacter,
-        getSuppliesForCharacter,
-    } from '$lib/stores/bank-items-store';
+    import { canUseGrandExchange, getAccountTypeOption } from '$lib/models/account-type';
+    import { bankItemsStore, ensureSuppliesForCharacter, getSuppliesForCharacter } from '$lib/stores/bank-items-store';
     import { filterItemsStore } from '$lib/stores/filter-items-by-player-levels';
     import { itemsPagePreferences } from '$lib/stores/items-page-preferences';
     import type { IGameItem } from '$lib/models/game-item';
@@ -29,12 +28,17 @@
         { value: 'nonquest', label: 'Non-quest items' },
     ];
     const sortOptions = [
+        { value: 'roi-desc', label: 'Sort by ROI (percentage)' },
+        { value: 'roi-value-desc', label: 'Sort by ROI (value)' },
         { value: 'desc', label: 'Sort by value' },
-        { value: 'profit-desc', label: 'Sort by profit' },
-        { value: 'roi-desc', label: 'Sort by best ROI' },
     ];
     // Sort orders that are computed from creation cost, so they need profit mode turned on.
-    const profitSortValues = ['profit-desc', 'roi-desc'];
+    const profitSortValues = ['roi-desc', 'roi-value-desc'];
+    // Retired sort orders still sitting in persisted preferences or bookmarked URLs.
+    const legacySortValues: Record<string, string> = {
+        'profit-asc': 'roi-value-desc',
+        'profit-desc': 'roi-value-desc',
+    };
 
     function normalizeSkillLevels(skillLevels?: CharacterProfile['skillLevels'], hasCharacter = true) {
         if (!hasCharacter) return undefined;
@@ -63,6 +67,10 @@
         return characters.find((c) => String(c.id) === String(targetId));
     });
     const activeSkillLevels = $derived(normalizeSkillLevels(activeCharacter?.skillLevels, Boolean(activeCharacter)));
+    // Pricing follows the active character rather than a page toggle, so browsing, an item page and
+    // search cannot disagree about which prices the reader is looking at.
+    const ironmanMode = $derived(!canUseGrandExchange(activeCharacter?.accountType));
+    const activeAccountType = $derived(getAccountTypeOption(activeCharacter?.accountType));
     let skillFilterChecked = $state($filterItemsStore.filterItemsByPlayerLevels);
     const skillFilterEnabled = $derived(Boolean(skillFilterChecked && activeSkillLevels));
     const skillLevelsForQuery = $derived(skillFilterEnabled ? activeSkillLevels : undefined);
@@ -84,6 +92,9 @@
     const bankItems = $derived(getSuppliesForCharacter($bankItemsStore, activeCharacter?.id ?? null));
     let totalItems = $state(0);
     let currentPage = $state(Number($itemsPagePreferences.page) || 1);
+    // The page a history entry represents when it has no page recorded on it — i.e. the one this
+    // view opens on. Skill routes always open on page 1 (see the reset effect below).
+    const historyBasePage = untrack(() => (skillSlug ? 1 : Number($itemsPagePreferences.page) || 1));
     let perPageSelected = $state($itemsPagePreferences.perPage || '12');
     let filterSelected = $state($itemsPagePreferences.filter || 'all');
     let sortOrderSelected = $state(
@@ -96,11 +107,12 @@
     const filterLabel = $derived(
         filterOptions.find((option) => option.value === filterSelected)?.label ?? 'Filter items',
     );
-    const sortLabel = $derived(
-        sortOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Sort items',
-    );
+    const sortLabel = $derived(sortOptions.find((option) => option.value === sortOrderSelected)?.label ?? 'Sort items');
     const profitModeEnabled = $derived(profitModeChecked);
-    const profitContextLabel = $derived(profitModeEnabled && useSuppliesChecked ? 'Profit (supplies)' : 'Profit');
+    const profitContextLabel = $derived.by(() => {
+        const base = ironmanMode ? 'Ironman profit' : 'Profit';
+        return profitModeEnabled && useSuppliesChecked ? `${base} (supplies)` : base;
+    });
     const suppliesParam = $derived.by(() => {
         if (!useSuppliesChecked) return null;
         const entries: Array<[string, number]> = [];
@@ -198,6 +210,7 @@
         supplies?: string | null,
         suppliesEnabled?: boolean,
         profitMode?: boolean,
+        ironman?: boolean,
     ) {
         if (listAbort) listAbort.abort();
         const controller = new AbortController();
@@ -213,6 +226,7 @@
             supplies,
             suppliesEnabled,
             profitMode,
+            ironman,
         });
         const cached = !skipCacheOnce && !shouldForceLoading ? readItemsCache(cacheKey) : null;
         skipCacheOnce = false;
@@ -250,6 +264,9 @@
             }
             if (profitMode) {
                 searchParams.set('profitMode', '1');
+            }
+            if (ironman) {
+                searchParams.set('ironman', '1');
             }
 
             const response = await fetch(`/api/game-items?${searchParams.toString()}`, {
@@ -297,6 +314,7 @@
             suppliesParam,
             suppliesActive,
             profitModeEnabled,
+            ironmanMode,
         );
     });
 
@@ -307,9 +325,27 @@
 
     // Persist current page when it changes without creating feedback loops.
     $effect(() => {
-        const page = currentPage; // track
-        itemsPagePreferences.update((prefs) => ({ ...prefs, page }));
+        const nextPage = currentPage; // track
+        itemsPagePreferences.update((prefs) => ({ ...prefs, page: nextPage }));
     });
+
+    // Follow browser back/forward. Each pagination click pushes a history entry recording its page
+    // (see handlePaginationPageChange), so whichever entry we land on tells us what to show;
+    // SvelteKit restores that entry's scroll position itself. Reading currentPage untracked keeps
+    // this from re-running — and snapping the page back — when a filter or sort resets it to 1.
+    $effect(() => {
+        const entryPage = page.state.itemsPage ?? historyBasePage;
+        untrack(() => {
+            if (entryPage !== currentPage) currentPage = entryPage;
+        });
+    });
+
+    // Runs only when the reader picks a page in the pagination widget, never when this component
+    // resets currentPage itself, so only real pagination adds to the browser's history.
+    function handlePaginationPageChange(nextPage: number) {
+        if (page.state.itemsPage !== nextPage) pushState('', { itemsPage: nextPage });
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }
 
     function handlePerPageChange(value: string) {
         const next = value || '12';
@@ -327,8 +363,10 @@
     }
 
     function normalizeSortSelection(value?: string | null, profitEnabled = profitModeChecked) {
-        if (value && profitSortValues.includes(value)) {
-            return profitEnabled ? value : 'desc';
+        if (!value) return 'desc';
+        const resolved = legacySortValues[value] ?? value;
+        if (profitSortValues.includes(resolved)) {
+            return profitEnabled ? resolved : 'desc';
         }
         return 'desc';
     }
@@ -407,6 +445,7 @@
         supplies?: string | null;
         suppliesEnabled?: boolean;
         profitMode?: boolean;
+        ironman?: boolean;
     }) {
         if (typeof window === 'undefined') return '';
         const normalizedSkills = normalizeRecord(params.skillLevels);
@@ -420,6 +459,7 @@
             supplies: params.supplies ?? null,
             useSupplies: params.suppliesEnabled ?? useSuppliesChecked,
             profitMode: params.profitMode ?? profitModeChecked,
+            ironman: params.ironman ?? ironmanMode,
         };
         return `aris-maye:items-cache:${JSON.stringify(payload)}`;
     }
@@ -461,6 +501,18 @@
             <h1 class="text-3xl font-bold">{headingLabel}</h1>
         </div>
     </div>
+
+    {#if ironmanMode}
+        <div class="content-sizing">
+            <div class="mb-4 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+                <span class="font-semibold">You're in {activeAccountType.label} mode.</span>
+                <span class="text-muted-foreground">
+                    The GP values shown in Ironman mode are derived from alchemy and base shop values (e.g. before the
+                    shop value of an item drops from selling multiple).
+                </span>
+            </div>
+        </div>
+    {/if}
 
     <div class="border-b border-border">
         <div class="content-sizing">
@@ -554,7 +606,7 @@
                         aria-label="Enable profit mode"
                     />
                     <Label for="profit-mode-switch" class="cursor-pointer select-none text-sm">
-                        Show profit <span class="text-xs text-muted-foreground">(enables profit sorting)</span>
+                        Show profit <span class="text-xs text-muted-foreground">(enables ROI sorting)</span>
                     </Label>
                 </div>
             </div>
@@ -569,6 +621,7 @@
                     bind:page={currentPage}
                     count={totalItems}
                     perPage={perPageValue}
+                    onPageChange={handlePaginationPageChange}
                 >
                     {#snippet children({ pages, currentPage })}
                         <Pagination.Content>
@@ -621,6 +674,7 @@
                         allowFavorite={true}
                         showProfit={profitModeEnabled}
                         profitContext={profitContextLabel}
+                        ironman={ironmanMode}
                     />
                 {/each}
             {/if}
